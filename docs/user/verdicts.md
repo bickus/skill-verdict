@@ -1,82 +1,113 @@
-# Verdicts
+# Verdicts & Decision Engine
 
-A **finding** is a possible security problem. Each finding has a severity: `low`, `medium`, `high`
-or `critical`.
+`skill-verdict` does not compute arbitrary "risk scores" (like 74/100). In software security and AI agent execution, scores provide a false sense of security: a skill with ten minor formatting quirks might score 85%, while a skill with a single line downloading a reverse shell might score 90%. A single vulnerability or malicious instruction is all it takes to compromise your workstation.
 
-A scan returns the first verdict that applies:
+Instead, `skill-verdict` evaluates evidence and assigns one of four clear verdicts.
 
-| Verdict | When it applies |
+---
+
+## The Four Verdicts
+
+| Verdict | Severity Rank | Meaning |
+|---|:---:|---|
+| `clean` | Lowest | All requested checks completed successfully and found zero active findings. |
+| `review` | Medium | Findings were detected, but none reached your configured blocking severity. A human reviewer should inspect the report before using the skill. |
+| `incomplete` | High | One or more requested checks could not finish (e.g. network timeout, registry outage, unreadable file), and no finding reached `block`. |
+| `block` | Highest | At least one finding reached or exceeded your configured blocking severity (`gate.severity`). Do not install or run this skill. |
+
+A scan returns the highest-ranking verdict that applies:
+
+1. If **any** finding reaches your blocking threshold, the verdict is **`block`** (regardless of whether some other checks were incomplete).
+2. If no finding reaches `block`, but any check **failed to finish**, the verdict is **`incomplete`**.
+3. If all checks finished and **low/medium findings** remain, the verdict is **`review`**.
+4. If all checks finished and **no findings** exist, the verdict is **`clean`**.
+
+---
+
+## The Gate: How a Finding Blocks
+
+The blocking threshold is governed by a single configuration setting: `gate.severity`.
+
+By default:
+```json
+{
+  "gate": {
+    "severity": "high"
+  }
+}
+```
+
+Any active finding with severity `high` or `critical` produces a **`block`** verdict. Findings with severity `low` or `medium` produce **`review`**.
+
+### Tuning the Gate
+
+- **Strict Security / Zero Trust**: Set `"gate.severity": "medium"`. Any unpinned dependencies, newly created packages, or suspicious configurations will immediately block the skill.
+- **Permissive / Audit Mode**: Set `"gate.severity": "critical"`. Only severe threats (e.g. missing GitHub owners, piped bash scripts, triggered honeypots, public IP connections) will block; everything else triggers `review`.
+
+To prevent a specific rule from blocking without changing the global gate, you can lower that rule's severity or disable it in your configuration. See [Configuration](config.md#customizing-built-in-rules).
+
+---
+
+## The AI Judge: Eliminating Noise with Guardrails
+
+Static text rules are fast and broad, but they don't understand context. For example:
+- A tutorial skill that mentions `rm -rf /` in an explanatory sentence could trigger a command-execution alert.
+- A developer skill installing packages in a local temporary virtual environment could trigger an unpinned-install alert.
+
+If model review is enabled (`layers.judge.enabled: true`), the scanner invokes an **AI Judge**. The Judge reads the complete file around the finding, reviews the evidence, and makes a contextual decision.
+
+### Possible Judge Decisions:
+
+| Judge Decision | Scanner Action |
 |---|---|
-| `block` | A finding reached the severity that stops use of the skill. |
-| `incomplete` | At least one requested check did not finish, and no finding produced `block`. |
-| `review` | At least one finding stayed below the blocking severity, and neither result above applies. |
-| `clean` | Every requested check finished and nothing was found. |
+| **Confirmed** | The finding describes a genuine security risk. The original severity is retained, and the Judge's explanation is attached to the report. |
+| **Harmless (Downgrade allowed)** | The context proves the usage is benign. The finding is lowered to the rule's `downgradeFloor` or **dismissed** entirely if no floor exists. |
+| **Harmless (Downgrade forbidden)** | The context may look harmless, but the rule configuration explicitly forbids downgrading. The finding keeps its original severity, but the Judge's notes are recorded. |
+| **Uncertain / Low Confidence** | If the model's confidence rating is low (below 3 out of 4), its opinion is discarded and the original finding remains unchanged. |
 
-The tool does not calculate a risk score. Findings explain the result; adding many minor findings
-does not turn them into one serious finding.
+### Guardrails: Downgrade Floors
 
-## When a finding blocks
+Can an attacker use prompt injection to trick the AI Judge into dismissing a malicious finding?
 
-`gate.severity` sets the blocking severity and defaults to `high`. A finding at or above it
-produces `block`. Nothing else is consulted: not the rule that found it, not whether a model saw
-it, not its category.
+To protect against this, rules enforce **downgrade floors** (`judge.downgradeFloor`):
+- **No floor (`""`)**: The Judge has full discretion to dismiss the finding if it is a false positive (e.g. `AGENT-CONFIG-READ`, `UNPINNED-INSTALL`).
+- **Floor of `medium`**: Even if the Judge believes the usage is harmless, it can lower the finding no further than `medium` (e.g. `REMOTE-SCRIPT-PIPED`, `UNPINNED-DOWNLOAD`). Under default settings (`gate.severity: high`), this downgrades the finding from `block` to `review`, ensuring a human operator still looks at it!
+- **No downgrade (`judge.downgrade: false`)**: The Judge cannot lower the finding at all (e.g. `ARCHIVE-ENCRYPTED`, `FILE-BINARY`, `HONEYPOT-TRIGGERED`).
 
-A finding below `gate.severity` produces `review`.
+---
 
-To stop a rule from blocking, lower its severity or set `enabled` to `false` in the rule's entry
-under its layer in `layers`, or raise `gate.severity`.
+## Why `incomplete` Is Not `clean`
 
-## How model review changes a finding
+If your network drops, an external package registry times out, or GitHub hits an API rate limit, `skill-verdict` marks the scan **`incomplete`**.
 
-Built-in text rules can match harmless documentation. When enabled, model review checks each
-finding in the context of its file.
+**Why?**
+Because unverified dependencies are a major attack vector. If a skill points to a GitHub repository, and GitHub could not be reached, the scanner cannot know if that repository exists or if it was deleted and is waiting to be claimed by a malware author.
 
-| Model decision | Result |
-|---|---|
-| The finding is real | Keep its severity and mark it `confirmed`. |
-| The finding is harmless and lowering is forbidden | Keep its severity and record the model's reason. |
-| The finding is harmless and lowering is allowed | Lower it to the rule's downgrade floor, or dismiss it when no floor is set. |
-| The model is not confident | Ignore the model response and leave the finding unchanged. |
+Failing open (assuming unverified resources are clean) would allow attackers to bypass security by inducing timeouts or exploiting temporary registry outages.
 
-A downgrade floor is the lowest severity model review may assign. Every rule ships one as a
-default and the rule's entry under its layer in `layers` changes it.
+### What causes an `incomplete` verdict?
 
-Model review treats a finding from the revealed copy of a file like any other. The concealment itself is a separate finding from one of the `WORD-` rules. Model review may lower a `WORD-INVISIBLE-CHARS` finding to `low` and cannot dismiss it. Model review may dismiss a `WORD-HOMOGLYPHS` or `WORD-SPACED` finding.
+1. **Unreachable references**: A domain lookup timed out, or npm/PyPI was unresponsive.
+2. **Rate limits**: The GitHub API rate limit was reached and no `GITHUB_TOKEN` was provided.
+3. **Unreadable files**: A file in the skill could not be opened due to OS file permissions or filesystem corruption.
+4. **Model failures**: An enabled LLM layer ran out of calls or received 5xx errors from the provider.
 
-Dismissed findings remain in the text report. JSON output lists them under `dismissed` only with `--verbose`.
+If you want your CI build to fail whenever a scan is incomplete, use `--fail-on incomplete`.
 
-## Scans without model review
+---
 
-With the model layers off, findings keep the severity their rule gives them, and the gate treats
-them like any other finding. A text match at `gate.severity` blocks. Raise the gate or lower the
-rule's severity if that is not wanted.
+## Scan Interruptions (`interrupt: true`)
 
-## Work that did not finish
+Certain security findings are so definitive and critical that continuing the scan is wasteful or misleading:
 
-The JSON `references` and `layers` lists record every reference and scan step. The JSON output does not list files. The text report's `incomplete` section lists the files, references and layers that did not finish.
+- **`ARCHIVE-ENCRYPTED`**: The skill contains a password-protected archive. The scanner cannot inspect its contents, and shipping encrypted blobs in a skill bundle is inherently suspicious.
+- **`FILE-BINARY`**: The skill ships compiled machine code or bytecode. Text scanners cannot review compiled binaries.
+- **`HONEYPOT-TRIGGERED`**: The skill hijacked the simulated coding agent and forced it to execute unauthorized commands or access external networks. The skill is provably malicious; analyzing it further with LLMs would be dangerous and unreliable.
+- **`REFERENCES-TOO-MANY`**: The skill contains hundreds of external URLs. Legitimate skills do not need massive URL lists, which are often used to DOS scanners or hide needles in haystacks.
 
-| Item | Complete | Not complete |
-|---|---|---|
-| File | `readStatus` is `ok` and `contentType` is not `unknown` | `readStatus` is `failed` or `contentType` is `unknown` |
-| External reference | `checked` | `not-checked` or `failed` |
-| Layer | `done`, `interrupted` or `skipped`, and the `errors` list is empty | `failed`, or `done` with a file in `errors` |
+When an interrupting rule matches:
+1. The current layer halts immediately.
+2. All subsequent layers are skipped.
+3. The finding is recorded, and the verdict is computed immediately from the findings gathered so far.
 
-One unfinished item makes the verdict `incomplete` unless a finding already produces `block`.
-This does not accuse the skill of a problem. It means the requested scan did not inspect everything.
-
-## Stopping a scan
-
-A rule with `interrupt` set to `true` stops the scan with its first finding. The layer that found it stops at once. No later layer runs. The report marks the stopped layer `interrupted` and the later ones `skipped`. The walk rules `FILE-TOO-LARGE` to `ARCHIVE-ENCRYPTED`, `FILE-BINARY`, `FILE-INSTALLER`, `REFERENCES-TOO-MANY` and `HONEYPOT-TRIGGERED` ship with `interrupt` on. Any other rule can get it in its entry under `layers`.
-
-A stopped scan gets its verdict from the findings recorded up to the stop. Severity decides, as in every scan. A stopped scan counts as complete, since the configuration asked for the stop. So a rule with `interrupt` on and a severity below `gate.severity` gives `review`, and the same rule at or above the gate gives `block`.
-
-## Exit on a verdict
-
-`--fail-on` controls the command's exit status:
-
-| Value | Exit 1 for |
-|---|---|
-| `block` | `block` |
-| `incomplete` | `incomplete`, `block` |
-| `review` | `review`, `incomplete`, `block` |
-| `never` | Nothing |
+By default, interrupting rules carry `high` or `critical` severity, resulting in an immediate **`block`**.

@@ -1,57 +1,164 @@
-# Install
+# Installation & Setup
 
-skill-verdict is a single static binary. It does not need a runtime or shared libraries.
+**skill-verdict** is distributed as a single static binary with no external runtime dependencies. You do not need Python, Node.js, Docker, or shared system libraries installed.
 
-## Download a release
+---
 
-Every [release](https://github.com/bickus/skill-verdict/releases) has a binary for Linux x86-64, Windows x86-64 and macOS Apple silicon, and a `SHA256SUMS` file. Check the hash:
+## Download Pre-built Binaries
 
-    sha256sum -c --ignore-missing SHA256SUMS
+Pre-compiled static binaries are published for every [release](https://github.com/bickus/skill-verdict/releases):
 
-Rename the file to `skill-verdict` and move it to a directory on `PATH`.
+| Platform | Architecture | Binary File |
+|---|---|---|
+| Linux | x86-64 | `skill-verdict-linux-amd64` |
+| macOS | Apple Silicon (M-series) | `skill-verdict-darwin-arm64` |
+| Windows | x86-64 | `skill-verdict-windows-amd64.exe` |
+
+### 1. Download and verify
+
+Every release includes a `SHA256SUMS` file. Verify the integrity of your download:
+
+```sh
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+### 2. Add to PATH
+
+Make the binary executable (Linux/macOS) and move it into your `PATH`:
+
+```sh
+chmod +x skill-verdict-linux-amd64
+sudo mv skill-verdict-linux-amd64 /usr/local/bin/skill-verdict
+```
+
+---
 
 ## Install with Go
 
-Go 1.26 or later is required:
+If you have Go 1.26 or later installed, you can compile and install directly to `$GOPATH/bin`:
 
-    go install github.com/bickus/skill-verdict/pkg/cmd/skill-verdict@latest
+```sh
+go install github.com/bickus/skill-verdict/pkg/cmd/skill-verdict@latest
+```
 
-## Build from a checkout
+*(And as noted on the README: if you instinctively run `@latest` in production environments, train yourself to pin hashes or versions!)*
 
-Run the repository check:
+---
 
-    scripts/check
+## Build from Source
 
-It checks the source and builds these binaries:
+Clone the repository and run the repository build script:
 
-| Platform | File |
-|---|---|
-| Linux x86-64 | `bin/linux-amd64/skill-verdict` |
-| Windows x86-64 | `bin/windows-amd64/skill-verdict.exe` |
-| macOS Apple silicon | `bin/darwin-arm64/skill-verdict` |
+```sh
+git clone https://github.com/bickus/skill-verdict.git
+cd skill-verdict
+scripts/check
+```
 
-Move the binary for your platform to a directory on `PATH`.
+`scripts/check` runs the linter, test suite, and cross-compiles static binaries for all supported platforms into `bin/`:
 
-## Check the installation
+- `bin/linux-amd64/skill-verdict`
+- `bin/darwin-arm64/skill-verdict`
+- `bin/windows-amd64/skill-verdict.exe`
 
-    skill-verdict --version
+Copy the binary for your platform to your preferred `bin` directory.
 
-## Choose a scan mode
+---
 
-| Mode | Command | Requirements |
+## Verify the Installation
+
+Run:
+
+```sh
+skill-verdict --version
+```
+
+Official releases print the module version tag (e.g. `v0.1.0`). Binaries compiled from source checkouts print `devel`.
+
+---
+
+## Choosing Your Scan Mode
+
+`skill-verdict` supports three operating modes depending on your privacy requirements, network availability, and whether you want AI review:
+
+| Scan Mode | What It Checks | Requirements | Zero-Cost? |
+|---|---|---|---|
+| **Offline Mode** | Bundle limits, text concealment, static text rules, symlink checks. | Binary only. No network, no API key. | Yes |
+| **Network / No-Model Mode** | Everything in Offline + live domain checks, GitHub existence, npm/PyPI registry checks. | Internet access. Optional `GITHUB_TOKEN`. | Yes |
+| **Full AI-Assisted Mode** | Everything in Network + simulated agent honeypot + semantic discovery + AI Judge review. | Internet access, LLM model endpoint, and API key. | LLM token costs |
+
+In `skill-verdict`, scan modes are driven by configuration files, not complicated CLI flags.
+
+### 1. Offline Mode (Air-gapped)
+
+Create an `offline.json` config disabling network references and model layers:
+
+```json
+{
+  "layers": {
+    "references": {"enabled": false},
+    "honeypot": {"enabled": false},
+    "discovery": {"enabled": false},
+    "judge": {"enabled": false}
+  }
+}
+```
+
+Run the scan:
+
+```sh
+skill-verdict scan --config offline.json ./path/to/skill
+```
+
+Zero network packets will be sent.
+
+### 2. Network / No-Model Mode
+
+If you want to verify external domains, repositories, and package supply chains without paying for LLM tokens, disable only the model layers:
+
+```json
+{
+  "layers": {
+    "honeypot": {"enabled": false},
+    "discovery": {"enabled": false},
+    "judge": {"enabled": false}
+  }
+}
+```
+
+Run:
+
+```sh
+skill-verdict scan --config no-model.json ./path/to/skill
+```
+
+### 3. Full AI-Assisted Mode
+
+To catch subtle prompt injections with the simulated honeypot, discover semantic threats, and use the AI Judge to filter out false positives:
+
+1. Generate a configuration file:
+   ```sh
+   skill-verdict config-template config.json
+   ```
+2. Configure your model endpoint under `llm`:
+   - `llm.model`: model name (e.g. `gpt-4o`, `claude-3-5-sonnet`, `deepseek-chat`).
+   - `llm.baseUrl`: API base URL (defaults to OpenRouter, compatible with OpenAI, Ollama, vLLM, etc.).
+3. Set your environment variable:
+   ```sh
+   export SKILL_VERDICT_API_KEY=your-api-key
+   ```
+4. Run:
+   ```sh
+   skill-verdict scan --config config.json ./path/to/skill
+   ```
+
+---
+
+## Environment Variables
+
+| Variable | Default | Purpose |
 |---|---|---|
-| Offline | `skill-verdict scan --config offline.json PATH` | Only the binary and the skill files. |
-| No model | `skill-verdict scan --config no-model.json PATH` | Network access for domain, GitHub, npm and PyPI checks. |
-| Full | `skill-verdict scan PATH` | Network access, a configured model and its API key. |
+| `SKILL_VERDICT_API_KEY` | *(empty)* | API key or ChatGPT subscription token used for model queries. Configurable via `llm.keyEnv`. |
+| `GITHUB_TOKEN` | *(empty)* | Optional GitHub personal access token (no special scopes needed). Raises GitHub API rate limits from 60 to 5,000 requests/hour when checking external repositories. Configurable via `layers.references.githubTokenEnv`. |
 
-A mode is a configuration file, not a flag. Turn the model off with
-`"enabled": false` on `honeypot`, `discovery` and `judge` under `layers`, and on
-`references` as well to make no network requests at all. See the offline example in the
-[README](../../README.md#run-a-scan). The no-model mode still checks external references.
-
-For a full scan, set the model name and API endpoint in the
-[configuration](config.md#model-settings). Put the API key in the environment variable named by
-`llm.keyEnv`, which is `SKILL_VERDICT_API_KEY` by default. The configuration file never contains
-the key itself.
-
-See [External references](references.md) for the services contacted during a network scan.
+See [Configuration](config.md) for advanced options and [Usage](usage.md) for command-line syntax.

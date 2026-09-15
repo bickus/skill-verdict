@@ -1,153 +1,219 @@
-# Usage
+# Command-Line Usage
 
-## Scan skills
+`skill-verdict` scans AI agent skills for security risks, external supply chain threats, and malicious instructions. It runs locally and never executes the skill's code.
 
-    skill-verdict scan [--config P] [--rules-dir D] [--format text|json] [--verbose] [--fail-on LEVEL] <path>...
+---
 
-Each `<path>` can be:
+## Scanning Skills
 
-- One skill directory containing a regular `SKILL.md` file.
-- A directory whose immediate subdirectories are skills.
+### Scan a single skill
 
-The scanner checks several paths in one run and writes one report. Put the flags before the first path. Quote a path that contains spaces, for example `"./my skills"`. One missing path or one path without skills stops the command. The scanner then checks none of the skills.
+Point the scanner at any directory containing a `SKILL.md` file:
 
-The scanner follows a symbolic link passed as `<path>`. It does not follow symbolic links inside
-a skill because they may point outside the directory being checked.
+```sh
+skill-verdict scan ./my-skill
+```
 
-### Scan modes
+### Scan multiple skills
 
-What a scan does is set in the configuration file, not by flags. Turn the model checks off with
-`layers`, and the network checks off with `layers.references.enabled`. See
-[Configuration](config.md#layers). Enabled text rules run in every mode.
+You can pass multiple skill directories in a single command. The scanner evaluates each skill and prints a combined summary:
 
-### Flags
+```sh
+skill-verdict scan ./skills/git-helper "./skills/web search"
+```
 
-| Flag | Default | Purpose |
+*(Always quote paths containing spaces.)*
+
+### Scan an entire folder of skills
+
+If you point `skill-verdict` at a parent folder whose immediate subdirectories are skills, it scans all of them in parallel:
+
+```sh
+skill-verdict scan ~/.config/opencode/skills
+```
+
+### Symlink handling
+
+`skill-verdict` safely follows symbolic links provided on the command line to locate skills. However, **it refuses to follow symbolic links located inside a skill directory** that point outside the skill root. An internal symlink attempting to escape the skill folder is reported as a potential security risk (`SYMLINK-OUT-OF-SKILL` or `SYMLINK-TO-SECRETS`).
+
+---
+
+## CLI Flags
+
+```text
+skill-verdict scan [--config P] [--rules-dir D] [--format text|json] [--verbose] [--fail-on LEVEL] <path>...
+```
+
+| Flag | Default | Description |
 |---|---|---|
-| `--config P` | User configuration file | Read configuration from `P`. The command fails if `P` does not exist. |
-| `--rules-dir D` | `rules.dir` | Load additional rule files from `D`. |
-| `--format text\|json` | `text` | Choose human-readable or JSON output. |
-| `--verbose` | Off | Write every field of the JSON report. |
-| `--fail-on LEVEL` | `block` | Exit 1 when the result reaches `LEVEL`. Accepted values are `block`, `incomplete`, `review` and `never`. |
+| `--config P` | System default config | Path to a custom JSON configuration file. Fails if the file does not exist. |
+| `--rules-dir D` | `rules.dir` setting | Directory containing additional `*.json` custom rule definitions. |
+| `--format text\|json` | `text` | Output format: human-readable terminal text or machine-parsable JSON. |
+| `--verbose` | off | Include full details (such as dismissed findings and internal token breakdowns) in JSON output. |
+| `--fail-on LEVEL` | `block` | Set the minimum verdict severity that triggers an exit code of `1`. Choices: `block`, `incomplete`, `review`, `never`. |
 
-Ctrl-C stops the scan at once:
+---
 
-- The skill in progress gets no report. No other skill starts.
-- Text reports of the skills that finished stay in the output.
-- A scan of more than one skill still ends with the summary line. The line counts the skills that did not finish as `skipped`. Model usage in the summary covers only the finished skills.
-- The command writes no JSON report.
-- The command exits with code 130.
+## Reading the Terminal Report
 
-### Colors
+When running in `text` format, `skill-verdict` prints an easy-to-read report organized into clear sections:
 
-The text report uses color when it writes to a terminal. A redirect to a file or a pipe gives the plain text. `NO_COLOR` and `TERM=dumb` also turn color off. Color repeats what the text already says, so a report without color is complete.
+```text
+[BLOCK] ./skills/deploy-helper
 
-### Exit codes
+References:
+  github.com/attacker/stolen-tool (github: owner does not exist)
+  https://bit.ly/3xY9zA (domain: url shortener)
 
-| Code | Meaning |
+Findings:
+  CRITICAL  GITHUB-OWNER-MISSING  Referenced GitHub owner does not exist
+    Location: SKILL.md:14
+    Evidence: github.com/attacker/stolen-tool
+    Judge:    Confirmed. The repository points to an abandoned username that can be re-registered by an attacker.
+
+  HIGH      UNPINNED-INSTALL  Package install without pinned version
+    Location: scripts/setup.sh:3
+    Evidence: pip install helper-pkg
+    Judge:    Downgraded to LOW. Package is installed in an isolated venv for testing, but unpinned versions remain risky.
+
+Model usage:
+  Model: gpt-4o (medium)
+  Cost:  $0.0042 (3 requests)
+```
+
+### Report breakdown:
+
+1. **Header & Verdict**: Shows the skill name/path and final verdict (`CLEAN`, `REVIEW`, `INCOMPLETE`, or `BLOCK`).
+2. **References**: Real-time status of external domains, GitHub accounts/repos, and npm/PyPI packages mentioned in the skill.
+3. **Findings**: Sorted from most severe to least severe:
+   - **Severity**: `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
+   - **Rule ID & Title**: Built-in rule that detected the issue.
+   - **Location**: Exact file and line number (`SKILL.md:14`).
+   - **Evidence**: The raw snippet or value that triggered the alert.
+   - **Judge**: If AI review is enabled, the Judge explains whether the finding is a true risk, harmless documentation context, and why it was confirmed, downgraded, or dismissed.
+4. **Incomplete**: Only shown if a check could not finish (e.g. network timeout or file read failure).
+5. **Model usage**: Token counts, API requests, and estimated monetary cost (if prices are set in config).
+
+### Colors & terminal styling
+
+The terminal output uses colors by default when connected to an interactive TTY:
+- Red for `BLOCK` and `CRITICAL`/`HIGH` findings.
+- Yellow for `REVIEW` and `MEDIUM` findings.
+- Cyan for `INCOMPLETE` scans.
+- Green for `CLEAN` verdicts.
+
+Colors are automatically disabled when output is piped to a file or another command. You can manually disable colors by setting `NO_COLOR=1` or `TERM=dumb`.
+
+---
+
+## Exit Codes & Automation
+
+`skill-verdict` is built for automated CI/CD pipelines, Git pre-commit hooks, and agent onboarding gates:
+
+| Exit Code | Meaning |
 |---|---|
-| 0 | The scan finished and its worst verdict is below `--fail-on`. |
-| 1 | The scan finished and its worst verdict reached `--fail-on`. |
-| 2 | The command could not run because an argument, configuration, path or output was invalid. |
-| 130 | Ctrl-C stopped the scan. |
+| `0` | Scan succeeded and the worst verdict is below your `--fail-on` threshold. |
+| `1` | Scan completed, but at least one skill reached or exceeded your `--fail-on` threshold. |
+| `2` | Execution error: invalid flag, missing config file, or invalid skill directory. |
+| `130` | Interrupted by user (Ctrl+C). |
 
-Verdicts increase in this order: `clean`, `review`, `incomplete`, `block`. Therefore,
-`--fail-on review` accepts only `clean`, while `--fail-on never` always exits 0 after a completed
-command.
+### Controlling failure thresholds with `--fail-on`
 
-## Read text output
+The severity of verdicts escalates as follows:
 
-Each skill starts with a line that names the skill and its verdict, then a line with the path of the skill. A scan of more than one skill ends with a line that counts the skills per verdict.
+$$\text{clean} \longrightarrow \text{review} \longrightarrow \text{incomplete} \longrightarrow \text{block}$$
 
-A stopped scan adds one line under the path, for example `interrupted by FILE-PDF in walk`. `FILE-PDF` is the rule that stopped the scan and `walk` is the layer it stopped.
+- `--fail-on block` **(Default)**: Exits `0` for `clean`, `review`, and `incomplete`. Exits `1` only if a skill is blocked.
+- `--fail-on review`: Strict mode. Exits `1` if anything whatsoever is flagged (only `clean` exits `0`).
+- `--fail-on incomplete`: Exits `1` if any check fails to finish (e.g. network timeout or API rate limit) or if blocked.
+- `--fail-on never`: Always exits `0` regardless of verdict. Great for logging or non-blocking audit runs.
 
-The blocks for one skill come in this order:
+---
 
-- `References`, one line per external reference with its status, and the reason when the check did not finish.
-- `Findings`, one block per finding, the most serious first, dismissed findings last.
-- `Incomplete`, the work the scan did not do. The block appears only with the verdict `incomplete`.
-- `Model usage`, when a model ran. `Model` names the model and its reasoning effort. `Cost` gives the price of the scan from the prices in the configuration, or `n/a` without prices, and the number of requests of each model layer. The token counts are in the JSON output.
+## Machine Output: JSON
 
-The first line of a finding has its severity, or `dismissed`, then the rule ID, the title of the rule and its category. The lines under it are:
+Use `--format json` to get structured machine-readable reports.
 
-- `Description`, the description of the rule.
-- `Location`, the file and line inside the skill, then the text that caused the finding. A finding about a whole file has no line number.
-- `Analysis`, the text the model returned about its own finding. The line appears only when model review did not judge the finding.
-- `Judge`, the decision of model review and its reason.
+### Basic JSON structure
 
-## Read JSON output
+When scanning a single skill, the output is a JSON object. When scanning multiple skills, the output is an array of objects:
 
-One scanned skill produces one JSON object. Scanning a directory of skills produces an array.
-Each object has this shape:
-
+```json
+{
+  "schema": 1,
+  "skill": {
+    "path": "./skills/deploy-helper",
+    "name": "deploy-helper",
+    "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "verdict": "block",
+  "findings": [
     {
-      "schema": 1,
-      "skill": {},
-      "verdict": "review",
-      "findings": [],
-      "references": [],
-      "layers": [],
-      "rules": {}
+      "rule": "GITHUB-OWNER-MISSING",
+      "severity": "critical",
+      "location": "SKILL.md:14",
+      "evidence": "github.com/attacker/stolen-tool",
+      "judgement": {
+        "decision": "confirmed",
+        "reason": "Referenced repository owner does not exist and is vulnerable to takeover."
+      }
     }
+  ],
+  "references": [
+    {
+      "target": "github.com/attacker/stolen-tool",
+      "kind": "github",
+      "status": "checked"
+    }
+  ],
+  "layers": [
+    {"layer": "walk", "status": "done"},
+    {"layer": "static", "status": "done"},
+    {"layer": "references", "status": "done"},
+    {"layer": "judge", "status": "done", "tokens": {"requests": 1, "input": 1200, "output": 150}}
+  ]
+}
+```
 
-`skill` contains the path, name and a SHA-256 hash of the regular files in the skill. The hash does not include symbolic links or special files. A scan that a rule stopped during the walk has no hash.
+### Useful `jq` recipes
 
-### Finding fields
+**1. Check if any skill blocked:**
+```sh
+skill-verdict scan --format json ./skills | jq -e 'map(select(.verdict == "block")) | length == 0'
+```
 
-| Field | Meaning |
-|---|---|
-| `rule` | ID of the rule that reported the problem. Its title, category, kind and description are under `rules`. |
-| `severity` | Current severity after any model review. |
-| `location` | File and line, such as `SKILL.md:6`, or a range, such as `SKILL.md:6-9`. A finding about a whole file has only the file name. A file name ending in `.revealed` is the copy of that file with concealment removed. |
-| `evidence` | Text or external value that caused the finding. |
-| `judgement` | Model decision and reason. |
+**2. Extract all unpinned dependency warnings:**
+```sh
+skill-verdict scan --format json ./skills | jq '.[].findings[] | select(.rule | startswith("UNPINNED-"))'
+```
 
-### Rule fields
+**3. List all external domains queried across all skills:**
+```sh
+skill-verdict scan --format json ./skills | jq -r '.[].references[] | select(.kind == "domain") | .target' | sort -u
+```
 
-`rules` maps the ID of every rule in `findings` to these fields:
+---
 
-| Field | Meaning |
-|---|---|
-| `title` | Short name of the rule. |
-| `category` | Security category, such as `exfiltration` or `supply-chain`. |
-| `kind` | How certain the rule's findings are. `heuristic`: a text pattern matched, which is not proof. `llm`: a model's judgement. `fact`: a value the scanner measured or a registry or service confirmed. |
-| `description` | What the rule detects. |
+## Helper Commands
 
-`references` contains the status and facts for each external reference. See
-[External references](references.md).
+### Generate a default configuration file
 
-`layers` lists every scan step, also the steps that did not run after a stop. A model layer has `tokens`: the number of requests and the input, cached, output and reasoning tokens summed over them. Prices in the configuration add `cost` to each model layer and a top level `cost` for the whole result. See [Verdicts](verdicts.md#work-that-did-not-finish) for what makes the verdict `incomplete`.
+```sh
+skill-verdict config-template config.json
+```
 
-### Layer fields
+Writes a complete, annotated JSON configuration file with all default values and all built-in rules.
 
-| Field | Meaning |
-|---|---|
-| `layer` | Name of the scan step. |
-| `status` | `done`, `failed`, `interrupted` or `skipped`. `interrupted` is the step a rule stopped, `skipped` is a step after it. |
-| `error` | Why the whole step failed. |
-| `interrupt` | ID of the rule that stopped the step. |
-| `errors` | One entry per file the step gave up on, with the error text. |
+### List all active rules
 
-## List rules
+```sh
+skill-verdict rules [--config config.json] [--format text|markdown]
+```
 
-    skill-verdict rules [--config P] [--rules-dir D] [--format text|markdown]
+Prints every loaded security rule, its category, default severity, layer, and description after applying any custom configuration overrides.
 
-This prints every loaded rule after the rule settings under `layers` and additional rule files
-are applied.
-The Markdown form is used for the [rule reference](rules.md).
+### Print version
 
-## Write a configuration template
-
-    skill-verdict config-template <path>
-
-This writes the complete default configuration to `<path>`: every setting with its default
-value and the settings of every built-in rule. Missing parent directories are created. The
-command fails when `<path>` already exists. Edit the file and pass it with `--config`. See
-[Configuration](config.md#write-a-complete-configuration-file).
-
-## Print the version
-
-    skill-verdict --version
-
-Released binaries print their module version. A binary built without version information prints
-`devel`.
+```sh
+skill-verdict --version
+```

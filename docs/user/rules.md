@@ -1,81 +1,176 @@
-# Rules
+# Built-in Rules Reference
 
-Each row describes one built-in check. The rule ID appears in scan reports. `Severity` is the starting severity and what model review may do with a finding of the rule:
+`skill-verdict` includes 69 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
 
-- `dismissable`: the model may lower it to any severity or drop it.
-- `downgradeable to`: the model may lower it to the named severity and no further.
-- nothing after the severity: the model may not lower it.
+Rather than sorting rules alphabetically, this reference groups every rule by the **real-world threat** it defends against.
 
-`Enabled` shows whether the rule runs by default. `Interrupt` shows whether a finding of the rule stops the scan. Every value in this table is a default that configuration can change.
+---
 
-| ID | Severity | Layer | Enabled | Interrupt | Description |
-|---|---|---|---|---|---|
-| AGENT-CONFIG-READ | `medium`, dismissable | static | yes | no | Code reads the agent's own configuration directory, which holds settings and credentials the skill usually has no need for. Intent and resulting usage of read configuration should be analyzed in detail. |
-| AGENT-MCP-CONFIG-READ | `medium`, dismissable | static | yes | no | Code reads an MCP server configuration, which holds server URLs, tokens and tool definitions. Intent and resulting usage of read configuration should be analyzed in detail. |
-| ARCHIVE-ENCRYPTED | `critical` | walk | yes | yes | The skill ships an archive whose contents are encrypted. Nobody can read what is inside it without the password. An encrypted archive carries its payload past every scanner that reads files. |
-| ARCHIVE-PASSWORD-GIVEN | `critical`, downgradeable to `medium` | discovery | yes | no | The skill hands out a password, passphrase or extraction code for an archive, a self-extracting file, or a page it points at. The password keeps the scanner, the antivirus and the reviewer from reading what the user is about to run, and it has no other effect in a skill. Report the password and what it opens. |
-| ARCHIVE-RAR | `high`, downgradeable to `medium` | walk | yes | no | The skill ships a RAR archive. Nobody can read what is inside it without unpacking it. Opening one needs a third-party extractor. |
-| ARCHIVE-RAR-MENTIONED | `medium`, downgradeable to `low` | static | yes | no | The text names a .rar file. RAR is uncommon in developer tooling, it needs a third-party extractor, and nobody can read what is inside one without unpacking it. A skill that tells the reader to download and unpack a RAR file hands them content no reviewer saw. |
-| BUNDLE-TOO-DEEP | `high` | walk | yes | yes | A file sits more than layers.walk.maxDepth directories below the skill root; no skill needs a tree that deep, and a deep path keeps a file out of sight. |
-| BUNDLE-TOO-LARGE | `high` | walk | yes | yes | The files of the skill add up to more than layers.walk.maxBundleBytes; a bundle of that size is not what a skill needs. |
-| BUNDLE-TOO-MANY-FILES | `high` | walk | yes | yes | The skill has more files than layers.walk.maxFiles; a bundle of that many files buries the ones that matter. |
-| BUNDLE-TOO-MUCH-TEXT | `high` | walk | yes | yes | The Markdown, code, text and data files of the skill add up to more than layers.walk.maxTextBytes; nobody reads that much before trusting a skill. |
-| CLOUD-METADATA-READ | `high`, downgradeable to `low` | static | yes | no | Code addresses a cloud instance metadata endpoint, which returns temporary credentials. |
-| CLOUD-STORAGE-UPLOAD | `medium`, dismissable | static | yes | no | Data is uploaded to an S3, GCS or Azure Blob bucket. Exact intent and details of data sent and the target host should be analyzed. |
-| COMMAND-ON-LOAD | `high`, downgradeable to `medium` | static | yes | no | A backtick-quoted command preceded by an exclamation mark is executed by Claude Code when it loads the file, before any instruction in the file is read. |
-| CONTAINER-TRUST-DISABLED | `medium`, dismissable | static | yes | no | A container is pulled with content trust disabled or from an insecure registry. |
-| DECEPTION-GRADUAL | `high`, downgradeable to `low` | discovery | yes | no | Multi-step or incremental instruction sequences where individual steps appear harmless but the cumulative effect steers toward a harmful goal: establishing trust first and then requesting sensitive actions, progressive permission escalation, story-driven setups that normalize harmful behavior. |
-| DESERIALIZE-PHP | `high`, downgradeable to `low` | static | yes | no | PHP unserialize on untrusted input instantiates arbitrary classes and runs their magic methods. |
-| DESERIALIZE-RUBY-MARSHAL | `high`, downgradeable to `low` | static | yes | no | Ruby Marshal.load or Marshal.restore rebuilds arbitrary objects from a byte string. |
-| DESERIALIZE-RUBY-YAML | `medium`, dismissable | static | yes | no | Ruby YAML.load, Psych.load or Oj.load can instantiate arbitrary objects from untrusted input. |
-| DOMAIN-EXPIRING | `high`, downgradeable to `medium` | references | yes | no | A referenced domain's registration expires within days; once it lapses, anyone can register the name the skill trusts. Unless this is a false-positive or an example - there can be no trust in what will be executed/served on the remote thus it is not safe. |
-| DOMAIN-FILEHOST | `critical`, downgradeable to `medium` | references | yes | no | A referenced URL points at a file sharing service. The file behind the link is replaced at the same address, many of these services take uploads from anyone without an account, and no registry records who published it. Judge the finding by what the skill does with the URL: downloading it, unpacking it, running what it contains, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. |
-| DOMAIN-HTTP-ERROR | `high`, dismissable | references | yes | no | The root of a referenced domain answers the scanner with a 4xx or 5xx status. A host can hide its content from a scanner and still serve it to the agent or the reader. Unless this is an example, an API host that serves nothing at its root, or the host has another valid reason to answer this way - treat it as concealment from the scanner, there can be no trust in what will be served from the referenced URL. |
-| DOMAIN-NEW | `medium`, dismissable | references | yes | no | A referenced domain was registered within the configured number of days; a new name has no history and can be set up for one skill. Content on such domains can be changed arbitrary and can't be trusted. Exact usage of the referenced domain should be analyzed. |
-| DOMAIN-NEW-REDIRECT | `critical`, downgradeable to `medium` | references | yes | no | A referenced domain was registered within the configured number of days and redirects to a different host. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL. This is a commonly used pattern for delayed activation of malicious payload. |
-| DOMAIN-PASTE | `critical`, downgradeable to `medium` | references | yes | no | A referenced URL points at a paste or snippet site. The owner rewrites the content at the same address whenever they want, and the page gives a reader no sign that it changed. Judge the finding by what the skill does with the URL: fetching it, installing or running what it returns, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. |
-| DOMAIN-SHORTENER | `critical`, downgradeable to `medium` | references | yes | no | A referenced URL goes through a link shortener; the destination is hidden and its owner or content can change it at any time. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL thus it is not safe. Judge the finding by what the skill does with the URL: fetching it, installing or running what it returns, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. |
-| DOMAIN-UNREACHABLE | `high`, dismissable | references | yes | no | A referenced domain cannot be reached from the scanner: the name does not resolve, the TLS handshake or the certificate check fails, or the server refuses or drops the connection. A host can hide its content from a scanner and still serve it to the agent or the reader. Unless this is an example or the host has a valid reason to behave this way - treat it as concealment from the scanner, there can be no trust in what will be served from the referenced URL. |
-| DOMAIN-UNREGISTERED | `high`, downgradeable to `medium` | references | yes | no | A referenced domain is not registered; anyone can register it and serve content under the name the skill trusts. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL thus it is not safe. |
-| ENCODED-CODE-EXECUTED | `high`, downgradeable to `medium` | static | yes | no | Code decodes base64, hex or compressed data and executes the result, or carries a long encoded literal. |
-| EXFILTRATION-IN-PROSE | `high`, downgradeable to `low` | discovery | yes | no | Plain-language instructions to collect, expose, summarize, transmit, or leak sensitive, private, or user-provided data without explicit technical terms such as exfiltrate or send: remembering everything the user says and including it in responses, keeping a log of all inputs, echoing back credentials. |
-| FILE-BINARY | `high` | walk | yes | yes | The skill ships compiled code: a native program or library, or bytecode for Python, Java, Android, Lua, Erlang, Ruby or WebAssembly. Nobody can read what it does without the source, and a scanner that reads text sees nothing of it. |
-| FILE-INSTALLER | `high` | walk | yes | yes | The skill ships an installer or a system package for Windows, Linux, macOS or iOS. Installing one puts compiled software on the system and often runs its scripts with administrator rights. Nobody can review its contents without unpacking it. |
-| FILE-PDF | `high` | walk | yes | yes | The skill ships a PDF file; the scanner cannot check its content as text, and a PDF can carry scripts and instructions a reviewer does not see. |
-| FILE-TOO-LARGE | `high` | walk | yes | yes | A file is larger than layers.walk.maxFileBytes; nobody reviews a file of that size, so its content is not checked by anyone. |
-| GITHUB-OWNER-MISSING | `critical`, downgradeable to `medium` | references | yes | no | A referenced GitHub owner does not exist; the name can be registered and the referenced repository recreated by anyone. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL thus it is not safe. |
-| GITHUB-OWNER-NEW | `medium`, dismissable | references | yes | no | A referenced GitHub owner account was created within the configured number of days; a new account has no history behind the code the skill fetches. Content in such repositories can be changed arbitrary and can't be trusted. Exact usage of the referenced repository should be analyzed. |
-| GITHUB-OWNER-RENAMED | `critical`, downgradeable to `medium` | references | yes | no | A referenced GitHub owner name now redirects to a different account; the original name is free for anyone to register. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL thus it is not safe. |
-| GITHUB-REPO-MISSING | `high`, downgradeable to `medium` | references | yes | no | A referenced GitHub repository does not exist under an owner that does; the owner can create it at any time with any content. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced URL thus it is not safe. |
-| HONEYPOT-TRIGGERED | `critical`, downgradeable to `medium` | honeypot | yes | yes | A model in the setting of a common coding agent got one request: load this skill and report whether that worked, nothing else. After it loaded the skill, the model called a tool the request did not need: it ran a command, changed a file, went to the web, started a subagent or read a file outside the skill. The skill overrode the instruction of the user, so no later model analysis of this skill can be trusted. |
-| IP-ADDRESS-PUBLIC | `critical`, downgradeable to `medium` | references | yes | no | A URL, host and port, or network command targets a public IP address instead of a domain name; there is no registration record and no name reputation behind it. Unless this is a false-positive there can be no trust in what is executed on the remote thus it is not safe. |
-| KUBERNETES-PRIVILEGED | `medium`, dismissable | static | yes | no | A workload runs privileged, mounts a host path or shares a host namespace. |
-| PACKAGE-LOW-DOWNLOADS | `low`, dismissable | references | yes | no | A referenced package had fewer downloads last month than the configured minimum; almost nobody else runs the code the skill installs. Content in such packages can be changed arbitrary and can't be trusted. Exact usage of the referenced package should be analyzed. |
-| PACKAGE-MISSING | `critical`, downgradeable to `medium` | references | yes | no | A referenced npm or PyPI package is not published; anyone can publish it under that name. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced package thus it is not safe. |
-| PACKAGE-NEW | `medium`, dismissable | references | yes | no | A referenced package was first published within the configured number of days; a new package has no history behind the code the skill installs. Content in such packages can be changed arbitrary and can't be trusted. Exact usage of the referenced package should be analyzed. |
-| PACKAGE-OTHER-REGISTRY | `high`, dismissable | static | yes | no | An install command takes a package from a registry other than the default one. Unable to trust such installation if there is a well-known and popular package with the same name in the default registry. False-positive if there is no such. |
-| PACKAGE-PROTECTION-OFF | `critical`, dismissable | static | yes | no | The skill turns off a package manager's install script blocking or its minimum release age, in a command or in a project file. Unless this is a false positive, do not trust the skill - packages with disabled protection should not be installed by scripts. |
-| PACKAGE-PROTECTION-OFF-HIDDEN | `critical`, downgradeable to `low` | discovery | yes | no | The skill turns off install script blocking or the minimum release age out of sight. The setting comes from joined text, decoded data or a downloaded file, or the skill only describes the step in words. Unless this is a false positive, do not trust the skill - packages with disabled protection should not be installed by scripts. |
-| PACKAGE-SOURCE-ADDED | `critical`, downgradeable to `medium` | static | yes | no | Skills usually do repeated work, and the user adds a package source only once. A new repository, registry, tap or channel changes every later install on the system. A source nobody knows is not to be trusted. |
-| PACKAGE-SOURCE-ADDED-HIDDEN | `critical`, downgradeable to `medium` | discovery | yes | no | The skill adds a package repository, registry, tap or channel out of sight. The command comes from joined text, decoded data or a downloaded file. Some skills only describe the step in words. A skill very rarely has a valid reason to add a source. |
-| PACKAGE-TYPOSQUAT | `high`, downgradeable to `low` | references | yes | no | A referenced package name is one or two edits away from a popular package on the same registry; a typing mistake or an imitation installs the wrong code. Unless this is a false-positive - there can be no trust in what will be executed/served from the referenced package thus it is not safe. |
-| PROMPT-INJECTION-PARAPHRASED | `medium`, downgradeable to `low` | discovery | no | no | Reformulations of known attack patterns (prompt injection, jailbreaks) that would not be caught by keyword or regex matching: creative synonyms, indirect descriptions, encoded or obfuscated intent, culturally framed requests. |
-| PROMPT-INJECTION-SEMANTIC | `medium`, downgradeable to `low` | discovery | no | no | Instructions that appear benign or helpful on the surface but are designed to redirect an AI model's behavior toward harmful, unauthorized, or unsafe actions: polite reframings of ignoring system instructions, role-play setups that grant elevated permissions, fictional or hypothetical framings used to bypass safety. |
-| REFERENCES-TOO-MANY | `high` | references | yes | yes | The skill names more external references than layers.references.maxReferences; a skill rarely needs that many, and a long list hides a malicious reference among valid ones. |
-| REMOTE-CODE-AT-INSTALL | `high`, downgradeable to `low` | discovery | yes | no | Instructions telling the reader or the agent to fetch, unpack, paste or run something that is not in the skill bundle: download an executable and start it, copy a script from a web page into a terminal, install a helper utility before the skill works at all. The files of the skill are reviewed, the outside code is not. Report the instruction even when the link looks ordinary. |
-| REMOTE-ENDPOINT-UPLOAD | `medium`, dismissable | static | yes | no | Code or a command posts data to a remote host, or a URL names an API, collection or telemetry endpoint. Exact intent and details of data sent and the target host should be analyzed. |
-| REMOTE-SCRIPT-PIPED | `critical`, downgradeable to `high` | static | yes | no | A command fetches a remote script and executes it without review. |
-| ROOT-PASSWORDLESS | `critical`, downgradeable to `medium` | static | yes | no | Skills are usually needed for repeated work, and granting passwordless sudo or admin privileges is almost never a valid thing to be done from the skill. Unless this is a false-positive it should not be trusted. |
-| ROOT-PASSWORDLESS-HIDDEN | `critical`, downgradeable to `medium` | discovery | yes | no | The skill grants root or administrator rights that need no password, and the sudoers line, registry value or group command is joined at run time, decoded, or read from a downloaded file. There are very limited valid reasons for a skill to do so ever. |
-| SECRETS-DIRS-LISTED | `high`, downgradeable to `low` | static | yes | no | Files are listed or searched under the home directory or in directories that hold credentials. Unless this is a rare example or false-positive match, a skill should have a very valid reason to do so. |
-| SECRETS-ENV-DUMPED | `high`, downgradeable to `low` | static | yes | no | The whole environment is copied, enumerated or searched for keys, tokens and passwords. Unless this is a rare example or false-positive match, a skill should have a very valid reason to do so. |
-| SETTING-UNSAFE | `medium`, dismissable | static | yes | no | A setting disables TLS verification, authentication, validation, sandboxing or file permissions, or turns on debug mode. |
-| SYMLINK-OUT-OF-SKILL | `high`, dismissable | static | yes | no | A symbolic link in the skill points outside the skill folder. The target does not ship with the skill, so what an agent reads through the link depends on the machine it runs on. A skill rarely needs such a link. |
-| SYMLINK-TO-SECRETS | `critical`, downgradeable to `medium` | static | yes | no | A symbolic link in the skill points to secrets such as .env, .ssh or .aws, to a home folder, to the filesystem root, or to a folder above the skill. An agent that reads through the link reads that data as if it were a file of the skill. |
-| UNPINNED-DEPENDENCY | `medium`, dismissable | static | yes | no | A dependency has no fixed version, so any later release, including a hijacked one, is installed. |
-| UNPINNED-DOWNLOAD | `critical`, downgradeable to `medium` | static | yes | no | A referenced URL serves whatever its owner put there last: a GitHub raw or archive link on a branch, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. Judge the finding by what the skill does with the URL: fetching it, installing from it, running it, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. A widely used project can also lower it when fetching from that project fits what the skill does. Decide that on the reference facts in this report, an owner that exists, an old account, a repository many people use, not on how familiar the name looks, because imitating a familiar name is what a typosquat does. |
-| UNPINNED-GIT | `high`, downgradeable to `medium` | static | yes | no | The skill clones a repository or installs from a Git source without a commit hash: git clone, gh repo clone, a git+ URL, an npm github: spec, or a Go module at latest or on a branch. Every run fetches whatever the branch holds at that moment, so what a reviewer reads today is not what the user gets tomorrow. A skill does repeated work and cloning a repository is a one-time step, so the step is out of place in a skill. A reference pinned to a commit hash does not match this rule. Unless this is a false positive, do not trust the skill. The fix is to clone the repository once, review it, and remove the step from the skill. |
-| UNPINNED-INSTALL | `high`, dismissable | static | yes | no | An install or run command names a package without a version, so any later release, including a hijacked one, is installed. The command is in the skill text, not in a dependency manifest, and runs every time the skill is used. |
-| WORD-HOMOGLYPHS | `medium`, dismissable | reveal | yes | no | Letters from another script or compatibility forms that print like ASCII letters replace them inside a word - a usual attempt to bypass static regex checks. |
-| WORD-INVISIBLE-CHARS | `high`, downgradeable to `low` | reveal | yes | no | Characters that do not print sit between the letters of a word, so the word reads normally but does not match as text - a usual attempt to bypass static regex checks. |
-| WORD-SPACED | `medium`, dismissable | reveal | yes | no | A word is written with separators between its letters, so it reads normally but does not match as text - a usual attempt to bypass static regex checks. |
+## Threat 1: Supply Chain & Moving Targets
+
+### The Threat:
+An agent skill can look completely harmless on the day you review it. But if it installs software from an unpinned source, clones a Git branch, or points to an external package, its behavior can change overnight.
+
+Attackers can easily compromise unpinned software by:
+- Hijacking developer accounts on npm or PyPI.
+- Registering abandoned GitHub usernames to take over repository clone URLs.
+- Registering deleted package names (dependency confusion).
+- Typosquatting popular packages with near-identical names.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `UNPINNED-INSTALL` | `high`, dismissable | static | No | Install or execution command (e.g. `pip install pkg`, `npm i pkg`) without an exact pinned version. Runs every time the skill executes. |
+| `UNPINNED-DEPENDENCY` | `medium`, dismissable | static | No | Dependency declared in `package.json` or `requirements.txt` with a wildcard, range, or no version pin. |
+| `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw GitHub URLs on `main`, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. |
+| `UNPINNED-GIT` | `high`, floor `medium` | static | No | Cloning a Git repository (`git clone`, `gh repo clone`, `go install ...@branch`) without a pinned commit hash. Every run pulls whatever the branch currently contains. |
+| `GITHUB-OWNER-MISSING` | `critical`, floor `medium` | references | No | The referenced GitHub owner account does not exist. Anyone can register the username and ship malware under the URL the skill trusts. |
+| `GITHUB-OWNER-RENAMED` | `critical`, floor `medium` | references | No | The referenced repository redirects to a new account, leaving the original owner name available for anyone to claim. |
+| `GITHUB-REPO-MISSING` | `high`, floor `medium` | references | No | The GitHub owner exists, but the repository has been deleted. The owner can recreate it with arbitrary code at any time. |
+| `GITHUB-OWNER-NEW` | `medium`, dismissable | references | No | The referenced GitHub owner account was created within the last 90 days. New accounts have no reputation history. |
+| `PACKAGE-MISSING` | `critical`, floor `medium` | references | No | The referenced npm or PyPI package is not published. Anyone can register the package name and immediately achieve code execution (dependency confusion). |
+| `PACKAGE-TYPOSQUAT` | `high`, floor `low` | references | No | Package name is 1 or 2 typos away from a popular library on the same registry (e.g. `reqeusts` or `cross-env-colors`). |
+| `PACKAGE-NEW` | `medium`, dismissable | references | No | The referenced package was published for the first time within the configured age threshold (default: 90 days). |
+| `PACKAGE-LOW-DOWNLOADS` | `low`, dismissable | references | No | Package had fewer than 1,000 downloads last month. Unvetted code used by few people. |
+| `PACKAGE-OTHER-REGISTRY` | `high`, dismissable | static | No | Install command specifies a third-party package index or custom registry (`--index-url`, `--registry`). |
+
+---
+
+## Threat 2: Infrastructure Takeover & Untrusted Hosting
+
+### The Threat:
+Skills often provide documentation links or API endpoints. If an attacker purchases an expired domain, hides malicious payloads behind URL shorteners, or points an agent to anonymous pastebins, they can dynamically serve exploit code directly into the agent's context.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `DOMAIN-UNREGISTERED` | `high`, floor `medium` | references | No | A referenced domain name is not registered. Anyone can purchase it right now and serve arbitrary content under the URL the skill trusts. |
+| `DOMAIN-EXPIRING` | `high`, floor `medium` | references | No | A referenced domain expires within days. Once it lapses, domain drop-catchers or attackers can seize it. |
+| `DOMAIN-SHORTENER` | `critical`, floor `medium` | references | No | The URL uses a link shortener (`bit.ly`, `tinyurl.com`, `t.co`). The actual destination is concealed and can be redirected at will. |
+| `DOMAIN-PASTE` | `critical`, floor `medium` | references | No | The URL points to a paste or snippet service (`pastebin.com`, `gist.github.com`). Paste content can be edited at any time without version control. |
+| `DOMAIN-FILEHOST` | `critical`, floor `medium` | references | No | The URL points to an anonymous file-sharing service (`mega.nz`, `dropbox.com`, `mediafire.com`). Uploaded files can be replaced by anyone without accountability. |
+| `DOMAIN-NEW` | `medium`, dismissable | references | No | A referenced domain was registered within the configured threshold (default: 365 days). New domains have no established reputation. |
+| `DOMAIN-NEW-REDIRECT` | `critical`, floor `medium` | references | No | A newly registered domain immediately redirects to a different host. Common pattern for delayed malware deployment. |
+| `DOMAIN-UNREACHABLE` | `high`, dismissable | references | No | Domain cannot be reached (DNS failure, invalid TLS certificate, or connection refused). Could indicate deliberate concealment from scanners. |
+| `DOMAIN-HTTP-ERROR` | `high`, dismissable | references | No | The domain root responds with an HTTP 4xx or 5xx status. |
+| `IP-ADDRESS-PUBLIC` | `critical`, floor `medium` | references | No | A URL, connection command, or script targets a raw public IP address instead of a registered domain name. |
+| `REFERENCES-TOO-MANY` | `high`, no downgrade | references | **Yes** | Skill contains more than 100 external references. Often used to overwhelm scanners or obscure malicious needles in haystacks. |
+
+---
+
+## Threat 3: Arbitrary Execution & Privilege Escalation
+
+### The Threat:
+An agent skill should perform repetitive tasks within clear boundaries. Instructions that pipe remote web scripts directly into `bash`, modify sudoers to grant passwordless root, disable package manager security checks, or execute hidden commands bypass all user oversight.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `REMOTE-SCRIPT-PIPED` | `critical`, floor `high` | static | No | A shell command fetches remote content and immediately pipes it to a shell (`curl ... \| bash`, `wget ... \| sh`). |
+| `REMOTE-CODE-AT-INSTALL` | `high`, floor `low` | discovery | No | Instructions telling the agent or reader to download external scripts, binaries, or helpers that are not bundled in the skill. |
+| `COMMAND-ON-LOAD` | `high`, floor `medium` | static | No | Commands configured to execute automatically the moment a coding agent loads the skill file (e.g. Claude Code `!` command syntax). |
+| `ROOT-PASSWORDLESS` | `critical`, floor `medium` | static | No | Commands that modify `/etc/sudoers` or grant passwordless root/administrator privileges. |
+| `ROOT-PASSWORDLESS-HIDDEN` | `critical`, floor `medium` | discovery | No | Grants passwordless root/admin privileges using obscured or joined text, downloaded scripts, or natural language prompts. |
+| `PACKAGE-PROTECTION-OFF` | `critical`, dismissable | static | No | Commands disabling package manager security protections (e.g. `--allow-unauthenticated`, `--ignore-scripts`, or disabling release age minimums). |
+| `PACKAGE-PROTECTION-OFF-HIDDEN`| `critical`, floor `low` | discovery | No | Disabling package manager safeguards via obfuscated commands or instructions described in prose. |
+| `PACKAGE-SOURCE-ADDED` | `critical`, floor `medium` | static | No | Adding a new package repository, PPA, Homebrew tap, or custom registry. Permanently alters how all future software is installed. |
+| `PACKAGE-SOURCE-ADDED-HIDDEN` | `critical`, floor `medium` | discovery | No | Adding untrusted package sources out of sight via downloaded scripts or prose instructions. |
+| `ENCODED-CODE-EXECUTED` | `high`, floor `medium` | static | No | Commands that decode base64, hex, or compressed payloads and pass them directly to an interpreter (`base64 -d \| sh`). |
+
+---
+
+## Threat 4: Snooping, Secret Theft & Data Exfiltration
+
+### The Threat:
+Coding agents typically operate in repositories containing environment variables, cloud keys, and SSH credentials. Malicious skills quietly search the filesystem for secrets, scrape MCP server configurations, query cloud instance metadata services, or upload data to remote buckets.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `SECRETS-ENV-DUMPED` | `high`, floor `low` | static | No | Commands dumping or enumerating all environment variables (`printenv`, `env`, searching for `KEY` or `TOKEN`). |
+| `SECRETS-DIRS-LISTED` | `high`, floor `low` | static | No | Searching or listing files in sensitive directories such as `~/.ssh`, `~/.aws`, `~/.gnupg`, or root credentials. |
+| `AGENT-CONFIG-READ` | `medium`, dismissable | static | No | Code or instructions reading the coding agent's own private configuration directories. |
+| `AGENT-MCP-CONFIG-READ` | `medium`, dismissable | static | No | Reading Model Context Protocol (MCP) server configuration files, which frequently store API tokens and tool credentials. |
+| `CLOUD-METADATA-READ` | `high`, floor `low` | static | No | Addressing cloud instance metadata services (`169.254.169.254`) to harvest temporary IAM instance credentials. |
+| `REMOTE-ENDPOINT-UPLOAD` | `medium`, dismissable | static | No | Posting data to remote URLs, APIs, or telemetry collection endpoints. |
+| `CLOUD-STORAGE-UPLOAD` | `medium`, dismissable | static | No | Uploading files directly to remote Amazon S3, Google Cloud Storage, or Azure Blob containers. |
+| `EXFILTRATION-IN-PROSE` | `high`, floor `low` | discovery | No | Natural-language instructions directing the agent to remember user inputs, log sensitive context, or echo secrets in replies. |
+
+---
+
+## Threat 5: Agent Manipulation & Prompt Injection
+
+### The Threat:
+Adversarial skills often manipulate the AI model's cognitive state rather than running shell exploits. By using gradual deception, role-play framing, or explicit system prompt overrides, they trick the agent into violating its safety boundaries.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `HONEYPOT-TRIGGERED` | `critical`, floor `medium` | honeypot | **Yes** | A simulated coding agent given only the instruction to "load this skill" immediately attempted an unauthorized tool call (bash, write, web). The skill provably hijacks agents on load. |
+| `DECEPTION-GRADUAL` | `high`, floor `low` | discovery | No | Incremental instruction sequences that appear harmless step-by-step but progressively escalate permissions or normalize malicious acts. |
+| `PROMPT-INJECTION-SEMANTIC` | `medium`, floor `low` | discovery | No | Subtle prompt injection: polite reframings of ignoring safety guidelines, hypothetical scenarios, or role-play setups granting elevated permissions. *(Disabled by default)*. |
+| `PROMPT-INJECTION-PARAPHRASED`| `medium`, floor `low` | discovery | No | Reformulations of known jailbreak techniques using creative synonyms, cultural framing, or encoded wording. *(Disabled by default)*. |
+
+---
+
+## Threat 6: Evasion, Obfuscation & Concealed Payloads
+
+### The Threat:
+To evade basic keyword searches, regex filters, and human audits, malicious authors conceal text using zero-width characters, lookalike Cyrillic characters, or password-protected archives.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `WORD-INVISIBLE-CHARS` | `high`, floor `low` | reveal | No | Non-printing zero-width characters or directional formatting inserted inside words to bypass regex scanners (e.g. `c\u200Burl`). |
+| `WORD-HOMOGLYPHS` | `medium`, dismissable | reveal | No | Lookalike Unicode characters (e.g. Cyrillic `а` or Greek `о`) replacing standard ASCII letters inside words. |
+| `WORD-SPACED` | `medium`, dismissable | reveal | No | Words written with separators between letters (e.g. `c u r l`) to avoid text matching. |
+| `ARCHIVE-ENCRYPTED` | `critical`, no downgrade | walk | **Yes** | The skill bundle ships an encrypted/password-protected archive. The scanner cannot inspect its contents, and shipping encrypted files in a skill bundle is inherently dangerous. |
+| `ARCHIVE-PASSWORD-GIVEN` | `critical`, floor `medium` | discovery | No | Instructions providing a password or extraction code to open an external or bundled archive. Bypasses file scanners. |
+| `ARCHIVE-RAR` | `high`, floor `medium` | walk | No | The skill bundle ships a `.rar` archive, which requires third-party extractors and cannot be inspected as text. As a bonus - `.rar` files are rarely used in "normal operations" but are loved by malicious groups around the world in certain countries. |
+| `ARCHIVE-RAR-MENTIONED` | `medium`, floor `low` | static | No | The skill instructions tell the user or agent to download and unpack a `.rar` file. |
+
+---
+
+## Threat 7: Opaque Bundles, Binary Blobs & Symlink Traps
+
+### The Threat:
+Agent skills should be composed of readable documentation, prompts, and source code. Shipping compiled binary programs, native installers, or disguised PDFs prevents human and automated review. Similarly, malicious symlinks can trick an agent into reading files outside the skill directory.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `FILE-BINARY` | `high`, no downgrade | walk | **Yes** | The skill ships compiled machine code or bytecode (ELF, Windows PE, Mach-O, Java `.class`, Python `.pyc`, WebAssembly). Unreviewable without reverse-engineering. |
+| `FILE-INSTALLER` | `high`, no downgrade | walk | **Yes** | The skill ships system packages or installers (`.msi`, `.pkg`, `.deb`, `.rpm`). |
+| `FILE-PDF` | `high`, no downgrade | walk | **Yes** | The skill ships a PDF file. PDFs cannot be inspected as plain text and can embed malicious scripts or invisible instructions. |
+| `FILE-TOO-LARGE` | `high`, no downgrade | walk | **Yes** | A single file exceeds `layers.walk.maxFileBytes` (default: 5 MB). |
+| `BUNDLE-TOO-LARGE` | `high`, no downgrade | walk | **Yes** | Cumulative skill size exceeds `layers.walk.maxBundleBytes` (default: 64 MB). |
+| `BUNDLE-TOO-MUCH-TEXT` | `high`, no downgrade | walk | **Yes** | Cumulative text files exceed `layers.walk.maxTextBytes` (default: 400 KB). |
+| `BUNDLE-TOO-MANY-FILES` | `high`, no downgrade | walk | **Yes** | Total file count exceeds `layers.walk.maxFiles` (default: 50 files). |
+| `BUNDLE-TOO-DEEP` | `high`, no downgrade | walk | **Yes** | Directory nesting depth exceeds `layers.walk.maxDepth` (default: 5 subdirectories). |
+| `SYMLINK-OUT-OF-SKILL` | `high`, dismissable | static | No | A symbolic link points to a target outside the skill directory. |
+| `SYMLINK-TO-SECRETS` | `critical`, floor `medium` | static | No | A symbolic link points directly to sensitive system files (`.env`, `.ssh`, `/etc`, or home directories). |
+
+---
+
+## Threat 8: Insecure Configurations & Dangerous Deserialization
+
+### The Threat:
+Skills that configure infrastructure or frameworks can silently weaken your security posture by disabling TLS certificate checks, running containers in privileged mode, or deserializing untrusted objects.
+
+### Rules:
+
+| Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
+|---|---|:---:|:---:|---|
+| `SETTING-UNSAFE` | `medium`, dismissable | static | No | Code or settings that disable TLS validation (`verify=False`), bypass authentication, disable sandboxing, or enable permissive debug modes. |
+| `CONTAINER-TRUST-DISABLED` | `medium`, dismissable | static | No | Pulling container images with Content Trust disabled or using insecure, unauthenticated registries. |
+| `KUBERNETES-PRIVILEGED` | `medium`, dismissable | static | No | Kubernetes pod definitions that run privileged containers, mount host filesystems, or share the host network namespace. |
+| `DESERIALIZE-PHP` | `high`, floor `low` | static | No | Calling PHP `unserialize()` on untrusted input, which can trigger object injection and remote code execution. |
+| `DESERIALIZE-RUBY-MARSHAL` | `high`, floor `low` | static | No | Calling Ruby `Marshal.load()` on untrusted data. |
+| `DESERIALIZE-RUBY-YAML` | `medium`, dismissable | static | No | Calling unsafe YAML loaders (`YAML.load`, `Psych.load`) that instantiate arbitrary Ruby objects. |

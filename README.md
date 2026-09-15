@@ -74,104 +74,105 @@ N.B.: If you copy-pasted and executed that "go install ...@latest" - you should 
 
 ## Run a scan
 
-Write the default configuration to a file:
+Generate a starting configuration file:
 
 ```sh
 skill-verdict config-template config.json
 ```
 
-The file lists every setting with its default value. Every layer and every rule is on. Before the first scan, set the model:
+This file lists every setting and rule with its default value. For a full scan with AI-assisted review, set your model in `config.json`:
 
-- `llm.model` is the model name.
-- `llm.baseUrl` is its API endpoint. Any OpenAI-compatible API works, including a local server. See [Model settings](docs/user/config.md#model-settings).
+- `llm.model`: your model name (e.g., `gpt-5.6-luna`, `google/gemini-3.8-flash`).
+- `llm.baseUrl`: your OpenAI-compatible API endpoint (defaults to OpenRouter, works with OpenAI, Ollama, vLLM, etc.). See [Model settings](docs/user/config.md#configuring-llm-providers).
 
-The API key comes from the environment. A GitHub token is optional and increases the GitHub request allowance of the external checks:
+Set your API key in your environment. Setting a GitHub token is optional but recommended to avoid hitting GitHub API rate limits during external reference checks:
 
 ```sh
 export SKILL_VERDICT_API_KEY=your-api-key
 export GITHUB_TOKEN=your-github-token
 ```
 
-`llm.keyEnv` and `layers.references.githubTokenEnv` change the variable names.
-
-Scan one skill:
+Now scan a skill:
 
 ```sh
 skill-verdict scan --config config.json ./path/to/skill
 ```
 
-Scan several skills in one run. Quote a path that contains spaces:
+Scan multiple skills in one run:
 
 ```sh
 skill-verdict scan --config config.json ./path/to/skill "./my skills/other"
 ```
 
-Scan every skill directly inside a directory:
+Or scan every skill located inside a directory:
 
 ```sh
 skill-verdict scan --config config.json ./path/to/skills
 ```
 
-A scan without a model or network needs four switches off: set `enabled` to `false` for `references`, `honeypot`, `discovery` and `judge` under `layers`. [Configuration](docs/user/config.md) describes every layer and model setting and how to change the severity of a rule. [Rules](docs/user/rules.md) lists every built-in rule.
+Want an instant, air-gapped offline scan with zero network calls and zero AI tokens? Turn off the four network/model layers (`references`, `honeypot`, `discovery`, and `judge`) in your config. See [Configuration](docs/user/config.md) for how to tune every layer, and [Rules](docs/user/rules.md) for the full catalog of checks.
 
 ## Understand the result
 
-Each finding includes:
+Every scan produces a clear terminal report (or JSON for machines). Each finding shows:
 
-- Its severity.
-- The evidence that triggered it.
-- The location in the skill.
-- AI Judge model might change/dismiss/uphold a finding - with explanation.
+- **Severity**: `low`, `medium`, `high`, or `critical`.
+- **Location**: the exact file and line number in the skill.
+- **Evidence**: the specific text, command, or external fact that triggered the alert.
+- **AI Judge Analysis**: if model review is enabled, the Judge explains whether the finding is a genuine risk or harmless context, and whether it was upheld, lowered, or dismissed.
 
-Final skill verdict are as below:
+The scan concludes with one of four overall verdicts:
 
 | Verdict | Meaning |
 |---|---|
-| `clean` | The requested checks completed without an active finding. A clean result does not guarantee safety. |
-| `review` | Findings need attention, but none reached your blocking severity. |
-| `incomplete` | Some requested checks could not finish. A blocking finding takes precedence. |
-| `block` | A finding reached your configured blocking severity. |
+| `clean` | All requested checks completed with zero active findings. (Remember: clean means no known red flags were found, not a guarantee of safety). |
+| `review` | Findings were detected, but none reached your blocking threshold. A human should look over the report. |
+| `incomplete` | Some checks could not finish (e.g. network timeout, rate limit, or unreadable file) and no blocking flaw was found yet. Treat this with caution — unverified dependencies are not clean. |
+| `block` | A finding reached or exceeded your configured blocking severity. Do not install or run this skill. |
 
-By default, high and critical findings produce `block`. You can [configure](docs/user/config.md) this for yourself if default settings are not suitable for you.
+By default, `high` and `critical` findings produce a `block` verdict. You can adjust this threshold (`gate.severity`) in [Configuration](docs/user/config.md#the-gate-and-blocking-policy).
 
-See [Verdicts](docs/user/verdicts.md) for the full policy.
+See [Verdicts](docs/user/verdicts.md) for full details on how decisions are reached.
 
 ## Use in automation
 
-JSON output and configurable exit codes let a script or CI job act on the result:
+Use `skill-verdict` in pre-commit hooks, CI pipelines, or automated agent onboarding scripts:
 
 ```sh
 skill-verdict scan --config config.json --format json --fail-on review ./path/to/skills
 ```
 
-`--fail-on review` exits with code `1` for any verdict other than `clean`. The default is `--fail-on block`, which exits with code `1` only for `block`. Command errors exit with code `2`. See [Usage](docs/user/usage.md) for output fields and all options.
+- `--fail-on block` (default): Exits with code `1` only when a skill is blocked.
+- `--fail-on review`: Strict enforcement — exits with code `1` on anything other than `clean`.
+- `--fail-on incomplete`: Fails if any check could not finish, preventing silent blind spots.
+- Command errors (invalid arguments, missing config) exit with code `2`.
+
+See [Usage](docs/user/usage.md) for complete CLI options, output fields, and automation examples.
 
 ## Privacy and limits
 
-The enabled checks determine what the scanner sends over the network:
+You have complete control over what `skill-verdict` sends over the wire:
 
 - Offline scans make no network requests.
 - External checks send referenced names to lookup services. The scanner also requests domain roots to check availability and redirects. The scanner does not fetch linked documentation or download referenced code.
   - **CAUTION:** Requesting domain roots for mentioned links might expose your IP to owners of such domains. Make sure to disable the references check if this is important for you.
 - Model checks send skill content and scan context to your configured model provider.
 
-See [External references](docs/user/references.md) for the services the scanner contacts.
+See [External references](docs/user/references.md) for full details on network behavior.
 
-The scanner provides no sandbox for skill execution and does not inspect archive contents. The honeypot can miss attacks that wait for a particular task. Text rules and models can both miss problems or flag legitimate behavior. Review the evidence in the report.
-
-External resources can change after a scan. Recheck skills before use. Limit your agent's permissions to the task's requirements.
+Keep in mind: `skill-verdict` does not execute skills or inspect the inside of encrypted archives. Heuristic rules and models can both miss zero-day techniques or flag legitimate code. Always review the evidence in the report, re-scan periodically (since external dependencies change over time), and restrict your agent's operational permissions.
 
 ## Documentation
 
-| Page | What you will find |
+| Guide | What you will find |
 |---|---|
-| [Install](docs/user/install.md) | Installation, platform builds and scan requirements. |
-| [Usage](docs/user/usage.md) | Commands, output fields and exit codes. |
-| [Configuration](docs/user/config.md) | Model setup, scan limits and rule customization. |
-| [Verdicts](docs/user/verdicts.md) | How findings and unfinished checks determine the result. |
-| [Detection](docs/user/detection.md) | What the scanner reads and how the checks work. |
-| [External references](docs/user/references.md) | Domain, GitHub and package checks and network behavior. |
-| [Rules](docs/user/rules.md) | Every built-in rule and its default severity. |
+| [Install](docs/user/install.md) | Binaries, verification, building from source, and scan modes. |
+| [Usage](docs/user/usage.md) | Command line usage, reading reports, and CI/automation recipes. |
+| [Configuration](docs/user/config.md) | Fine-tuning rules, model endpoints, limits, and the Gate policy. |
+| [Verdicts](docs/user/verdicts.md) | How the four verdicts work, the AI Judge, and why incomplete scans matter. |
+| [Detection](docs/user/detection.md) | How the inspection pipeline works from walk limits to honeypot traps. |
+| [External references](docs/user/references.md) | Deep dive into supply chain checks, domain takeovers, and network safety. |
+| [Rules](docs/user/rules.md) | Complete catalog of security checks organized by threat category. |
 
 ## Research and contributions
 

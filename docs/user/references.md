@@ -1,187 +1,147 @@
-# External references
+# External References & Supply Chain
 
-A skill can look harmless while sending users to a domain, repository or package that an attacker
-controls. skill-verdict checks those external names instead of relying only on the files in the
-skill.
+A skill file can appear completely clean while silently directing your AI agent to download malware from an abandoned domain, an expired GitHub username, or an unpinned package.
 
-Reference checks run whenever `layers.references.enabled` is true, with or without the model layers.
+This vector — known as **SkillJacking** — exploits the fact that agent skills are deeply integrated with the wider internet. `skill-verdict` inspects not just the static text of a skill, but the live status of the external resources it relies on.
 
-## What the scanner recognizes
+---
 
-| Kind | Recognized text | Ignored |
+## What the Scanner Extracts
+
+During scanning, `skill-verdict` parses all text files and extracts four categories of external references:
+
+| Kind | What Is Detected | Examples |
 |---|---|---|
-| Domain | Host name from a URL | IP addresses, `localhost` and GitHub itself |
-| GitHub | Repository URLs, SSH clone names and `gh repo clone` commands | GitHub pages that are not owners or repositories |
-| Package | Install commands for pip, pipx, uv, npm, pnpm, Yarn and npx; Python requirement files; `package.json` dependencies | Flags, URLs and local paths |
-| Address | IPv4 or IPv6 address as the host of a URL, as `host:port`, or as the target of `nc`, `ncat`, `netcat`, `socat`, `ssh`, `scp`, `sftp`, `telnet`, `curl`, `wget`, `ftp`, `tftp` or `rsync` | Addresses in plain text and version numbers |
+| **Domains** | Hostnames extracted from HTTP/HTTPS URLs. | `https://example.com/docs`, `http://api.service.io` |
+| **GitHub** | GitHub repositories, SSH clone URLs, and `gh repo clone` commands. | `github.com/org/repo`, `git@github.com:user/tool.git` |
+| **Packages** | Package install commands (`pip`, `pipx`, `uv`, `npm`, `pnpm`, `yarn`, `npx`), `package.json` dependencies, and `requirements.txt`. | `pip install requests`, `npm i express` |
+| **IP Addresses** | Raw IPv4/IPv6 addresses in URLs, `host:port` pairs, or network commands (`curl`, `nc`, `ssh`, etc.). | `http://198.51.100.4:8080`, `nc 203.0.113.5 4444` |
 
-Blank lines and lines whose first non-space character is `#` are skipped during reference
-extraction. References are combined across the skill so the same external name is checked once. A
-scan of several skills also reuses a result when they name the same reference.
+References are deduplicated across the entire skill so each external resource is evaluated only once per scan.
 
-## Facts
+---
 
-A fact is a value that the responsible service returned, for example a domain registration date or whether a package exists. Some facts produce findings, listed under [Findings](#findings). Every fact goes into the reference brief, see [The brief](#the-brief).
+## Domain Checks & Takeover Detection
 
-## Domain checks
+When a domain is detected, `skill-verdict` evaluates whether the domain is legitimate, abandoned, or suspicious:
 
-The scanner uses RDAP, the public domain-registration lookup system, to find the registered domain,
-registration dates and registrar. It then sends one HTTPS request to the host's root and follows
-redirects. It does not request the path found in the skill.
-A request to that path could trigger whatever the path does, so the scanner never sends one.
-The request to the root sends the same headers as Chrome on Windows when a user opens the page. A site cannot tell the scanner from a visitor by its headers.
+1. **Registration & RDAP Lookup**:
+   - The scanner queries public RDAP (Registration Data Access Protocol) servers to discover:
+     - **Domain Age**: Is the domain brand-new (`DOMAIN-NEW`)? New domains are frequently registered for one-off malicious campaigns.
+     - **Expiration Date**: Is the domain about to expire (`DOMAIN-EXPIRING`)? If a skill depends on an expiring domain, an attacker can register it the moment it lapses and control whatever the agent downloads.
+     - **Unregistered Domains**: Does the domain exist at all (`DOMAIN-UNREGISTERED`)? If a skill references an unregistered domain, anyone can buy it right now and serve payloads to your agent.
+2. **Safe Root HTTP Probe**:
+   - The scanner sends a safe `GET` request to the **root** of the domain (e.g. `https://example.com/`).
+   - **Crucial Security Rule**: The scanner **never** requests the specific subpath mentioned in the skill (e.g. `https://example.com/api/v1/trigger?token=xyz`). Requesting subpaths could trigger webhooks, delete resources, or alert an attacker.
+   - The root request uses standard browser headers (Chrome on Windows) to verify that the server is alive and to track redirects.
+3. **Suspicious Host Identification**:
+   - **URL Shorteners (`DOMAIN-SHORTENER`)**: Detects `bit.ly`, `tinyurl.com`, `t.co`, etc. Legitimate skills should never hide destinations behind link shorteners.
+   - **Paste & Snippet Sites (`DOMAIN-PASTE`)**: Detects `pastebin.com`, `gist.github.com`, etc. Code behind paste sites can be modified at any time without version control or review.
+   - **File Sharing Services (`DOMAIN-FILEHOST`)**: Detects anonymous file lockers and temporary file hosts (`mega.nz`, `dropbox.com`, `mediafire.com`).
+4. **Cross-Domain Redirects (`DOMAIN-NEW-REDIRECT`)**:
+   - If a newly registered domain redirects to a different registered domain, it is flagged as a high-risk obfuscation tactic.
 
-If a redirect ends on a different registered domain, that destination is checked once as well.
+---
 
-## Address checks
+## GitHub Checks
 
-An address gets no lookup. The scanner never connects to it and needs no network for this check. The report records whether the address is public in the `public` fact. A public address produces `IP-ADDRESS-PUBLIC`. Any other address produces no reference finding.
-Hosts on shared services, such as `github.io`, skip registration checks because the service's
-registration says nothing about the individual site.
+Referencing a GitHub repository without pinning a commit hash exposes you to repository hijacking:
 
-Domain results can contain these facts:
+1. **Missing Owners (`GITHUB-OWNER-MISSING`)**:
+   - If the GitHub account that originally owned the repository has been deleted, **anyone can register that exact username** on GitHub and recreate the repository with malicious code. This is an immediate critical risk.
+2. **Renamed Owners (`GITHUB-OWNER-RENAMED`)**:
+   - If an account renamed itself, GitHub automatically redirects traffic to the new name. However, the old username is now free to be claimed by anyone.
+3. **Missing Repositories (`GITHUB-REPO-MISSING`)**:
+   - If the account exists but the repository was deleted, the owner could recreate it with arbitrary code at any time.
+4. **New Owner Accounts (`GITHUB-OWNER-NEW`)**:
+   - Flags accounts created within the last 90 days.
 
-| Field | Meaning |
-|---|---|
-| `registrable` | Registered domain that owns the host name. |
-| `registered`, `expires` | Whether it is registered and the registration dates. |
-| `age_days` | Days since registration. |
-| `registrar` | Registration provider. |
-| `privacy` | Registration details are hidden by a privacy service. |
-| `platform` | Shared hosting service used by the host. |
-| `final_url`, `redirect_cross_domain` | Destination of a redirect that left the registered domain, and the domain it reached. |
-| `http_status` | Status of the root answer when it is 4xx or 5xx. |
-| `connection_error` | Error text of a connection that the host refused or dropped. |
-| `tls_validation` | Validation level of the certificate the host presented: `DV`, `OV`, `IV` or `EV`. |
-| `tls_organization` | Organization a certificate authority verified, present for OV, IV and EV certificates. |
+---
 
-A domain registered within `youngDomainDays` produces `DOMAIN-NEW`. Three host lists produce a finding on their own: a URL shortener gives `DOMAIN-SHORTENER`, a paste or snippet site gives `DOMAIN-PASTE`, and a file sharing service gives `DOMAIN-FILEHOST`.
+## Package Registry Checks (npm & PyPI)
 
-A 4xx or 5xx status from the root produces `DOMAIN-HTTP-ERROR`. A rate limit answer does not count, see [Request pacing](#request-pacing).
+Package dependencies in skills are verified against live registry data:
 
-A host the scanner cannot reach produces `DOMAIN-UNREACHABLE`. The finding needs one of these errors:
+1. **Missing Packages (`PACKAGE-MISSING`)**:
+   - If a skill tells the agent to `pip install my-helper`, but `my-helper` is not published on PyPI, an attacker can register the package name and immediately achieve remote code execution on your system (dependency confusion).
+2. **Typosquatting (`PACKAGE-TYPOSQUAT`)**:
+   - Compares package names against popular libraries. If a skill requires `reqeusts` instead of `requests`, or `chalk-color` instead of `chalk`, it is flagged for typosquatting.
+3. **New & Low-Download Packages (`PACKAGE-NEW`, `PACKAGE-LOW-DOWNLOADS`)**:
+   - Brand-new packages and packages with negligible download counts represent unvetted code.
+4. **Non-Standard Registries (`PACKAGE-OTHER-REGISTRY`)**:
+   - Flags install commands specifying `--index-url` or `--registry` pointing to untrusted third-party servers.
 
-- the name does not resolve
-- the TLS handshake fails or the certificate is not valid
-- the server refuses, resets or closes the connection
+---
 
-A timeout gives a `failed` lookup and no finding, because a slow or offline scanner causes timeouts too.
+## Network Safety & Privacy Cautions
 
-## GitHub checks
+### 1. IP Address Disclosure
 
-The scanner asks the GitHub API whether the owner and repository exist. It records the owner's
-type, age and repository count, and the repository's stars, age, last update, fork status and
-archive status.
+> **CAUTION:** When `skill-verdict` verifies external domains, it sends an HTTPS request to the domain root. This means **your IP address will appear in the server access logs** of the owner of that domain.
 
-An owner name that redirects to another account is treated as renamed. An owner created within `youngOwnerDays` produces `GITHUB-OWNER-NEW`.
+If you are analyzing suspected malware or need total anonymity, do not run with default network settings.
 
-## Package checks
+### 2. Running Completely Offline
 
-The scanner asks `packages.ecosyste.ms` for the package's first publication date, latest version and last month's download count. Two answers send the scanner to npm or PyPI for an existence check:
+To disable all network requests and perform an air-gapped local scan:
 
-- the statistics service does not know the package
-- the statistics service does not answer
+```json
+{
+  "layers": {
+    "references": {"enabled": false},
+    "honeypot": {"enabled": false},
+    "discovery": {"enabled": false},
+    "judge": {"enabled": false}
+  }
+}
+```
 
-Only the registry's answer decides that a package is missing.
+With `references.enabled: false`, zero network sockets will be opened.
 
-An install command that names another registry or index with an option such as `--registry` or `--index-url` is still checked against the default registry. The brief notes at that location which registry the command installs from, and `PACKAGE-OTHER-REGISTRY` reports the command.
+### 3. Avoiding GitHub API Rate Limits
 
-It also compares the package name with a built-in list of popular packages. A name one or two edits away from a popular one produces `PACKAGE-TYPOSQUAT`. A package first published within `newPackageDays` produces `PACKAGE-NEW`. Fewer than `lowDownloads` downloads last month produces `PACKAGE-LOW-DOWNLOADS`.
+Anonymous requests to the GitHub API are capped at 60 per hour per IP. If you scan multiple skills, you will quickly encounter rate limits, leading to `incomplete` scans.
 
-## Findings
+Set a GitHub personal access token in your environment:
 
-Every finding below needs an answer from the responsible service. For `DOMAIN-UNREACHABLE` that answer is the host refusing the connection. A timeout or a malformed response creates none. Three rules need no request:
+```sh
+export GITHUB_TOKEN=ghp_yourTokenHere
+```
 
-- `IP-ADDRESS-PUBLIC` follows from the address itself
-- `PACKAGE-TYPOSQUAT` follows from the package name
-- `REFERENCES-TOO-MANY` follows from the number of references
+A fine-grained token with **zero repository permissions** (public read-only) increases your allowance to 5,000 requests per hour.
 
-| Rule | Severity | Meaning |
+---
+
+## Tuning Reference Checks
+
+You can fine-tune timeouts, request pacing, and age thresholds in `config.json`:
+
+```json
+{
+  "layers": {
+    "references": {
+      "timeout": "10s",
+      "budget": "120s",
+      "concurrency": 8,
+      "requestDelay": "1s",
+      "retryDelays": ["2s", "5s"],
+      "youngDomainDays": 365,
+      "expiryDays": 14,
+      "youngOwnerDays": 90,
+      "newPackageDays": 90,
+      "lowDownloads": 1000,
+      "maxReferences": 100
+    }
+  }
+}
+```
+
+| Setting | Default | Description |
 |---|---|---|
-| `IP-ADDRESS-PUBLIC` | critical | A URL, host and port, or network command targets a public IP address. |
-| `DOMAIN-SHORTENER` | critical | The host is a URL shortener. |
-| `DOMAIN-PASTE` | critical | The host is a paste or snippet site. |
-| `DOMAIN-FILEHOST` | critical | The host is a file sharing service. |
-| `DOMAIN-NEW` | medium | The domain registration is younger than `youngDomainDays`. |
-| `DOMAIN-NEW-REDIRECT` | critical | A domain registered within `youngDomainDays` redirects to a different registered domain. |
-| `DOMAIN-EXPIRING` | high | Registration expires within `expiryDays`. |
-| `DOMAIN-UNREGISTERED` | high | The domain is available for anyone to register. |
-| `DOMAIN-HTTP-ERROR` | high | The host root answers with a 4xx or 5xx status. |
-| `DOMAIN-UNREACHABLE` | high | The host refuses or drops the connection, or its name does not resolve. |
-| `GITHUB-OWNER-MISSING` | critical | The GitHub owner name does not exist. |
-| `GITHUB-OWNER-RENAMED` | critical | The repository resolves to a different owner name, leaving the original name available. |
-| `GITHUB-OWNER-NEW` | medium | The GitHub owner account is younger than `youngOwnerDays`. |
-| `GITHUB-REPO-MISSING` | high | The owner exists but the repository does not. |
-| `PACKAGE-LOW-DOWNLOADS` | low | The package had fewer than `lowDownloads` downloads last month. |
-| `PACKAGE-MISSING` | critical | The npm or PyPI package does not exist. |
-| `PACKAGE-NEW` | medium | The first release of the package is younger than `newPackageDays`. |
-| `PACKAGE-TYPOSQUAT` | high | The package name is one or two edits away from a popular package. |
-| `REFERENCES-TOO-MANY` | high | The skill has more distinct references than `maxReferences`. |
-
-`REFERENCES-TOO-MANY` stops the scan by default, before any lookup. A skill rarely needs that many references, and a long list can hide a malicious reference among valid ones. The count covers all kinds of references together and includes domains reached through a redirect. With `interrupt` off on this rule, the scanner checks the first `maxReferences` references and marks the rest `not-checked`.
-
-Model review sees every finding in this table and reads the brief for the facts behind it. The model may lower a finding to the floor in [Rules](rules.md) and no further. The model may dismiss a finding whose rule has no floor. See [Verdicts](verdicts.md) for what the severity means for the verdict.
-
-## The brief
-
-The reference check writes `references.brief.md`, a Markdown artifact of kind `brief` with origin `references`. The model layers list it with the skill's files and read it like any other file. The brief has one section per reference kind and one heading per reference with:
-
-- the status and, for a failed lookup, the error text
-- `derived: true` when the scanner reached the reference through a redirect
-- every file and line where the skill uses the reference, and the text of that line
-- every full URL the skill wrote for the reference, one `url:` line each
-- every fact the services returned, one `key: value` line each
-
-The brief has no findings and no opinions. Rule IDs stay in the findings list.
-
-## Checks that do not finish
-
-A reference is `not-checked` in these cases:
-
-- the time budget runs out
-- an API rate limit is still there after the last retry
-- the skill has more than `maxReferences` references and `interrupt` is off on `REFERENCES-TOO-MANY`
-
-A reference is `failed` in these cases:
-
-- a request times out
-- the network on the scanner side fails
-- the scanner cannot read the response
-
-Either result makes the scan `incomplete` because the external name was not verified. A domain host that refuses the connection gives `DOMAIN-UNREACHABLE` and counts as checked.
-
-| Setting | Default | Purpose |
-|---|---|---|
-| `layers.references.timeout` | `10s` | Time allowed for one request. |
-| `layers.references.budget` | `120s` | Total time allowed for one skill. |
-| `layers.references.maxReferences` | `100` | More distinct references in one skill produce `REFERENCES-TOO-MANY`. |
-| `layers.references.concurrency` | `8` | Hosts with a request in flight at once. |
-| `layers.references.requestDelay` | `1s` | Pause between two requests to one host. |
-| `layers.references.retryDelays` | `["2s", "5s"]` | Pauses before each retry. |
-| `layers.references.maxBodyBytes` | `1048576` | Maximum response size in bytes. |
-| `layers.references.maxRedirects` | `5` | Redirects followed. |
-
-## Request pacing
-
-Requests to one host go out one at a time, `requestDelay` apart. Requests to different hosts run in parallel, up to `concurrency` hosts at once.
-
-One run sends each URL once. Two repositories of one GitHub owner share the owner lookup.
-
-The scanner repeats a request after each pause in `retryDelays` when the answer was status 429, status 403 with a rate limit header, a 5xx status or a network error. When the last attempt still gets a rate limit, the scanner closes the host for the rest of the run. Every later reference on that host is `not-checked` with the reason `rate limit`.
-
-## GitHub API limits
-
-Without a token, GitHub allows 60 requests per hour from one address. A reference may require one request for the owner and another for the repository.
-
-Set a token in the environment variable named by `layers.references.githubTokenEnv`, which is
-`GITHUB_TOKEN` by default. A token with no scopes is enough for public repositories.
-
-## Network safety
-
-The scanner refuses to connect to any address that is not public. This applies to the
-first request and every redirect. A host that resolves to such an address is marked
-`failed`.
-
-URLs with an IP address or `localhost` are not treated as external references. With
-`layers.references.enabled` set to `false` the scanner creates no reference checks and makes no network
-requests.
+| `budget` | `120s` | Maximum total time allocated for all external checks in a single skill. |
+| `timeout` | `10s` | Timeout for an individual HTTP request. |
+| `concurrency` | `8` | Maximum number of concurrent outbound host connections. |
+| `requestDelay` | `1s` | Rate-limiting pause between consecutive requests to the same host. |
+| `youngDomainDays` | `365` | Domains younger than this are flagged as `DOMAIN-NEW`. |
+| `expiryDays` | `14` | Domains expiring within this window trigger `DOMAIN-EXPIRING`. |
+| `maxReferences` | `100` | Skills referencing more items than this trigger `REFERENCES-TOO-MANY` and halt the scan. |
