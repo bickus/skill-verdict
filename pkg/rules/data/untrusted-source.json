@@ -1,0 +1,56 @@
+{
+ "rules": [
+  {
+   "id": "UNPINNED-DOWNLOAD",
+   "category": "supply-chain",
+   "severity": "critical",
+   "title": "Code fetched from a moving target",
+   "description": "A referenced URL serves whatever its owner put there last: a GitHub raw or archive link on a branch, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. Judge the finding by what the skill does with the URL: fetching it, installing from it, running it, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. A widely used project can also lower it when fetching from that project fits what the skill does. Decide that on the reference facts in this report, an owner that exists, an old account, a repository many people use, not on how familiar the name looks, because imitating a familiar name is what a typosquat does.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)raw\\.githubusercontent\\.com/[^/\\s]+/[^/\\s]+/[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
+    "(?i)github\\.com/[^/\\s]+/[^/\\s]+/(?:raw|blob)/[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
+    "(?i)codeload\\.github\\.com/[^/\\s]+/[^/\\s]+/(?:zip|tar\\.gz|legacy\\.[a-z.]+)/[^/\\s]*[^0-9a-f/\\s][^/\\s]*",
+    "(?i)github\\.com/[^/\\s]+/[^/\\s]+/archive/refs/",
+    "(?i)github\\.com/[^/\\s]+/[^/\\s]+/archive/[^/\\s]*[^0-9a-f/\\s.][^/\\s]*\\.(?:zip|tar\\.gz)",
+    "(?i)github\\.com/[^/\\s]+/[^/\\s]+/releases/(?:latest/)?download/",
+    "(?i)gist\\.github(?:usercontent)?\\.com/"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-GIT",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Code fetched from a default branch",
+   "description": "The skill clones a repository or installs from a Git source without a commit hash: git clone, gh repo clone, a git+ URL, an npm github: spec, or a Go module at latest or on a branch. Every run fetches whatever the branch holds at that moment, so what a reviewer reads today is not what the user gets tomorrow. A skill does repeated work and cloning a repository is a one-time step, so the step is out of place in a skill. A reference pinned to a commit hash does not match this rule. Unless this is a false positive, do not trust the skill. The fix is to clone the repository once, review it, and remove the step from the skill.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)\\bgit\\s+clone\\b",
+    "(?i)\\bgh\\s+repo\\s+clone\\b",
+    "(?i)\\bgit\\+(?:https?|ssh)://[^\\s@#]+(?:@[^\\s#]*[^0-9a-f\\s#][^\\s#]*)?(?:[\\s#]|$)",
+    "(?i)\\bgithub:[\\w.-]+/[\\w.-]+(?:#[^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)",
+    "(?i)\\bgo\\s+(?:install|get|run)\\s+\\S+@(?:latest|upgrade|patch|main|master|HEAD)\\b"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "enabled": true
+  },
+  {
+   "id": "REMOTE-CODE-AT-INSTALL",
+   "category": "remote-execution",
+   "severity": "high",
+   "title": "Install step that runs code from outside the skill",
+   "description": "Instructions telling the reader or the agent to fetch, unpack, paste or run something that is not in the skill bundle: download an executable and start it, copy a script from a web page into a terminal, install a helper utility before the skill works at all. The files of the skill are reviewed, the outside code is not. Report the instruction even when the link looks ordinary.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing is judged is false-positive or no."},
+   "enabled": true
+  }
+ ]
+}

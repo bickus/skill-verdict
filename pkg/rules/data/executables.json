@@ -1,0 +1,32 @@
+{
+ "rules": [
+  {
+   "id": "FILE-BINARY",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "Binary executable",
+   "description": "The skill ships compiled code: a native program or library, or bytecode for Python, Java, Android, Lua, Erlang, Ruby or WebAssembly. Nobody can read what it does without the source, and a scanner that reads text sees nothing of it.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "files": ["*.jar", "*.war", "*.apk", "*.aab"],
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "FILE-INSTALLER",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "Installer or system package",
+   "description": "The skill ships an installer or a system package for Windows, Linux, macOS or iOS. Installing one puts compiled software on the system and often runs its scripts with administrator rights. Nobody can review its contents without unpacking it.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "files": ["*.msi", "*.msp", "*.msm", "*.msix", "*.msixbundle", "*.appx", "*.appxbundle", "*.ipa", "*.dmg", "*.pkg.tar.zst", "*.pkg.tar.xz"],
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  }
+ ]
+}

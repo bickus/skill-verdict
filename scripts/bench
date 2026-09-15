@@ -1,0 +1,54 @@
+#!/bin/sh
+set -u
+cd "$(dirname "$0")/.." || exit 2
+image=localhost/skill-verdict-bench
+commit=06e083125d5ec5dd7a189dfedadfe587a70635b9
+binary=bin/linux-amd64/skill-verdict
+config=${XDG_CONFIG_HOME:-$HOME/.config}/skill-verdict/config.json
+usage='usage:
+  scripts/bench build                     build the image with MalSkillBench at the pinned commit
+  scripts/bench ls [path]                 list what the archive holds under a path
+  scripts/bench scan [scan flags] <path>  scan a skill or a directory of skills inside the container
+
+Skills are under Dataset/Skills/malware/<name> and Dataset/Skills/benign/<name>.
+'
+setting() {
+  [ -f "$config" ] && sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" "$config"
+}
+build() {
+  exec podman build --build-arg "COMMIT=$commit" -t "$image" -f scripts/bench.Containerfile scripts
+}
+run() {
+  set -- "$image" "$@"
+  [ -x "$binary" ] && set -- --volume "$PWD/$binary:/usr/local/bin/skill-verdict:ro" "$@"
+  if [ -f "$config" ]; then
+    set -- --env XDG_CONFIG_HOME=/cfg --volume "$config:/cfg/skill-verdict/config.json:ro" "$@"
+  fi
+  key_file=$(setting keyFile)
+  if [ -n "$key_file" ] && [ -f "$key_file" ]; then
+    set -- --volume "$key_file:$key_file:ro" "$@"
+  fi
+  for name in $(setting keyEnv) $(setting githubTokenEnv); do
+    [ -n "${name:-}" ] && eval "[ -n \"\${$name:-}\" ]" && set -- --env "$name" "$@"
+  done
+  exec podman run --rm --cap-drop=all --security-opt=no-new-privileges --read-only \
+    --tmpfs '/tmp:rw,size=512m' --userns=keep-id --http-proxy=false "$@"
+}
+case "${1:-}" in
+  build) build ;;
+  ls) shift; run bench-image list "$@" ;;
+  scan)
+    shift
+    [ $# -ge 1 ] || { printf '%s' "$usage" >&2; exit 2; }
+    [ -x "$binary" ] || { echo "$binary is missing, run scripts/check first" >&2; exit 2; }
+    n=$#
+    i=1
+    while [ "$i" -lt "$n" ]; do
+      set -- "$@" "$1"
+      shift
+      i=$((i + 1))
+    done
+    run bench-image scan "$@"
+    ;;
+  *) printf '%s' "$usage" >&2; exit 2 ;;
+esac

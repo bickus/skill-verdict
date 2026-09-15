@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "REMOTE-ENDPOINT-UPLOAD",
+   "category": "exfiltration",
+   "severity": "low",
+   "title": "Replaced",
+   "description": "Replaced by a directory rule.",
+   "kind": "heuristic",
+   "layer": "static",
+   "patterns": ["(?i)replaced"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

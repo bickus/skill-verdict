@@ -1,0 +1,31 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_ssrf.py"
+ },
+ "rules": [
+  {
+   "id": "CLOUD-METADATA-READ",
+   "category": "ssrf",
+   "severity": "high",
+   "title": "Cloud metadata endpoint",
+   "description": "Code addresses a cloud instance metadata endpoint, which returns temporary credentials.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)169\\.254\\.169\\.254",
+    "(?i)metadata\\.google\\.internal",
+    "(?i)100\\.100\\.100\\.200",
+    "(?i)fd00:ec2::254",
+    "(?i)(?:read|fetch|get|query)\\s+(?:the\\s+)?(?:instance\\s+)?metadata\\s+(?:service|endpoint|server)"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

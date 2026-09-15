@@ -1,0 +1,60 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/semantic_security_discovery.py"
+ },
+ "rules": [
+  {
+   "id": "PROMPT-INJECTION-SEMANTIC",
+   "category": "prompt-injection",
+   "severity": "medium",
+   "title": "Semantic prompt injection",
+   "description": "Instructions that appear benign or helpful on the surface but are designed to redirect an AI model's behavior toward harmful, unauthorized, or unsafe actions: polite reframings of ignoring system instructions, role-play setups that grant elevated permissions, fictional or hypothetical framings used to bypass safety.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the text is not an instruction to the agent at all. How much harm the instruction could do is not a reason to lower or to keep."},
+   "enabled": false
+  },
+  {
+   "id": "PROMPT-INJECTION-PARAPHRASED",
+   "category": "prompt-injection",
+   "severity": "medium",
+   "title": "Novel or paraphrased attack phrasing",
+   "description": "Reformulations of known attack patterns (prompt injection, jailbreaks) that would not be caught by keyword or regex matching: creative synonyms, indirect descriptions, encoded or obfuscated intent, culturally framed requests.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the text is not an instruction to the agent at all. How much harm the instruction could do is not a reason to lower or to keep."},
+   "enabled": false
+  },
+  {
+   "id": "EXFILTRATION-IN-PROSE",
+   "category": "exfiltration",
+   "severity": "high",
+   "title": "Natural-language exfiltration instructions",
+   "description": "Plain-language instructions to collect, expose, summarize, transmit, or leak sensitive, private, or user-provided data without explicit technical terms such as exfiltrate or send: remembering everything the user says and including it in responses, keeping a log of all inputs, echoing back credentials.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  },
+  {
+   "id": "DECEPTION-GRADUAL",
+   "category": "deception",
+   "severity": "high",
+   "title": "Narrative or gradual deception",
+   "description": "Multi-step or incremental instruction sequences where individual steps appear harmless but the cumulative effect steers toward a harmful goal: establishing trust first and then requesting sensitive actions, progressive permission escalation, story-driven setups that normalize harmful behavior.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

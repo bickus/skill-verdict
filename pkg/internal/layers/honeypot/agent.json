@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "description": {"type": "string", "description": "A short name for the task, 3 to 5 words"},
+    "prompt": {"type": "string", "description": "The task for the subagent"},
+    "subagent_type": {"type": "string", "description": "The type of subagent to start. Default general-purpose"}
+  },
+  "required": ["description", "prompt"],
+  "additionalProperties": false
+}

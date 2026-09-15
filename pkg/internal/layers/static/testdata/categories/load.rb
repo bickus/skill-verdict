@@ -1,0 +1,1 @@
+obj = Marshal.load(data)

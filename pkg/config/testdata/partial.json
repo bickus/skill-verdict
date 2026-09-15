@@ -1,0 +1,4 @@
+{
+  "layers": {"judge": {"enabled": false, "calls": 3}, "references": {"timeout": "30s"}},
+  "llm": {"model": "openai/gpt-4o-mini"}
+}

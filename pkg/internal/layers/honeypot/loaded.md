@@ -1,0 +1,3 @@
+Skill directory: {{base}}
+
+{{body}}

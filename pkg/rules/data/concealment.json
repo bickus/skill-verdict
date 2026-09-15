@@ -1,0 +1,40 @@
+{
+ "rules": [
+  {
+   "id": "WORD-INVISIBLE-CHARS",
+   "category": "obfuscation",
+   "severity": "high",
+   "title": "Invisible characters inside a word",
+   "description": "Characters that do not print sit between the letters of a word, so the word reads normally but does not match as text - a usual attempt to bypass static regex checks.",
+   "kind": "heuristic",
+   "layer": "reveal",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "enabled": true
+  },
+  {
+   "id": "WORD-HOMOGLYPHS",
+   "category": "obfuscation",
+   "severity": "medium",
+   "title": "Look-alike characters inside a word",
+   "description": "Letters from another script or compatibility forms that print like ASCII letters replace them inside a word - a usual attempt to bypass static regex checks.",
+   "kind": "heuristic",
+   "layer": "reveal",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "enabled": true
+  },
+  {
+   "id": "WORD-SPACED",
+   "category": "obfuscation",
+   "severity": "medium",
+   "title": "Spaced-out word",
+   "description": "A word is written with separators between its letters, so it reads normally but does not match as text - a usual attempt to bypass static regex checks.",
+   "kind": "heuristic",
+   "layer": "reveal",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "enabled": true
+  }
+ ]
+}

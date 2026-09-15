@@ -1,0 +1,1 @@
+Record verdicts while reading continues. Call it as soon as you have read the passage, several times in one turn if needed. `verdicts` carries one entry per finding, and a second entry for the same finding replaces the first. The reply says where each finding ended up.

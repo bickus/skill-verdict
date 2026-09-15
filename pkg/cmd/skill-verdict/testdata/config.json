@@ -1,0 +1,8 @@
+{
+ "layers": {
+  "references": {"enabled": false},
+  "honeypot": {"enabled": false},
+  "discovery": {"enabled": false},
+  "judge": {"enabled": false}
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "rules": [
+  {
+   "id": "X3",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Static without patterns",
+   "description": "A static rule needs patterns.",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

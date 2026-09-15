@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "X2",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Bad regex",
+   "description": "Pattern does not compile.",
+   "kind": "heuristic",
+   "layer": "static",
+   "patterns": ["(?i)(unclosed"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

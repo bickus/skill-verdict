@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "finding": {"type": "string", "description": "Finding id from the list, such as D1"},
+    "verdict": {"type": "string", "description": "Where the finding ends: the severity it deserves, or dismiss for a false positive"},
+    "confidence": {"type": "integer", "description": "1 to 4 on the scale in the instructions"},
+    "explanation": {"type": "string", "description": "Why the finding ends there, at most 300 characters"}
+  },
+  "required": ["finding", "verdict", "confidence", "explanation"],
+  "additionalProperties": false
+}

@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {"type": "string", "enum": ["ok", "fail"], "description": "ok when the request succeeded, fail when it did not"}
+  },
+  "required": ["status"],
+  "additionalProperties": false
+}

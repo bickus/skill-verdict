@@ -1,0 +1,64 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_tool_misuse.py"
+ },
+ "rules": [
+  {
+   "id": "SETTING-UNSAFE",
+   "category": "tool-misuse",
+   "severity": "medium",
+   "title": "Unsafe default",
+   "description": "A setting disables TLS verification, authentication, validation, sandboxing or file permissions, or turns on debug mode.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)verify\\s*=\\s*False",
+    "(?i)VERIFY_SSL\\s*=\\s*False",
+    "(?i)(?:ssl|tls)[_.]?verify\\s*=\\s*(?:False|false|0|off|no|disable)",
+    "(?i)(?:REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE)\\s*=\\s*['\"]['\"]",
+    "(?i)NODE_TLS_REJECT_UNAUTHORIZED\\s*=\\s*['\"]?0['\"]?",
+    "(?i)(?:auth|authentication|authorization)\\s*=\\s*(?:None|False|false|disabled?|off|no)",
+    "(?i)(?:require[_-]?auth|auth[_-]?required|check[_-]?auth)\\s*=\\s*(?:False|false|0|no|off)",
+    "(?i)(?:allow[_-]?anonymous|anonymous[_-]?access)\\s*=\\s*(?:True|true|1|yes|on)",
+    "(?i)(?:CORS|cors)[^=]*=\\s*['\"]?\\*['\"]?",
+    "(?i)(?:allow|access)[_-]?(?:origin|hosts?)\\s*=\\s*['\"]?\\*['\"]?",
+    "(?i)(?:allow|trust)\\s+(?:all|any|every)\\s+(?:origins?|hosts?|domains?|ips?)",
+    "(?i)(?:mode|permission|umask)\\s*=\\s*(?:0?o?777|0?o?666)",
+    "(?i)world[_-]?(?:readable|writable|executable)",
+    "(?i)(?:debug|dev|development)[_-]?mode\\s*=\\s*(?:True|true|1|on|yes|enable)",
+    "(?i)(?:FLASK_ENV|NODE_ENV|RAILS_ENV|DJANGO_DEBUG)\\s*=\\s*['\"]?(?:development|debug|true|1)['\"]?",
+    "(?i)(?:disable|skip|ignore|bypass)[_-]?(?:security|auth|validation|sanitization|encoding|escaping)",
+    "(?i)(?:safe[_-]?mode|secure[_-]?mode|sandbox)\\s*=\\s*(?:False|false|0|off|no|disable)",
+    "(?i)(?:by\\s+default|default\\s+to)\\s+(?:allow|accept|trust)\\s+(?:all|any|everything)",
+    "(?i)(?:trust|accept|allow)\\s+(?:all|any)\\s+(?:input|connections?|certificates?|origins?)\\s+(?:by\\s+default)"
+   ],
+   "judge": {"downgrade": true, "instructions": "Lower when the setting is in an example, a test or a local development config. A setting the skill tells the user to apply keeps it."},
+   "enabled": true
+  },
+  {
+   "id": "KUBERNETES-PRIVILEGED",
+   "category": "tool-misuse",
+   "severity": "medium",
+   "title": "Privileged Kubernetes workload",
+   "description": "A workload runs privileged, mounts a host path or shares a host namespace.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)privileged\\s*:\\s*true",
+    "(?i)hostPath\\s*:",
+    "(?i)host(?:PID|Network|IPC)\\s*:\\s*true",
+    "(?i)kubectl\\s+run\\b[^\\n]*--privileged",
+    "(?i)--set\\b[^\\n]*privileged\\s*=\\s*true"
+   ],
+   "judge": {"downgrade": true, "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+*.local
+CLAUDE.local.md
+.claude/settings.local.json
+.codex/
+.opencode/
+bin/
+dist/
+.directory
+.annotations/
+.annotations.json
+opencode.json

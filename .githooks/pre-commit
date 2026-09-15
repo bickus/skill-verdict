@@ -1,0 +1,43 @@
+#!/bin/sh
+set -u
+all=$(git diff --cached --name-only)
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+go_files=$(printf '%s\n' "$files" | grep '\.go$' || true)
+mod_files=$(printf '%s\n' "$files" | grep -E '^go\.(mod|sum)$' || true)
+fail=0
+patterns=$(mktemp)
+printf '%s\n' "$HOME" > "$patterns"
+[ -f .githooks/private-paths.local ] && cat .githooks/private-paths.local >> "$patterns"
+for f in $files; do
+  hits=$(git show ":$f" | grep -nI -f "$patterns" || true)
+  if [ -n "$hits" ]; then
+    printf 'private path in %s:\n%s\n' "$f" "$hits" >&2
+    fail=1
+  fi
+done
+rm -f "$patterns"
+for dir in docs/adr scripts; do
+  printf '%s\n' "$all" | grep -q "^$dir/" || continue
+  if ! readme=$(git show ":$dir/README.md" 2>/dev/null); then
+    echo "$dir/README.md is not in the index" >&2
+    fail=1
+    continue
+  fi
+  have=$(mktemp) && linked=$(mktemp)
+  git ls-files --cached -- "$dir" | sed "s|^$dir/||" | grep -v -e '^README\.md$' -e '^template\.md$' | sort > "$have"
+  printf '%s\n' "$readme" | grep -o '](\([^)/]*\))' | sed 's/^](//;s/)$//' | sort -u > "$linked"
+  unlisted=$(comm -23 "$have" "$linked")
+  dangling=$(comm -13 "$have" "$linked")
+  rm -f "$have" "$linked"
+  if [ -n "$unlisted" ]; then
+    echo "$dir/README.md has no link to: $unlisted" >&2
+    fail=1
+  fi
+  if [ -n "$dangling" ]; then
+    echo "$dir/README.md links to a missing file: $dangling" >&2
+    fail=1
+  fi
+done
+[ -z "$go_files" ] && [ -z "$mod_files" ] && exit $fail
+scripts/check >&2 || fail=1
+exit $fail

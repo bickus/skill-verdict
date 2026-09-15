@@ -1,0 +1,1 @@
+Record one finding or withdraw it while reading continues. Call it as soon as you have the passage, several times in one turn if needed. `add` records the finding and replaces an earlier one with the same identity. `remove` withdraws it. The reply says how many findings are on record.

@@ -1,0 +1,12 @@
+skill-verdict
+Copyright 2026 skill-verdict authors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This product includes material derived from the following works. Their license texts
+and the list of affected files are in third_party/.
+
+NVIDIA SkillSpector
+Copyright 2026 NVIDIA CORPORATION & AFFILIATES
+Licensed under the Apache License, Version 2.0
+https://github.com/NVIDIA/skillspector

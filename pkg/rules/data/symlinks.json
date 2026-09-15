@@ -1,0 +1,39 @@
+{
+ "rules": [
+  {
+   "id": "SYMLINK-TO-SECRETS",
+   "category": "exfiltration",
+   "severity": "critical",
+   "title": "Symbolic link to secrets or a home folder",
+   "description": "A symbolic link in the skill points to secrets such as .env, .ssh or .aws, to a home folder, to the filesystem root, or to a folder above the skill. An agent that reads through the link reads that data as if it were a file of the skill.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "link",
+   "patterns": [
+    "(?i)(?:^|/)(?:\\.env(?:\\.[^/]*)?|\\.ssh|\\.aws|\\.config|\\.gnupg|credentials(?:\\.[^/]*)?)(?:/|$)",
+    "^/$",
+    "(?i)^/root$",
+    "(?i)^/(?:home|users)(?:/[^/]+)?$",
+    "(?i)^[a-z]:/(?:users(?:/[^/]+)?)?$",
+    "^\\.\\.(?:/\\.\\.)*$"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "enabled": true
+  },
+  {
+   "id": "SYMLINK-OUT-OF-SKILL",
+   "category": "exfiltration",
+   "severity": "high",
+   "title": "Symbolic link out of the skill",
+   "description": "A symbolic link in the skill points outside the skill folder. The target does not ship with the skill, so what an agent reads through the link depends on the machine it runs on. A skill rarely needs such a link.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "link",
+   "patterns": [
+    "(?i)^(?:\\.\\.(?:/|$)|/|[a-z]:)"
+   ],
+   "judge": {"downgrade": true, "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

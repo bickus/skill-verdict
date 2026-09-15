@@ -1,0 +1,54 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_agent_snooping.py"
+ },
+ "rules": [
+  {
+   "id": "AGENT-CONFIG-READ",
+   "category": "agent-snooping",
+   "severity": "medium",
+   "title": "Agent configuration directory read",
+   "description": "Code reads the agent's own configuration directory, which holds settings and credentials the skill usually has no need for. Intent and resulting usage of read configuration should be analyzed in detail.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "code",
+   "patterns": [
+    "(?i)open\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)/",
+    "(?i)(?:Path|pathlib\\.Path)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)/",
+    "(?i)os\\.path\\.(?:join|exists|isfile)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)",
+    "(?i)(?:read|load|open|access|fetch)\\s+(?:the\\s+)?(?:agent|claude|codex|gemini)\\s+(?:config|configuration|settings?)\\s+(?:from|at|in)\\s+~?/?\\.(?:claude|codex|gemini)",
+    "(?i)(?:cat|less|head|tail|grep|find)\\s+[^|&;\\n]*~?/?\\.(claude|codex|gemini)/",
+    "(?i)~?/\\.(?:claude|codex|gemini|continue)/(?:config|settings?|preferences?|credentials?)(?:\\.(?:json|yaml|yml|toml))?",
+    "(?i)(?:read|access|inspect|examine|retrieve)\\s+(?:the\\s+)?(?:agent|assistant)\\s+(?:config(?:uration)?|settings?|preferences?)\\s+(?:file|directory|folder)"
+   ],
+   "judge": {"downgrade": true, "instructions": "A skill that manages agent settings may read them. Lower only when what is read stays on the machine. A read followed by any send or log keeps it."},
+   "enabled": true
+  },
+  {
+   "id": "AGENT-MCP-CONFIG-READ",
+   "category": "agent-snooping",
+   "severity": "medium",
+   "title": "MCP configuration read",
+   "description": "Code reads an MCP server configuration, which holds server URLs, tokens and tool definitions. Intent and resulting usage of read configuration should be analyzed in detail.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)open\\s*\\(\\s*['\"][^'\"]*mcp(?:_config)?\\.json['\"]",
+    "(?i)(?:Path|pathlib\\.Path)\\s*\\(\\s*['\"][^'\"]*mcp(?:_config)?\\.json['\"]",
+    "(?i)(?:cat|less|head|grep)\\s+[^|&;\\n]*mcp(?:_config)?\\.json",
+    "(?i)(?:read|access|load|inspect)\\s+(?:the\\s+)?mcp(?:\\.json|_config)?\\s+(?:file|config(?:uration)?|settings?)",
+    "(?i)\\.(?:claude|codex|gemini)/mcp(?:_config)?\\.json",
+    "(?i)(?:list|enumerate|discover)\\s+(?:all\\s+)?(?:available\\s+)?mcp\\s+(?:servers?|tools?|services?)",
+    "(?i)mcp(?:_config)?\\.json.*?(?:api_?key|token|secret|url|endpoint)"
+   ],
+   "judge": {"downgrade": true, "instructions": "A skill that manages agent settings may read them. Lower only when what is read stays on the machine. A read followed by any send or log keeps it."},
+   "enabled": true
+  }
+ ]
+}

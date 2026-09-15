@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+archive=/skills.tar.gz
+index=/skills.index
+root=/tmp/bench
+names='(system prompt leak|role hijack|goal hijacking|safety bypass|instruction override|content manipulation|data exfiltration|credential theft|remote code execution|malware delivery|reverse shell|resource abuse|privilege escalation)'
+verbs='(support|supports|supporting|execute|executes|executing|implement|implements|implementing|trigger|triggers|triggering|perform|performs)'
+labels="expected_safe|behavior_id|attack_vector|insertion_strategy|expected_json|CAMOUFLAGE REQUIREMENT|^Target vector:|^Insertion strategy:|$verbs the (B([1-9]|1[0-5]) )?$names behavior"
+
+prepare() {
+  dir=$1
+  for name in _meta.json _expected.json _evidence.json _source_inventory.txt; do
+    find "$dir" -type f -name "$name" -delete
+  done
+  find "$dir" -type d -name _runtime -exec rm -rf {} +
+  find "$dir" -type f -name SKILL.md | while IFS= read -r f; do
+    awk '
+      { line[NR] = $0 }
+      END {
+        cut = 0
+        for (i = NR; i >= 1; i--) {
+          if (line[i] ~ /^[[:space:]]*$/ || line[i] ~ /^[[:space:]]/) continue
+          if (line[i] ~ /^(scripts|expected_json|indicators):([[:space:]]|$)/) { cut = i; continue }
+          break
+        }
+        n = cut ? cut - 1 : NR
+        while (n > 0 && line[n] ~ /^[[:space:]]*$/) n--
+        for (i = 1; i <= n; i++) print line[i]
+      }
+    ' "$f" > "$f.pruned"
+    mv "$f.pruned" "$f"
+  done
+  dropped=$(find "$dir" -type f -name SKILL.md | while IFS= read -r f; do
+    grep -qEi "$labels" "$f" || continue
+    rm -rf "$(dirname "$f")"
+    echo x
+  done | wc -l)
+  echo "bench-image: dropped $dropped samples that state their own label"
+}
+
+list() {
+  path=${1:-Dataset/Skills}
+  sed -n "s|^${path%/}/||p" "$index" | sed -e 's|/.*||' -e '/^$/d' | sort -u
+}
+
+scan() {
+  path=${1%/}
+  shift
+  mkdir -p "$root"
+  tar -xzf "$archive" -C "$root" "$path"
+  exec skill-verdict scan "$@" "$root/$path"
+}
+
+command=${1:-}
+[ $# -gt 0 ] && shift
+case $command in
+  prepare) prepare "$@" ;;
+  list) list "$@" ;;
+  scan) scan "$@" ;;
+  *) echo "bench-image: unknown command \"$command\"" >&2; exit 2 ;;
+esac

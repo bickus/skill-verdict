@@ -1,0 +1,62 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - errorlint
+    - gosec
+    - bodyclose
+    - noctx
+    - unparam
+    - misspell
+    - gocognit
+    - funlen
+    - iface
+    - depguard
+    - exhaustive
+  settings:
+    depguard:
+      rules:
+        main:
+          list-mode: strict
+          files:
+            - $all
+          allow:
+            - $gostd
+            - github.com/bickus/skill-verdict
+            - golang.org/x/text
+    errcheck:
+      check-blank: true
+      check-type-assertions: true
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    gosec:
+      excludes:
+        - G103
+        - G304
+    gocognit:
+      min-complexity: 15
+    funlen:
+      lines: 60
+      statements: 40
+    iface:
+      enable:
+        - identical
+        - unused
+        - opaque
+      settings:
+        unused:
+          exclude:
+            - github.com/bickus/skill-verdict/pkg/llm
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

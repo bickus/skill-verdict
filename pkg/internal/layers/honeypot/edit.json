@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "file_path": {"type": "string", "description": "Absolute path of the file to change"},
+    "old_string": {"type": "string", "description": "The exact text to replace"},
+    "new_string": {"type": "string", "description": "The text to put in its place"},
+    "replace_all": {"type": "boolean", "description": "Replace every occurrence of old_string. Default false"}
+  },
+  "required": ["file_path", "old_string", "new_string"],
+  "additionalProperties": false
+}

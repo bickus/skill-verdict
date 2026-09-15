@@ -1,0 +1,1 @@
+blob = Marshal.dump(obj)

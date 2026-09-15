@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "properties": {
+    "file": {"type": "string", "description": "Artifact path exactly as listed"},
+    "rule_id": {"type": "string", "description": "Id of a rule from the instructions"},
+    "start_line": {"type": "integer", "description": "First line of the passage, the number after L"},
+    "end_line": {"type": "integer", "description": "Last line of the passage, equal to start_line for one line"},
+    "message": {"type": "string", "description": "Short description of the passage and why it matches the rule, at most 300 characters"},
+    "confidence": {"type": "integer", "description": "1 to 4 on the scale in the instructions"}
+  },
+  "required": ["file", "rule_id", "start_line", "end_line", "message", "confidence"],
+  "additionalProperties": false
+}

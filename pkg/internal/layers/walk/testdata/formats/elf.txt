@@ -1,0 +1,1 @@
+ELF is how an ELF file starts.

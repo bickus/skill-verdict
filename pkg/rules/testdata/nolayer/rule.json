@@ -1,0 +1,15 @@
+{
+ "rules": [
+  {
+   "id": "X5",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "No layer",
+   "description": "A rule needs a layer.",
+   "kind": "heuristic",
+   "patterns": ["(?i)nolayer"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

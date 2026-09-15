@@ -1,0 +1,61 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_deserialization.py"
+ },
+ "rules": [
+  {
+   "id": "DESERIALIZE-PHP",
+   "category": "deserialization",
+   "severity": "high",
+   "title": "PHP unserialize",
+   "description": "PHP unserialize on untrusted input instantiates arbitrary classes and runs their magic methods.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*.php", "*.php3", "*.php4", "*.php5", "*.phtml"],
+   "patterns": [
+    "(?i)\\bunserialize\\s*\\("
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  },
+  {
+   "id": "DESERIALIZE-RUBY-MARSHAL",
+   "category": "deserialization",
+   "severity": "high",
+   "title": "Ruby Marshal load",
+   "description": "Ruby Marshal.load or Marshal.restore rebuilds arbitrary objects from a byte string.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*.rb", "*.rake"],
+   "patterns": [
+    "(?i)\\bMarshal\\s*\\.\\s*(?:load|restore)\\b"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  },
+  {
+   "id": "DESERIALIZE-RUBY-YAML",
+   "category": "deserialization",
+   "severity": "medium",
+   "title": "Ruby YAML load",
+   "description": "Ruby YAML.load, Psych.load or Oj.load can instantiate arbitrary objects from untrusted input.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*.rb", "*.rake"],
+   "patterns": [
+    "(?i)\\b(?:YAML|Psych)\\s*\\.\\s*load\\s*\\(",
+    "(?i)\\bOj\\s*\\.\\s*load\\s*\\("
+   ],
+   "judge": {"downgrade": true, "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

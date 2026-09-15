@@ -1,0 +1,1 @@
+End the task. Call it once, when all reading is done. `verdicts` carries the verdicts of your last reads that are not on record yet, and may be empty. It is not for verdicts made while reading continues: record those with `verdict` as you go, so they are not lost.

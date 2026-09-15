@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "X6",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Unknown layer",
+   "description": "A rule must name a layer the scanner has.",
+   "kind": "heuristic",
+   "layer": "statc",
+   "patterns": ["(?i)badlayer"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

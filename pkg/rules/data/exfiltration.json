@@ -1,0 +1,111 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_data_exfiltration.py"
+ },
+ "rules": [
+  {
+   "id": "REMOTE-ENDPOINT-UPLOAD",
+   "category": "exfiltration",
+   "severity": "medium",
+   "title": "Data sent to an external URL",
+   "description": "Code or a command posts data to a remote host, or a URL names an API, collection or telemetry endpoint. Exact intent and details of data sent and the target host should be analyzed.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "code",
+   "patterns": [
+    "(?i)requests\\s*\\.\\s*(?:post|put)\\s*\\(\\s*['\"]https?://",
+    "(?i)requests\\s*\\.\\s*(?:post|put)\\s*\\([^)]*json\\s*=",
+    "(?i)httpx\\s*\\.\\s*(?:post|put)\\s*\\(\\s*['\"]https?://",
+    "(?i)urllib\\s*\\.\\s*request\\s*\\.\\s*urlopen\\s*\\([^)]*data\\s*=",
+    "(?i)fetch\\s*\\(\\s*['\"]https?://[^'\"]+['\"][^)]*method\\s*:\\s*['\"]POST['\"]",
+    "(?i)curl\\s+[^|]*(?:-d|--data|--data-raw|--data-binary)\\s+",
+    "(?i)wget\\s+[^|]*--post-(?:data|file)",
+    "(?i)https?://(?:api\\.|data\\.|collect\\.|telemetry\\.|analytics\\.)[\\w.-]+/",
+    "(?i)(?:send|transmit|post|upload)\\s+(?:user\\s+)?(?:data|information|context|files?)\\s+to\\s+(?:https?://|external)"
+   ],
+   "exclude": [
+    "(?i)localhost",
+    "(?i)127\\.0\\.0\\.1"
+   ],
+   "judge": {"downgrade": true, "instructions": "Lower or dismiss only when the request goes to the service the skill is for and carries only what that service needs, its own API key included. Data from other files or services keeps it."},
+   "enabled": true
+  },
+  {
+   "id": "SECRETS-ENV-DUMPED",
+   "category": "exfiltration",
+   "severity": "high",
+   "title": "Environment read in bulk",
+   "description": "The whole environment is copied, enumerated or searched for keys, tokens and passwords. Unless this is a rare example or false-positive match, a skill should have a very valid reason to do so.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)for\\s+\\w+\\s*,\\s*\\w+\\s+in\\s+os\\s*\\.\\s*environ\\s*\\.\\s*items\\s*\\(\\s*\\)",
+    "(?i)os\\s*\\.\\s*environ\\s*\\.\\s*copy\\s*\\(\\s*\\)",
+    "(?i)dict\\s*\\(\\s*os\\s*\\.\\s*environ\\s*\\)",
+    "(?i)\\{\\s*\\*\\*\\s*os\\s*\\.\\s*environ\\s*\\}",
+    "(?i)(?:API_KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)\\s+in\\s+(?:key|name|var)",
+    "(?i)process\\.env\\s*\\[\\s*['\"][^'\"]*(?:KEY|SECRET|TOKEN|PASSWORD)[^'\"]*['\"]\\s*\\]",
+    "(?i)Object\\.keys\\s*\\(\\s*process\\.env\\s*\\)",
+    "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)",
+    "(?i)printenv\\s+(?:\\w*(?:KEY|SECRET|TOKEN|PASSWORD)\\w*)",
+    "(?i)collect\\s+(?:all\\s+)?(?:environment\\s+variables?|env\\s+vars?)",
+    "(?i)(?:extract|harvest|gather)\\s+(?:api\\s+)?keys?\\s+from\\s+environment"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "A bulk read of the environment is never justified. Lower or dismiss only on a false positive: the code reads named variables and never copies, lists or searches the whole environment."},
+   "enabled": true
+  },
+  {
+   "id": "SECRETS-DIRS-LISTED",
+   "category": "exfiltration",
+   "severity": "high",
+   "title": "Home and credential directory enumeration",
+   "description": "Files are listed or searched under the home directory or in directories that hold credentials. Unless this is a rare example or false-positive match, a skill should have a very valid reason to do so.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)glob\\s*\\.\\s*glob\\s*\\([^)]*(?:\\.env|\\.ssh|\\.aws|\\.config|credentials)",
+    "(?i)os\\s*\\.\\s*walk\\s*\\([^)]*(?:home|~|/Users|/home)",
+    "(?i)Path\\s*\\.\\s*home\\s*\\(\\s*\\)\\s*\\.\\s*(?:glob|rglob)\\s*\\(",
+    "(?i)(?:find|search|scan|enumerate)\\s+(?:for\\s+)?(?:all\\s+)?(?:\\.env|credential|secret|key)\\s+files?",
+    "(?i)(?:list|get)\\s+(?:all\\s+)?files?\\s+(?:in|from)\\s+(?:home|~|/Users|/home)",
+    "(?i)os\\s*\\.\\s*listdir\\s*\\([^)]*(?:\\.ssh|\\.aws|\\.config|\\.gnupg)",
+    "(?i)scandir\\s*\\([^)]*(?:home|~|/Users|/home)",
+    "(?i)find\\s+[~$/]\\S*\\s+.*?-name\\s+['\"]?\\*(?:\\.env|\\.pem|\\.key|credential)",
+    "(?i)ls\\s+-[la]*R?\\s+(?:~/|/home/|/Users/)",
+    "(?i)(?:recursively|recursive)\\s+(?:scan|search|find|list)\\s+(?:all\\s+)?files?",
+    "(?i)walk\\s+(?:through\\s+)?(?:the\\s+)?(?:entire\\s+)?(?:file\\s*system|directory|home)"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the listed directory is the skill's own or a path the user gave. A search under the home or a credential directory keeps the severity."},
+   "enabled": true
+  },
+  {
+   "id": "CLOUD-STORAGE-UPLOAD",
+   "category": "exfiltration",
+   "severity": "medium",
+   "title": "Upload to cloud storage",
+   "description": "Data is uploaded to an S3, GCS or Azure Blob bucket. Exact intent and details of data sent and the target host should be analyzed.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)\\.put_object\\s*\\(",
+    "(?i)\\.upload_file(?:obj)?\\s*\\(",
+    "(?i)\\baws\\s+s3\\s+(?:cp|sync|mv)\\b",
+    "(?i)\\baws\\s+s3api\\s+put-object\\b",
+    "(?i)\\bgsutil\\s+(?:cp|rsync|mv)\\b",
+    "(?i)\\.upload_from_(?:filename|string|file)\\s*\\(",
+    "(?i)\\baz\\s+storage\\s+blob\\s+upload\\b",
+    "(?i)\\.upload_blob\\s*\\("
+   ],
+   "judge": {"downgrade": true, "instructions": "Decide from what is uploaded. Lower when the skill's purpose is that upload and the bucket is the user's own. A bucket named in the skill keeps it."},
+   "enabled": true
+  }
+ ]
+}

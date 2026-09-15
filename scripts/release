@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.." || exit 2
+targets="linux/amd64 windows/amd64 darwin/arm64"
+version=$(git describe --tags --exact-match 2>/dev/null) || { echo 'HEAD carries no tag' >&2; exit 1; }
+[ -z "$(git status --porcelain)" ] || { echo 'working tree is not clean' >&2; exit 1; }
+dist=dist/$version
+rm -rf "$dist"
+mkdir -p "$dist"
+for t in $targets; do
+  os=${t%/*}
+  arch=${t#*/}
+  ext=""
+  [ "$os" = windows ] && ext=.exe
+  name=skill-verdict-$version-$os-$arch$ext
+  GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o "$dist/$name" ./pkg/cmd/skill-verdict
+  if [ "$os" = "$(go env GOHOSTOS)" ] && [ "$arch" = "$(go env GOHOSTARCH)" ]; then
+    built=$("$dist/$name" --version)
+    [ "$built" = "$version" ] || { echo "binary reports $built, tag is $version" >&2; exit 1; }
+  fi
+done
+(cd "$dist" && sha256sum skill-verdict-* > SHA256SUMS)
+ls -l "$dist"

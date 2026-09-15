@@ -1,0 +1,53 @@
+#!/bin/sh
+set -u
+cd "$(dirname "$0")/.." || exit 2
+lint=github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+targets="linux/amd64 windows/amd64 darwin/arm64"
+out=$(mktemp)
+trap 'rm -f "$out"' EXIT
+fail=0
+report() {
+  echo "$1"
+  grep -vE '^(go: warning|# |exit status|ok |\? |PASS|FAIL$|[0-9]+ issues:|\* [a-z]+: [0-9]+$|\s+\^)' "$out" | grep -v '^[[:space:]]*$' | head -50
+  fail=1
+}
+run() {
+  name=$1
+  shift
+  "$@" >"$out" 2>&1 || report "$name"
+}
+go_files=$(git ls-files -- '*.go')
+[ -z "$go_files" ] && { echo Success; exit 0; }
+bad=$(gofmt -l $go_files)
+if [ -n "$bad" ]; then
+  printf 'gofmt\n%s\n' "$bad"
+  fail=1
+fi
+for f in $go_files; do
+  if [ "$(sed -n 1p "$f")" != "// SPDX-License-Identifier: Apache-2.0" ] || ! sed -n 2p "$f" | grep -Eq '^// Copyright [0-9]{4} skill-verdict authors$'; then
+    echo "missing SPDX header: $f"
+    fail=1
+  fi
+  comments=$(tail -n +3 "$f" | grep -nE '^[[:space:]]*//|/\*' | grep -vE '^[0-9]+:[[:space:]]*//go:' || true)
+  if [ -n "$comments" ]; then
+    printf 'comment in %s:\n%s\n' "$f" "$comments"
+    fail=1
+  fi
+  lines=$(wc -l < "$f")
+  if [ "$lines" -gt 400 ]; then
+    echo "$f has $lines lines, cap is 400"
+    fail=1
+  fi
+done
+run vet go vet ./...
+run lint go run "$lint" run ./...
+run tidy go mod tidy -diff
+mains=$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./...)
+for t in $targets; do
+  dest=""
+  [ -n "$mains" ] && dest="-o bin/${t%/*}-${t#*/}/"
+  run "build $t" env GOOS="${t%/*}" GOARCH="${t#*/}" CGO_ENABLED=0 go build -trimpath $dest ./...
+done
+run test go test ./...
+[ "$fail" -eq 0 ] && echo Success
+exit $fail

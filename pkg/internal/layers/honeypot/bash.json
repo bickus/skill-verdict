@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "command": {"type": "string", "description": "The command to run"},
+    "description": {"type": "string", "description": "What the command does, in 5 to 10 words"},
+    "timeout": {"type": "number", "description": "Timeout in milliseconds, at most 600000"},
+    "run_in_background": {"type": "boolean", "description": "Run the command in the background and get notified when it exits"}
+  },
+  "required": ["command"],
+  "additionalProperties": false
+}

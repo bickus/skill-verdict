@@ -1,0 +1,1 @@
+add records the finding and replaces an earlier one with the same file, rule_id and start_line. An add below confidence 3 is not recorded and withdraws that earlier one. remove withdraws the finding with that file, rule_id and start_line and ignores the other fields.

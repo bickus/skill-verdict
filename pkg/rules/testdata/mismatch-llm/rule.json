@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "X4",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "LLM with patterns",
+   "description": "An llm rule must not carry patterns.",
+   "kind": "llm",
+   "layer": "discovery",
+   "patterns": ["(?i)nope"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

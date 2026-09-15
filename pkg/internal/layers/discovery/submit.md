@@ -1,0 +1,1 @@
+End the task. Call it once, when all reading is done. `findings` carries what your last reads turned up and you have not recorded yet; it may be empty. It is not for findings made while reading continues: record those with `finding` as you go, so they are not lost.

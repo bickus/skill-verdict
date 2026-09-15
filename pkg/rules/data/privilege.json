@@ -1,0 +1,45 @@
+{
+ "rules": [
+  {
+   "id": "ROOT-PASSWORDLESS",
+   "category": "privilege-escalation",
+   "severity": "critical",
+   "title": "Passwordless root or administrator access",
+   "description": "Skills are usually needed for repeated work, and granting passwordless sudo or admin privileges is almost never a valid thing to be done from the skill. Unless this is a false-positive it should not be trusted.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)\\bNOPASSWD\\b",
+    "(?i)\\bDefaults\\b[^\\n]*!\\s*authenticate\\b",
+    "(?i)\\btimestamp_timeout\\s*=\\s*-\\d",
+    "(?i)\\bpermit\\s+(?:(?:persist|keepenv|nolog|setenv\\s*\\{[^}\\n]*\\})\\s+)*nopass\\b",
+    "(?i)\\bauth\\s+sufficient\\s+pam_(?:permit|succeed_if)\\.so\\b",
+    "(?i)\\bpam_wheel\\.so\\b[^\\n]*\\btrust\\b",
+    "(?i)\\bpolkit\\.Result\\.YES\\b",
+    "(?i)\\bResult(?:Any|Inactive|Active)\\s*=\\s*yes\\b",
+    "(?i)\\bauthorizationdb\\s+write\\s+\\S+\\s+allow\\b",
+    "(?i)\\bpasswd\\s+(?:-d|--delete)\\b",
+    "(?i)\\bchmod\\s+(?:[ugoa]*\\+[rwxXt]*s[rwxXt]*|0?[4-7][0-7]{3})\\s+(?:\\S*/)?(?:ba|da|z|k|c|tc|fi)?sh\\b",
+    "(?i)\\b(?:EnableLUA|ConsentPromptBehaviorAdmin)\\b[^\\n]*?(?:/d|-Value|=\\s*dword:)\\s*['\"]?(?:0x)?0+\\b",
+    "(?i)\\bAlwaysInstallElevated\\b[^\\n]*?(?:/d|-Value|=\\s*dword:)\\s*['\"]?(?:0x)?0*1\\b",
+    "(?i)\\brunas\\b[^\\n]*/savecred\\b",
+    "(?i)\\b(?:ms-settings|mscfile)[\\\\/]+shell[\\\\/]+open[\\\\/]+command\\b"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "A stated reason does not justify passwordless rights. Lower only when the match is not a grant: a removal, a check, or an example of what not to do."},
+   "enabled": true
+  },
+  {
+   "id": "ROOT-PASSWORDLESS-HIDDEN",
+   "category": "privilege-escalation",
+   "severity": "critical",
+   "title": "Passwordless privilege grant assembled out of sight",
+   "description": "The skill grants root or administrator rights that need no password, and the sudoers line, registry value or group command is joined at run time, decoded, or read from a downloaded file. There are very limited valid reasons for a skill to do so ever.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "X1",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Added",
+   "description": "Added by a directory rule.",
+   "kind": "heuristic",
+   "layer": "static",
+   "patterns": ["(?i)added"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

@@ -1,0 +1,129 @@
+{
+ "attribution": {
+  "project": "NVIDIA SkillSpector",
+  "version": "2.11.1",
+  "url": "https://github.com/NVIDIA/skillspector",
+  "copyright": "Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
+  "license": "Apache-2.0",
+  "file": "src/skillspector/nodes/analyzers/static_patterns_supply_chain.py"
+ },
+ "rules": [
+  {
+   "id": "UNPINNED-DEPENDENCY",
+   "category": "supply-chain",
+   "severity": "medium",
+   "title": "Unpinned dependency",
+   "description": "A dependency has no fixed version, so any later release, including a hijacked one, is installed.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*requirements*", "package.json", "pyproject.toml", "setup.py", "Pipfile*"],
+   "patterns": [
+    "(?im)^[a-zA-Z][a-zA-Z0-9_-]*\\s*$",
+    "(?im)^[a-zA-Z][a-zA-Z0-9_-]*\\s*>=\\s*[\\d.]+\\s*$",
+    "(?im)^[a-zA-Z][a-zA-Z0-9_-]*\\s*==\\s*\\*\\s*$",
+    "(?i)\"[^\"]+\"\\s*:\\s*\"(?:\\*|latest)\"",
+    "(?i)\"[^\"]+\"\\s*:\\s*\"\\^[\\d.]+\"",
+    "(?i)install\\s+(?:the\\s+)?latest\\s+(?:version\\s+)?(?:of\\s+)?(?:all\\s+)?(?:packages?|dependencies)",
+    "(?i)(?:don't|do\\s+not)\\s+(?:pin|lock|specify)\\s+(?:package\\s+)?versions?"
+   ],
+   "judge": {"downgrade": true, "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-INSTALL",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Unpinned install command",
+   "description": "An install or run command names a package without a version, so any later release, including a hijacked one, is installed. The command is in the skill text, not in a dependency manifest, and runs every time the skill is used.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:\\s|$)",
+    "(?im)(?:^|[\\s;&|(])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:\\s|$)",
+    "(?im)(?:^|[\\s;&|(])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:\\s|$)"
+   ],
+   "judge": {"downgrade": true, "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "enabled": true
+  },
+  {
+   "id": "REMOTE-SCRIPT-PIPED",
+   "category": "remote-execution",
+   "severity": "critical",
+   "title": "Downloaded script piped to a shell",
+   "description": "A command fetches a remote script and executes it without review.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)curl\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:ba)?sh",
+    "(?i)wget\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:ba)?sh",
+    "(?i)curl\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:python|python3|node|ruby|perl)",
+    "(?i)wget\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:python|python3|node|ruby|perl)",
+    "(?i)curl\\s+[^&]*-o\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba)?sh",
+    "(?i)wget\\s+[^&]*-O\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba)?sh",
+    "(?i)exec\\s*\\(\\s*(?:urllib|requests|httpx)\\.[^)]+\\.(?:read|text|content)",
+    "(?i)eval\\s*\\(\\s*(?:urllib|requests|httpx)\\.[^)]+\\.(?:read|text|content)",
+    "(?i)eval\\s*\\(\\s*(?:await\\s+)?fetch\\s*\\(",
+    "(?i)new\\s+Function\\s*\\([^)]*fetch\\s*\\(",
+    "(?i)subprocess\\.[^(]+\\([^)]*(?:curl|wget)\\s+https?://",
+    "(?i)download\\s+and\\s+(?:run|execute)\\s+(?:the\\s+)?script",
+    "(?i)run\\s+(?:this|the)\\s+(?:following\\s+)?(?:curl|wget)\\s+command"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "high", "instructions": "Decide only whether a remote script is fetched and run. A known vendor, an official install page or a well-known name is not a reason to lower."},
+   "enabled": true
+  },
+  {
+   "id": "ENCODED-CODE-EXECUTED",
+   "category": "obfuscation",
+   "severity": "high",
+   "title": "Encoded code executed",
+   "description": "Code decodes base64, hex or compressed data and executes the result, or carries a long encoded literal.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "code",
+   "patterns": [
+    "(?i)exec\\s*\\(\\s*(?:base64\\.)?b64decode\\s*\\(",
+    "(?i)eval\\s*\\(\\s*(?:base64\\.)?b64decode\\s*\\(",
+    "(?i)exec\\s*\\(\\s*codecs\\.decode\\s*\\([^)]*['\"]hex['\"]\\s*\\)",
+    "(?i)marshal\\.loads\\s*\\(",
+    "(?i)exec\\s*\\(\\s*marshal\\.loads\\s*\\(",
+    "(?i)exec\\s*\\(\\s*compile\\s*\\([^)]*base64",
+    "(?i)exec\\s*\\(\\s*bytes\\.fromhex\\s*\\(",
+    "(?i)exec\\s*\\(\\s*bytearray\\.fromhex\\s*\\(",
+    "(?i)exec\\s*\\(\\s*(?:zlib|gzip)\\.decompress\\s*\\(",
+    "(?i)eval\\s*\\(\\s*atob\\s*\\(",
+    "(?i)new\\s+Function\\s*\\(\\s*atob\\s*\\(",
+    "(?i)_0x[a-f0-9]{4,}\\s*\\(",
+    "(?i)['\"][A-Fa-f0-9]{200,}['\"]",
+    "(?i)['\"][A-Za-z0-9+/=]{200,}['\"]",
+    "(?i)\\(lambda\\s+_:\\s*exec\\s*\\(",
+    "(?i)__import__\\s*\\(['\"]os['\"]\\s*\\)\\.system",
+    "(?i)decode\\s+(?:this|the)\\s+(?:base64|hex)\\s+(?:and\\s+)?(?:run|execute)"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Do not lower because the decoded content looks harmless. Lower only when the decoded data is never executed and is not a command."},
+   "enabled": true
+  },
+  {
+   "id": "CONTAINER-TRUST-DISABLED",
+   "category": "supply-chain",
+   "severity": "medium",
+   "title": "Container image verification disabled",
+   "description": "A container is pulled with content trust disabled or from an insecure registry.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)--disable-content-trust\\b",
+    "(?i)DOCKER_CONTENT_TRUST\\s*=\\s*0",
+    "(?i)--insecure-registry"
+   ],
+   "exclude": [
+    "(?i)--disable-content-trust=false"
+   ],
+   "judge": {"downgrade": true, "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

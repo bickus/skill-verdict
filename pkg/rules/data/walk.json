@@ -1,0 +1,83 @@
+{
+ "rules": [
+  {
+   "id": "FILE-TOO-LARGE",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "File larger than the limit",
+   "description": "A file is larger than layers.walk.maxFileBytes; nobody reviews a file of that size, so its content is not checked by anyone.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "BUNDLE-TOO-LARGE",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "Bundle larger than the limit",
+   "description": "The files of the skill add up to more than layers.walk.maxBundleBytes; a bundle of that size is not what a skill needs.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "BUNDLE-TOO-MUCH-TEXT",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "More text than the limit",
+   "description": "The Markdown, code, text and data files of the skill add up to more than layers.walk.maxTextBytes; nobody reads that much before trusting a skill.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "BUNDLE-TOO-MANY-FILES",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "More files than the limit",
+   "description": "The skill has more files than layers.walk.maxFiles; a bundle of that many files buries the ones that matter.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "BUNDLE-TOO-DEEP",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "Directory deeper than the limit",
+   "description": "A file sits more than layers.walk.maxDepth directories below the skill root; no skill needs a tree that deep, and a deep path keeps a file out of sight.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "FILE-PDF",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "PDF asset",
+   "description": "The skill ships a PDF file; the scanner cannot check its content as text, and a PDF can carry scripts and instructions a reviewer does not see.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "files": ["*.pdf"],
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "url": {"type": "string", "description": "The URL to fetch"},
+    "prompt": {"type": "string", "description": "What to extract from the page"}
+  },
+  "required": ["url", "prompt"],
+  "additionalProperties": false
+}

@@ -1,0 +1,58 @@
+{
+ "rules": [
+  {
+   "id": "ARCHIVE-RAR-MENTIONED",
+   "category": "supply-chain",
+   "severity": "medium",
+   "title": "RAR archive named in the text",
+   "description": "The text names a .rar file. RAR is uncommon in developer tooling, it needs a third-party extractor, and nobody can read what is inside one without unpacking it. A skill that tells the reader to download and unpack a RAR file hands them content no reviewer saw.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)[\\w.-]+\\.rar\\b"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "enabled": true
+  },
+  {
+   "id": "ARCHIVE-PASSWORD-GIVEN",
+   "category": "obfuscation",
+   "severity": "critical",
+   "title": "Password for an archive or a link",
+   "description": "The skill hands out a password, passphrase or extraction code for an archive, a self-extracting file, or a page it points at. The password keeps the scanner, the antivirus and the reviewer from reading what the user is about to run, and it has no other effect in a skill. Report the password and what it opens.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Dismiss only when the match is not a password for an archive or a page at all. The skill's purpose or its reason for giving the password is not a reason to lower."},
+   "enabled": true
+  },
+  {
+   "id": "ARCHIVE-ENCRYPTED",
+   "category": "unreviewable",
+   "severity": "critical",
+   "title": "Encrypted archive",
+   "description": "The skill ships an archive whose contents are encrypted. Nobody can read what is inside it without the password. An encrypted archive carries its payload past every scanner that reads files.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "judge": {"downgrade": false, "instructions": ""},
+   "enabled": true,
+   "interrupt": true
+  },
+  {
+   "id": "ARCHIVE-RAR",
+   "category": "unreviewable",
+   "severity": "high",
+   "title": "RAR archive",
+   "description": "The skill ships a RAR archive. Nobody can read what is inside it without unpacking it. Opening one needs a third-party extractor.",
+   "kind": "fact",
+   "layer": "walk",
+   "scope": "any",
+   "files": ["*.rar"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "enabled": true,
+   "interrupt": false
+  }
+ ]
+}

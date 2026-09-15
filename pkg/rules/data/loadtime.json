@@ -1,0 +1,20 @@
+{
+ "rules": [
+  {
+   "id": "COMMAND-ON-LOAD",
+   "category": "load-time-exec",
+   "severity": "high",
+   "title": "Command run when the skill loads",
+   "description": "A backtick-quoted command preceded by an exclamation mark is executed by Claude Code when it loads the file, before any instruction in the file is read.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*.md"],
+   "patterns": [
+    "(?i)!`[^`\\r\\n]+`"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "enabled": true
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "path": {"type": "string", "description": "Artifact path exactly as listed"},
+    "offset": {"type": "integer", "description": "First line to return, counted from 1. Default 1"},
+    "limit": {"type": "integer", "description": "Maximum number of lines to return. Default: all"}
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}

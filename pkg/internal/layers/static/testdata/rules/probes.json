@@ -1,0 +1,84 @@
+{
+ "rules": [
+  {
+   "id": "T-CODE",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Code probe",
+   "description": "Probe with code scope.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "code",
+   "patterns": ["(?i)probecode"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
+   "id": "T-PROSE",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Prose probe",
+   "description": "Probe with prose scope.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "prose",
+   "patterns": ["(?i)probeprose"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
+   "id": "T-ANY",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Any probe",
+   "description": "Probe with any scope.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": ["(?i)probeany"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
+   "id": "T-GLOB",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Glob probe",
+   "description": "Probe limited to .cfg files.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["*.cfg"],
+   "patterns": ["(?i)probeglob"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
+   "id": "T-EXCL",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Exclude probe",
+   "description": "Probe with a line exclusion.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": ["(?i)probeexcl"],
+   "exclude": ["(?i)skip"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
+   "id": "T-LINK",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Link probe",
+   "description": "Probe with link scope.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "link",
+   "patterns": ["(?i)probelink"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}
