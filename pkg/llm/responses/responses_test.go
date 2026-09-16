@@ -110,7 +110,10 @@ func TestCompleteRejectsBadStreams(t *testing.T) {
 	}{
 		{"incomplete response", sse(`{"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"}}}`), "max_output_tokens"},
 		{"failed response", sse(`{"type":"response.failed","response":{"error":{"message":"quota"}}}`), "quota"},
+		{"failed response with code only", sse(`{"type":"response.failed","response":{"error":{"code":"server_error"}}}`), "server_error"},
 		{"error event", sse(`{"type":"error","message":"bad request"}`), "bad request"},
+		{"error event with nested error", sse(`{"type":"error","error":{"type":"usage_limit_reached","code":"usage_limit_reached","message":"You have hit your usage limit."}}`), "usage_limit_reached: You have hit your usage limit."},
+		{"error event without message", sse(`{"type":"error","error":{"type":"server_error"}}`), "server_error"},
 		{"stream without completion", sse(`{"type":"response.created","response":{}}`), "without a completed response"},
 		{"garbage data", "data: {not json\n\n", "stream event"},
 		{"empty body", "", "without a completed response"},

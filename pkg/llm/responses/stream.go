@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bickus/skill-verdict/pkg/internal/textutil"
 	"github.com/bickus/skill-verdict/pkg/llm"
 )
 
@@ -20,7 +21,30 @@ type event struct {
 	Type     string          `json:"type"`
 	Response response        `json:"response"`
 	Item     json.RawMessage `json:"item"`
+	Code     string          `json:"code"`
 	Message  string          `json:"message"`
+	Error    *apiError       `json:"error"`
+}
+
+type apiError struct {
+	Type    string `json:"type"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *apiError) String() string {
+	if e == nil {
+		return ""
+	}
+	switch {
+	case e.Message != "" && e.Code != "":
+		return e.Code + ": " + e.Message
+	case e.Message != "":
+		return e.Message
+	case e.Code != "":
+		return e.Code
+	}
+	return e.Type
 }
 
 type response struct {
@@ -35,9 +59,7 @@ type response struct {
 			ReasoningTokens int `json:"reasoning_tokens"`
 		} `json:"output_tokens_details"`
 	} `json:"usage"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
+	Error             *apiError `json:"error"`
 	IncompleteDetails *struct {
 		Reason string `json:"reason"`
 	} `json:"incomplete_details"`
@@ -60,15 +82,16 @@ func parse(data []byte) (llm.Message, error) {
 		if !ok {
 			continue
 		}
+		raw := strings.TrimSpace(payload)
 		var ev event
-		if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &ev); err != nil {
+		if err := json.Unmarshal([]byte(raw), &ev); err != nil {
 			return llm.Message{}, fmt.Errorf("llm: stream event: %w", err)
 		}
 		if ev.Type == "response.output_item.done" {
 			items = append(items, ev.Item)
 			continue
 		}
-		msg, done, err := terminal(ev, items)
+		msg, done, err := terminal(ev, raw, items)
 		if done || err != nil {
 			return msg, err
 		}
@@ -79,7 +102,7 @@ func parse(data []byte) (llm.Message, error) {
 	return llm.Message{}, errors.New("llm: stream ended without a completed response")
 }
 
-func terminal(ev event, items []json.RawMessage) (llm.Message, bool, error) {
+func terminal(ev event, raw string, items []json.RawMessage) (llm.Message, bool, error) {
 	switch ev.Type {
 	case "response.completed":
 		if len(items) > 0 {
@@ -94,15 +117,20 @@ func terminal(ev event, items []json.RawMessage) (llm.Message, bool, error) {
 		}
 		return llm.Message{}, true, fmt.Errorf("llm: response incomplete: %s", reason)
 	case "response.failed":
-		reason := "unknown error"
-		if ev.Response.Error != nil {
-			reason = ev.Response.Error.Message
-		}
-		return llm.Message{}, true, fmt.Errorf("llm: response failed: %s", reason)
+		return llm.Message{}, true, fmt.Errorf("llm: response failed: %s", firstNonEmpty(ev.Response.Error.String(), textutil.Clip(raw)))
 	case "error":
-		return llm.Message{}, true, fmt.Errorf("llm: %s", ev.Message)
+		return llm.Message{}, true, fmt.Errorf("llm: %s", firstNonEmpty(ev.Message, ev.Error.String(), ev.Code, textutil.Clip(raw)))
 	}
 	return llm.Message{}, false, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func assemble(r response) (llm.Message, error) {
