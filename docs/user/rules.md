@@ -23,7 +23,7 @@ Attackers can easily compromise unpinned software by:
 |---|---|:---:|:---:|---|
 | `UNPINNED-INSTALL` | `high`, dismissable | static | No | Install or execution command (e.g. `pip install pkg`, `npm i pkg`) without an exact pinned version. Runs every time the skill executes. |
 | `UNPINNED-DEPENDENCY` | `medium`, dismissable | static | No | Dependency declared in `package.json` or `requirements.txt` with a wildcard, range, or no version pin. |
-| `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw GitHub URLs on `main`, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. |
+| `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw, blob or archive URLs on `main` at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. |
 | `UNPINNED-GIT` | `high`, floor `medium` | static | No | Cloning a Git repository (`git clone`, `gh repo clone`, `go install ...@branch`) without a pinned commit hash. Every run pulls whatever the branch currently contains. |
 | `GITHUB-OWNER-MISSING` | `critical`, floor `medium` | references | No | The referenced GitHub owner account does not exist. Anyone can register the username and ship malware under the URL the skill trusts. |
 | `GITHUB-OWNER-RENAMED` | `critical`, floor `medium` | references | No | The referenced repository redirects to a new account, leaving the original owner name available for anyone to claim. |
