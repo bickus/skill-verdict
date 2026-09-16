@@ -76,6 +76,31 @@
    "enabled": true
   },
   {
+   "id": "ENV-NAME-COMPUTED",
+   "category": "exfiltration",
+   "severity": "critical",
+   "title": "Environment variable name built at run time",
+   "description": "Code reads an environment variable whose name is decoded, concatenated, reversed, formatted or otherwise built at run time. Building the name hides which variable is read from anyone reviewing the code.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?:\\benvironb?|process\\s*\\.\\s*env|Bun\\s*\\.\\s*env|import\\s*\\.\\s*meta\\s*\\.\\s*env|\\bENV|\\$_ENV|\\$_SERVER)\\s*\\[\\s*(?:[\\(\\[]|(?:new\\s+)?[\\w.:]+\\s*[\\(\\[+%]|[a-zA-Z]?['\"][^'\"\\n]*['\"]\\s*[\\[+.%]|[fF]['\"][^'\"\\n]*\\{|`[^`\\n]*\\$\\{)",
+    "(?:\\benvironb?\\s*\\.\\s*get|[gG]etenv|\\bENV\\s*\\.\\s*fetch|os\\s*\\.\\s*(?:Getenv|LookupEnv)|Environment\\]?\\s*(?:::|\\.)\\s*GetEnvironmentVariable|env::var(?:_os)?|Deno\\s*\\.\\s*env\\s*\\.\\s*get)\\s*\\(\\s*(?:[\\(\\[]|(?:new\\s+)?[\\w.:]+\\s*[\\(\\[+%]|[a-zA-Z]?['\"][^'\"\\n]*['\"]\\s*[\\[+.%]|[fF]['\"][^'\"\\n]*\\{|`[^`\\n]*\\$\\{)",
+    "getattr\\s*\\(\\s*os\\s*,\\s*['\"](?:environ|getenv)['\"]",
+    "__import__\\s*\\(\\s*['\"]os['\"]\\s*\\)\\s*\\.\\s*(?:environ|getenv)",
+    "\\$\\{![A-Za-z_]\\w*\\}",
+    "\\bprintenv\\s+(?:-\\w+\\s+)*['\"]?\\$",
+    "\\beval\\b[^\\n]*(?:\\\\\\$\\$|['\"]\\$['\"]\\$)",
+    "\\b(?:declare|local|typeset)\\s+-n\\b",
+    "\\benv\\s*\\|\\s*grep\\s+(?:-\\w+\\s+)*['\"]?\\$",
+    "Get-(?:Item|ChildItem)\\s+(?:-Path\\s+)?['\"]?env:\\$",
+    "\\(\\s*Get-Item\\s+env:\\s*\\)\\s*\\.\\s*\\$"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Work out which variable is read. Keep when it is a secret, token, key or credential, or when nothing in the code explains why the name was encoded. Lower only when the variable is harmless and the code has a plain reason to build the name, such as a prefix plus a user-supplied suffix. Dismiss only on a false positive: the name is a literal or a plain variable that the pattern misread."},
+   "enabled": true
+  },
+  {
    "id": "SECRETS-DIRS-LISTED",
    "category": "exfiltration",
    "severity": "high",
