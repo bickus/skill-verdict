@@ -91,7 +91,8 @@ Coding agents typically operate in repositories containing environment variables
 
 | Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
 |---|---|:---:|:---:|---|
-| `SECRETS-ENV-DUMPED` | `high`, floor `low` | static | No | Commands dumping or enumerating all environment variables (`printenv`, `env`, searching for `KEY` or `TOKEN`). |
+| `SECRETS-ENV-DUMPED` | `high`, floor `low` | static | No | Code or commands copying, enumerating or searching the whole environment (`os.environ.items()`, `Object.keys(process.env)`, `env \| grep token`). |
+| `SECRETS-ENV-USED` | `critical`, dismissable | static | No | A read of one environment variable named as a secret: `_TOKEN`, `_SECRET`, `_API_KEY`, `_PASSWORD`, `_CREDENTIALS`, `_CONNECTION_STRING`, `_PAT` and the fixed names `DATABASE_URL`, `SSH_AUTH_SOCK`, `SQLCONNSTR_*`. Covers Python, JavaScript, Go, shell and PowerShell read forms. The judge dismisses the skill's own declared variables. |
 | `SECRETS-DIRS-LISTED` | `high`, floor `low` | static | No | Searching or listing files in sensitive directories such as `~/.ssh`, `~/.aws`, `~/.gnupg`, or root credentials. |
 | `AGENT-CONFIG-READ` | `medium`, dismissable | static | No | Code or instructions reading the coding agent's own private configuration directories. |
 | `AGENT-MCP-CONFIG-READ` | `medium`, dismissable | static | No | Reading Model Context Protocol (MCP) server configuration files, which frequently store API tokens and tool credentials. |

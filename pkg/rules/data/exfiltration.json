@@ -50,14 +50,29 @@
     "(?i)dict\\s*\\(\\s*os\\s*\\.\\s*environ\\s*\\)",
     "(?i)\\{\\s*\\*\\*\\s*os\\s*\\.\\s*environ\\s*\\}",
     "(?i)(?:API_KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)\\s+in\\s+(?:key|name|var)",
-    "(?i)process\\.env\\s*\\[\\s*['\"][^'\"]*(?:KEY|SECRET|TOKEN|PASSWORD)[^'\"]*['\"]\\s*\\]",
     "(?i)Object\\.keys\\s*\\(\\s*process\\.env\\s*\\)",
-    "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)",
-    "(?i)printenv\\s+(?:\\w*(?:KEY|SECRET|TOKEN|PASSWORD)\\w*)",
-    "(?i)collect\\s+(?:all\\s+)?(?:environment\\s+variables?|env\\s+vars?)",
-    "(?i)(?:extract|harvest|gather)\\s+(?:api\\s+)?keys?\\s+from\\s+environment"
+    "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)"
    ],
    "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "A bulk read of the environment is never justified. Lower or dismiss only on a false positive: the code reads named variables and never copies, lists or searches the whole environment."},
+   "enabled": true
+  },
+  {
+   "id": "SECRETS-ENV-USED",
+   "category": "exfiltration",
+   "severity": "critical",
+   "title": "Secret read from a named environment variable",
+   "description": "Code or a command reads one environment variable whose name marks it as a secret: a token, password, API key, private key, credential file, connection string or personal access token, including the agent gateway token and the AWS, Azure, Google, GitHub, npm, PyPI and database ones. The read is the finding. Where the value goes decides the severity.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?:environ|env|ENV|Env)\\s*(?:\\.\\s*get\\s*\\(|\\[)\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
+    "[gG]etenv\\s*\\(\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
+    "process\\.env\\.(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
+    "\\$(?:\\{|env:)?(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
+    "printenv\\s+(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b"
+   ],
+   "judge": {"downgrade": true, "instructions": "Dismiss when the variable is the skill's own configuration, declared in its frontmatter or README, and the value only reaches the service that variable is for. Dismiss when the match is documentation, a sample or a placeholder. Keep when the skill reads a variable that belongs to another product, the agent or the platform, or one its stated purpose does not need. Follow the value: a read that ends in a request, a file the skill writes, a log line or a derived identifier keeps the severity."},
    "enabled": true
   },
   {
