@@ -63,7 +63,7 @@ To enable simulated honeypots, semantic discovery, and AI Judge review, configur
 ```json
 {
   "llm": {
-    "provider": "openai-compatible",
+    "provider": "openai-completions",
     "baseUrl": "https://openrouter.ai/api/v1",
     "model": "gpt-4o",
     "keyEnv": "SKILL_VERDICT_API_KEY",
@@ -75,8 +75,8 @@ To enable simulated honeypots, semantic discovery, and AI Judge review, configur
 
 | Key | Default | Description |
 |---|---|---|
-| `provider` | `openai-compatible` | Wire protocol: `openai-compatible` (standard REST completions) or `chatgpt-subscription` (direct ChatGPT OAuth session). |
-| `baseUrl` | `https://openrouter.ai/api/v1` | Base API endpoint for `openai-compatible`. The scanner automatically appends `/chat/completions`. Works with OpenAI, OpenRouter, Groq, Ollama, vLLM, LiteLLM, etc. |
+| `provider` | `openai-completions` | Wire protocol: `openai-completions` (Chat Completions API) or `openai-responses` (Responses API). |
+| `baseUrl` | `https://openrouter.ai/api/v1` | Base API endpoint. The scanner appends `/chat/completions` or `/responses` to it. Works with OpenAI, OpenRouter, Groq, Ollama, vLLM, LiteLLM, etc. |
 | `model` | *(empty)* | Model identifier (e.g. `gpt-4o`, `claude-3-5-sonnet`, `deepseek-chat`). |
 | `keyEnv` | `SKILL_VERDICT_API_KEY` | Environment variable holding your API key. |
 | `keyFile` | *(empty)* | Optional path to a file containing only your API key (used if environment variable is empty). |
@@ -89,7 +89,7 @@ To enable simulated honeypots, semantic discovery, and AI Judge review, configur
 ```json
 {
   "llm": {
-    "provider": "openai-compatible",
+    "provider": "openai-completions",
     "baseUrl": "http://localhost:11434/v1",
     "model": "llama3.1",
     "keyEnv": "SKILL_VERDICT_API_KEY"
@@ -97,6 +97,21 @@ To enable simulated honeypots, semantic discovery, and AI Judge review, configur
 }
 ```
 *(When running against local servers that require no key, the environment variable can be empty.)*
+
+### Example: Responses API
+
+The Responses API serves reasoning models that keep state between turns. A ChatGPT subscription token works against `https://chatgpt.com/backend-api/codex`, an OpenCode Go key against `https://opencode.ai/zen/go/v1`.
+
+```json
+{
+  "llm": {
+    "provider": "openai-responses",
+    "baseUrl": "https://opencode.ai/zen/go/v1",
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "medium"
+  }
+}
+```
 
 ### Tracking Scan Costs
 

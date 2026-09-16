@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 skill-verdict authors
 
-package chatgpt
+package responses
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bickus/skill-verdict/pkg/config"
@@ -18,7 +19,6 @@ import (
 )
 
 const (
-	endpoint      = "https://chatgpt.com/backend-api/codex/responses"
 	defaultEffort = "medium"
 	originator    = "skill-verdict"
 )
@@ -103,7 +103,7 @@ func (c *Client) Complete(ctx context.Context, req llm.Request) (llm.Message, er
 	if err != nil {
 		return llm.Message{}, err
 	}
-	data, err := c.http.Post(ctx, endpoint, c.headers(), body)
+	data, err := c.http.Post(ctx, strings.TrimSuffix(c.cfg.BaseURL, "/")+"/responses", c.headers(), body)
 	if err != nil {
 		return llm.Message{}, err
 	}
@@ -118,6 +118,7 @@ func (c *Client) headers() http.Header {
 	h.Set("User-Agent", originator)
 	h.Set("originator", originator)
 	h.Set("session_id", c.session)
+	h.Set("x-opencode-session", c.session)
 	if c.account != "" {
 		h.Set("ChatGPT-Account-Id", c.account)
 	}

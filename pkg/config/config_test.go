@@ -118,7 +118,7 @@ func TestValidateAccepts(t *testing.T) {
 			c.Layers.Discovery.Enabled = false
 			c.Layers.Judge.Enabled = false
 		}},
-		{"subscription provider", func(c *config.Config) { c.LLM.Provider = config.ChatGPTSubscription }},
+		{"responses provider", func(c *config.Config) { c.LLM.Provider = config.OpenAIResponses }},
 		{"compaction at the context size", func(c *config.Config) { c.LLM.CompactionAt = c.LLM.InputTokens }},
 		{"prices set", func(c *config.Config) { c.LLM.Price = config.PriceConfig{Input: 3, CacheRead: 0.3, Output: 15} }},
 	}

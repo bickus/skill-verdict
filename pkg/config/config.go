@@ -183,12 +183,12 @@ func (p PriceConfig) Cost(input, cached, output int) float64 {
 }
 
 const (
-	OpenAICompatible    = "openai-compatible"
-	ChatGPTSubscription = "chatgpt-subscription"
+	OpenAICompletions = "openai-completions"
+	OpenAIResponses   = "openai-responses"
 )
 
 func Providers() []string {
-	return []string{OpenAICompatible, ChatGPTSubscription}
+	return []string{OpenAICompletions, OpenAIResponses}
 }
 
 type GateConfig struct {
@@ -244,7 +244,7 @@ func Default() Config {
 			Judge:     ModelLayerConfig{Enabled: true, Calls: 15},
 		},
 		LLM: LLMConfig{
-			Provider:        OpenAICompatible,
+			Provider:        OpenAICompletions,
 			BaseURL:         "https://openrouter.ai/api/v1",
 			KeyEnv:          "SKILL_VERDICT_API_KEY",
 			Timeout:         Duration(120 * time.Second),

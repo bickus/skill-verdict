@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 skill-verdict authors
 
-package openai_test
+package completions_test
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/llm"
-	"github.com/bickus/skill-verdict/pkg/llm/openai"
+	"github.com/bickus/skill-verdict/pkg/llm/completions"
 )
 
 const okBody = `{"choices":[{"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`
@@ -40,7 +40,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newClient(t *testing.T, s *server) *openai.Client {
+func newClient(t *testing.T, s *server) *completions.Client {
 	t.Helper()
 	s.t = t
 	srv := httptest.NewServer(s)
@@ -50,7 +50,7 @@ func newClient(t *testing.T, s *server) *openai.Client {
 	cfg.Model = "test-model"
 	cfg.MaxOutputTokens = 100
 	cfg.Timeout = config.Duration(5 * time.Second)
-	return openai.New(cfg, "", &http.Client{})
+	return completions.New(cfg, "", &http.Client{})
 }
 
 func TestCompleteParsesReply(t *testing.T) {

@@ -19,8 +19,8 @@ import (
 	"github.com/bickus/skill-verdict/pkg/internal/pipeline"
 	"github.com/bickus/skill-verdict/pkg/internal/refcheck"
 	"github.com/bickus/skill-verdict/pkg/llm"
-	"github.com/bickus/skill-verdict/pkg/llm/chatgpt"
-	"github.com/bickus/skill-verdict/pkg/llm/openai"
+	"github.com/bickus/skill-verdict/pkg/llm/completions"
+	"github.com/bickus/skill-verdict/pkg/llm/responses"
 	"github.com/bickus/skill-verdict/pkg/rules"
 )
 
@@ -108,10 +108,10 @@ func provider(opts Options, cfg config.Config) (llm.Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.LLM.Provider == config.ChatGPTSubscription {
-		return chatgpt.New(cfg.LLM, key, &http.Client{}), nil
+	if cfg.LLM.Provider == config.OpenAIResponses {
+		return responses.New(cfg.LLM, key, &http.Client{}), nil
 	}
-	return openai.New(cfg.LLM, key, &http.Client{}), nil
+	return completions.New(cfg.LLM, key, &http.Client{}), nil
 }
 
 func client(opts Options) *http.Client {

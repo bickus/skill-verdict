@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 skill-verdict authors
 
-package chatgpt_test
+package responses_test
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,17 +16,8 @@ import (
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/llm"
-	"github.com/bickus/skill-verdict/pkg/llm/chatgpt"
+	"github.com/bickus/skill-verdict/pkg/llm/responses"
 )
-
-type rewrite struct {
-	target *url.URL
-}
-
-func (r rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.URL.Scheme, req.URL.Host = r.target.Scheme, r.target.Host
-	return http.DefaultTransport.RoundTrip(req)
-}
 
 type server struct {
 	t      *testing.T
@@ -74,19 +64,16 @@ func streamed() string {
 		`{"type":"response.completed","response":{"output":[],"usage":`+usage+`}}`)
 }
 
-func newClient(t *testing.T, s *server) *chatgpt.Client {
+func newClient(t *testing.T, s *server) *responses.Client {
 	t.Helper()
 	s.t = t
 	srv := httptest.NewServer(s)
 	t.Cleanup(srv.Close)
-	target, err := url.Parse(srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
 	cfg := config.Default().LLM
+	cfg.BaseURL = srv.URL + "/"
 	cfg.Model = "gpt-test"
 	cfg.Timeout = config.Duration(5 * time.Second)
-	return chatgpt.New(cfg, "k", &http.Client{Transport: rewrite{target: target}})
+	return responses.New(cfg, "k", &http.Client{})
 }
 
 func TestCompleteParsesStream(t *testing.T) {

@@ -158,7 +158,7 @@ To catch subtle prompt injections with the simulated honeypot, discover semantic
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SKILL_VERDICT_API_KEY` | *(empty)* | API key or ChatGPT subscription token used for model queries. Configurable via `llm.keyEnv`. |
+| `SKILL_VERDICT_API_KEY` | *(empty)* | API key or subscription token used for model queries. Configurable via `llm.keyEnv`. |
 | `GITHUB_TOKEN` | *(empty)* | Optional GitHub personal access token (no special scopes needed). Raises GitHub API rate limits from 60 to 5,000 requests/hour when checking external repositories. Configurable via `layers.references.githubTokenEnv`. |
 
 See [Configuration](config.md) for advanced options and [Usage](usage.md) for command-line syntax.
