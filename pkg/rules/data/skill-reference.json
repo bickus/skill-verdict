@@ -1,0 +1,35 @@
+{
+ "rules": [
+  {
+   "id": "SKILL-REFERENCED",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Another skill referenced",
+   "description": "The text points at another skill: a path or URL ending in SKILL.md, or a path under a skills directory such as .claude/skills/. The agent loads that file and the scanner never reads it. Pointing at another skill is normal on its own. The danger is a pair: this skill prepares something, the unseen skill uses it.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "prose",
+   "files": ["*.md"],
+   "patterns": [
+    "(?i)https?://[^\\s)`\"'<>]+/SKILL\\.md",
+    "(?i)/?[\\w.~-]+(?:/[\\w.~-]+)*/SKILL\\.md",
+    "(?i)\\.[\\w-]+/skills/[\\w.-]+",
+    "(?i)(?:^|[^\\w./-])skills/[\\w.-]+"
+   ],
+   "judge": {"downgrade": true, "instructions": "Referencing another skill is normal. Dismiss unless this skill also prepares something the referenced skill can use: it relaxes safety rules or earlier instructions, grants tools or permissions its task does not need, or writes files or settings the other skill would read. Judge what this skill sets up, not what the unseen file might contain."},
+   "enabled": true
+  },
+  {
+   "id": "SKILL-REFERENCED-HIDDEN",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Another skill loaded in wording the text rule misses",
+   "description": "An instruction to read, load or follow another skill for procedures, tools or configuration, written without a SKILL.md path or a skills directory: a skill named in words, a slash command, a file to read before continuing. Report it only when this skill also relaxes safety rules or earlier instructions, grants tools or permissions its task does not need, or writes files or settings the other skill would read. A plain reference to another skill is not a finding.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Referencing another skill is normal. Dismiss unless this skill also prepares something the referenced skill can use: it relaxes safety rules or earlier instructions, grants tools or permissions its task does not need, or writes files or settings the other skill would read. Judge what this skill sets up, not what the unseen file might contain."},
+   "enabled": true
+  }
+ ]
+}

@@ -122,6 +122,7 @@ Fixed regular expressions cannot detect every possible phrasing of an attack. La
 - **Gradual Deception (`DECEPTION-GRADUAL`)**: Multi-step instructions that establish trust before escalating permissions.
 - **Conversational Exfiltration (`EXFILTRATION-IN-PROSE`)**: Directing the agent to quietly collect user inputs, summarize chat history, or echo credentials back in responses.
 - **Subtle Prompt Attacks (`PROMPT-INJECTION-SEMANTIC`)**: Clever role-playing or hypothetical framing designed to override system guardrails.
+- **Staged Skill Loading (`SKILL-REFERENCED-HIDDEN`)**: Sending the agent to another skill for its procedures after relaxing safety rules or granting tools that skill can use.
 
 ---
 

@@ -1,6 +1,6 @@
 # Built-in Rules Reference
 
-`skill-verdict` includes 69 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
+`skill-verdict` includes 71 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
 
 Rather than sorting rules alphabetically, this reference groups every rule by the **real-world threat** it defends against.
 
@@ -115,6 +115,8 @@ Adversarial skills often manipulate the AI model's cognitive state rather than r
 | `DECEPTION-GRADUAL` | `high`, floor `low` | discovery | No | Incremental instruction sequences that appear harmless step-by-step but progressively escalate permissions or normalize malicious acts. |
 | `PROMPT-INJECTION-SEMANTIC` | `medium`, floor `low` | discovery | No | Subtle prompt injection: polite reframings of ignoring safety guidelines, hypothetical scenarios, or role-play setups granting elevated permissions. *(Disabled by default)*. |
 | `PROMPT-INJECTION-PARAPHRASED`| `medium`, floor `low` | discovery | No | Reformulations of known jailbreak techniques using creative synonyms, cultural framing, or encoded wording. *(Disabled by default)*. |
+| `SKILL-REFERENCED` | `high`, dismissable | static | No | A path or URL to another skill (`.../SKILL.md`, `.claude/skills/<name>`). The agent loads a file the scanner never read. Kept only when this skill also prepares the ground for it, such as relaxing safety rules or granting tools the referenced skill can use. |
+| `SKILL-REFERENCED-HIDDEN` | `high`, dismissable | discovery | No | An instruction to load or follow another skill in wording without a path, together with preparation the unseen skill can act on. |
 
 ---
 

@@ -187,6 +187,7 @@ func TestEveryClassHasHitAndNearMiss(t *testing.T) {
 		{"tool-misuse", "client.py", "client-miss.py"},
 		{"load-time-exec", "loadtime.md", "loadtime-miss.md"},
 		{"privilege-escalation", "sudoers.sh", ""},
+		{"prompt-injection", "skillref.md", ""},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.class), func(t *testing.T) {
