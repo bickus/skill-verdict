@@ -178,8 +178,6 @@ Keep in mind: `skill-verdict` does not execute skills or inspect the inside of e
 
 AIR's [SkillJacking](https://www.air.security/blog-posts/skilljacking) research inspired the external checks. The researchers demonstrated takeovers through abandoned dependencies in legitimate skills.
 
-The repository includes an isolated benchmark runner for [MalSkillBench](https://github.com/lxyeternal/MalSkillBench), a benchmark of malicious agent skills by Wenbo Guo, Wei Zeng, Chengwei Liu, Xiaojun Jia, Yijia Xu, Lei Tang, Yong Fang and Yang Liu ([paper](https://arxiv.org/abs/2606.07131)). See [Scripts](scripts/README.md) for its use and attribution.
-
 Contributions require a DCO sign-off. See [CONTRIBUTING.md](CONTRIBUTING.md) for submission requirements.
 
 ## License

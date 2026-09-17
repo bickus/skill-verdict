@@ -12,6 +12,5 @@
 | [0008](0008-layers-and-rules-in-configuration.md) | Every layer is one configuration object with its switch, its settings and its rules. Every rule names its layer and kind. The binary writes the complete default configuration. |
 | [0009](0009-artifact-model.md) | Every file and every derived item is an artifact with a kind, a registered origin, a content type, a read status and notes. Layers select on those fields. |
 | [0010](0010-model-loop.md) | A model layer runs a tool loop with its own tools and ends with the tool it marks final. Adapters replay their native reply form. Configuration never contains the API key. |
-| [0011](0011-sample-collections-in-containers.md) | A container image fetches each collection of malicious samples at a pinned commit. Scans of the collection run inside a rootless container. No sample file reaches the host or this repository. |
 | [0012](0012-walk-layer-and-interrupting-rules.md) | Reading the files is a layer with no switch that never unpacks a container. Its limits are rules with findings. Every rule has an `interrupt` setting, and an interrupting finding stops the scan through one recording point. |
 | [0013](0013-rule-identifiers.md) | A rule id is uppercase hyphenated English, subject first, then condition, with one word per condition across the set. It carries no layer, category, kind or number. |

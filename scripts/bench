@@ -2,24 +2,35 @@
 set -u
 cd "$(dirname "$0")/.." || exit 2
 image=localhost/skill-verdict-bench
-commit=06e083125d5ec5dd7a189dfedadfe587a70635b9
 binary=bin/linux-amd64/skill-verdict
 config=${XDG_CONFIG_HOME:-$HOME/.config}/skill-verdict/config.json
+dataset=${SKILL_BENCH_DATASET:-}
 usage='usage:
-  scripts/bench build                     build the image with MalSkillBench at the pinned commit
+  scripts/bench build                     build the image
   scripts/bench ls [path]                 list what the archive holds under a path
-  scripts/bench scan [scan flags] <path>  scan a skill or a directory of skills inside the container
+  scripts/bench scan [scan flags] <path>  scan one skill inside the container
 
-Skills are under Dataset/Skills/malware/<name> and Dataset/Skills/benign/<name>.
+SKILL_BENCH_DATASET names the directory holding clawhub-skills.7z and index.txt.gz.
+SKILL_BENCH_PASSWORD opens the archive. Skills are under skills/<owner>/<slug>.
 '
 setting() {
   [ -f "$config" ] && sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" "$config"
 }
+need_dataset() {
+  [ -n "$dataset" ] && [ -f "$dataset/clawhub-skills.7z" ] && [ -f "$dataset/index.txt.gz" ] && return 0
+  echo "SKILL_BENCH_DATASET must name a directory holding clawhub-skills.7z and index.txt.gz" >&2
+  exit 2
+}
 build() {
-  exec podman build --build-arg "COMMIT=$commit" -t "$image" -f scripts/bench.Containerfile scripts
+  exec podman build --network=host -t "$image" -f scripts/bench.Containerfile scripts
+}
+list() {
+  path=${1:-skills}
+  zcat "$dataset/index.txt.gz" | sed -n "s|^${path%/}/||p" | sed -e 's|/.*||' -e '/^$/d' | sort -u
 }
 run() {
   set -- "$image" "$@"
+  set -- --volume "$dataset/clawhub-skills.7z:/skills.7z:ro" --env SKILL_BENCH_PASSWORD "$@"
   [ -x "$binary" ] && set -- --volume "$PWD/$binary:/usr/local/bin/skill-verdict:ro" "$@"
   if [ -f "$config" ]; then
     set -- --env XDG_CONFIG_HOME=/cfg --volume "$config:/cfg/skill-verdict/config.json:ro" "$@"
@@ -36,10 +47,12 @@ run() {
 }
 case "${1:-}" in
   build) build ;;
-  ls) shift; run bench-image list "$@" ;;
+  ls) shift; need_dataset; list "$@" ;;
   scan)
     shift
     [ $# -ge 1 ] || { printf '%s' "$usage" >&2; exit 2; }
+    need_dataset
+    [ -n "${SKILL_BENCH_PASSWORD:-}" ] || { echo "SKILL_BENCH_PASSWORD is not set" >&2; exit 2; }
     [ -x "$binary" ] || { echo "$binary is missing, run scripts/check first" >&2; exit 2; }
     n=$#
     i=1
