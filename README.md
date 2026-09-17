@@ -59,6 +59,12 @@ Optional model checks look for harmful intent beyond fixed text patterns. Model 
 
 An optional honeypot gives a model the tools of a coding agent. None of that tools are doing anything, and none of your installed agents or environments are used for such an "experiment". But if a model attempts to execute anything while being told not to - it's either an extremely dumb model or an interesting prompt injection technique that's not detectable by any static checks. And if so - we can't trust any further model analysis of the skill so it's not performed and a skill is immediately marked for blocking.
 
+## What it DOESN'T check (and why)
+
+- **Contents of external references.** Scanning moving targets is pointless because remote content can change five minutes after the scan. Deeply auditing external code is also not a job for a rigid scanner running relatively cheap models. Pin the dependencies in the skill, fetch the frozen content, and review it yourself or hand it to the smartest model you have.
+- **Persona overrides, behavior bending, or "not recommended" approaches.** Model vendors already enforce more than enough guardrails. We have every right and plenty of legitimate reasons to have skills act as hackers, bad actors, or anything else that scares AI models. Flagging aggressive personas or unorthodox prompt tricks would just make the scanner useless for real security work.
+- **Factual errors and potentially stupid things.** There might be valid reasons for doing something weird in a skill. Maintaining a detection pipeline for bad advice or incorrect facts would shift focus away from things that actually matter. You'd just end up with a useless scanner that produces so many false positives that nobody reads its output.
+
 ## Install
 
 Download the binary for your platform from [Releases](https://github.com/bickus/skill-verdict/releases). Check it against `SHA256SUMS` and put it on `PATH`. Or install with [Go](https://go.dev/doc/install) 1.26 or later:
