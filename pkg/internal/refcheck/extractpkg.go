@@ -21,10 +21,11 @@ const (
 )
 
 var (
-	pipInstall  = regexp.MustCompile(`(?:^|[\s;&|(])(?:python3?\s+-m\s+pip|pip3?|pipx|uv\s+pip)\s+install\s+(.+)$`)
-	uvxRun      = regexp.MustCompile(`(?:^|[\s;&|(])uvx\s+(.+)$`)
-	npmInstall  = regexp.MustCompile(`(?:^|[\s;&|(])(?:npm|pnpm|yarn)\s+(?:install|i|add)\s+(.+)$`)
-	npxRun      = regexp.MustCompile(`(?:^|[\s;&|(])npx\s+(.+)$`)
+	pipInstall  = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(.+)$")
+	uvxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])uvx\\s+(.+)$")
+	uvRun       = regexp.MustCompile("(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(.+)$")
+	npmInstall  = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn)\\s+(?:install|i|add)\\s+(.+)$")
+	npxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])npx\\s+(.+)$")
 	shellEnd    = regexp.MustCompile("&&|\\|\\||[;|)`#]")
 	pypiPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	npmPattern  = regexp.MustCompile(`^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$`)
@@ -106,7 +107,32 @@ func commandPackages(text, registry string) []string {
 	if m := run.FindStringSubmatch(text); m != nil {
 		names = append(names, firstArg(m[1], registry)...)
 	}
+	if registry == registryPyPI {
+		if m := uvRun.FindStringSubmatch(text); m != nil {
+			names = append(names, withArgs(m[1])...)
+		}
+	}
 	return names
+}
+
+func withArgs(args string) []string {
+	var out []string
+	fields := shellArgs(args)
+	for i, tok := range fields {
+		var value string
+		switch {
+		case strings.HasPrefix(tok, "--with="):
+			value = strings.TrimPrefix(tok, "--with=")
+		case tok == "--with" && i+1 < len(fields):
+			value = fields[i+1]
+		default:
+			continue
+		}
+		if name, ok := pypiName(value); ok {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 func shellArgs(args string) []string {

@@ -23,7 +23,10 @@
     "(?i)codeberg\\.org/[^/\\s]+/[^/\\s]+/(?:raw|src)/branch/",
     "(?i)codeberg\\.org/[^/\\s]+/[^/\\s]+/archive/[^/\\s]*[^0-9a-f/\\s.][^/\\s]*\\.(?:zip|tar\\.gz)",
     "(?i)bitbucket\\.org/[^/\\s]+/[^/\\s]+/(?:raw|src)/[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
-    "(?i)bitbucket\\.org/[^/\\s]+/[^/\\s]+/get/[^/\\s]*[^0-9a-f/\\s.][^/\\s]*\\.(?:zip|tar\\.gz)"
+    "(?i)bitbucket\\.org/[^/\\s]+/[^/\\s]+/get/[^/\\s]*[^0-9a-f/\\s.][^/\\s]*\\.(?:zip|tar\\.gz)",
+    "(?i)cdn\\.jsdelivr\\.net/gh/[^/\\s@]+/[^/\\s@]+/",
+    "(?i)cdn\\.jsdelivr\\.net/gh/[^/\\s@]+/[^/\\s@]+@[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
+    "(?i)cdn\\.jsdelivr\\.net/npm/(?:@[^/\\s@]+/)?[^/\\s@]+(?:@latest)?/"
    ],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
    "enabled": true

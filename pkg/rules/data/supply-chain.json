@@ -40,9 +40,11 @@
    "layer": "static",
    "scope": "any",
    "patterns": [
-    "(?im)(?:^|[\\s;&|(])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:\\s|$)",
-    "(?im)(?:^|[\\s;&|(])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:\\s|$)",
-    "(?im)(?:^|[\\s;&|(])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:\\s|$)"
+    "(?im)(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"']|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"']|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:[\\s`\"']|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(?:\\S+\\s+)*?--with(?:=|\\s+)[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"']|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])docker\\s+pull\\s+(?:-[\\w-]+\\s+)*[a-z0-9][a-z0-9._/-]*(?::[\\w.-]*latest[\\w.-]*)?(?:[\\s`\"']|$)"
    ],
    "judge": {"downgrade": true, "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
    "enabled": true

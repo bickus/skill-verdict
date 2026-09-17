@@ -180,6 +180,7 @@ func TestEveryClassHasHitAndNearMiss(t *testing.T) {
 		{"exfiltration", "exfil.py", "exfil-miss.py"},
 		{"agent-snooping", "snoop.py", "snoop-miss.py"},
 		{"supply-chain", "requirements.txt", "requirements-dev.txt"},
+		{"supply-chain", "unpinned.md", ""},
 		{"remote-execution", "install.sh", "install-miss.sh"},
 		{"obfuscation", "obf.py", "obf-miss.py"},
 		{"deserialization", "load.rb", "load-miss.rb"},

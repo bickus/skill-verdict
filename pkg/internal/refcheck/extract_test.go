@@ -89,10 +89,13 @@ var addressExtractCases = []extractCase{
 
 var packageExtractCases = []extractCase{
 	{"pip install", "SKILL.md", "pip install requests\n", []refs.Ref{ref(refs.Package, "pypi:requests")}},
+	{"pip install inline code", "SKILL.md", "Run `pip install requests` first\n", []refs.Ref{ref(refs.Package, "pypi:requests")}},
 	{"extras and specifier", "SKILL.md", "pip3 install \"Requests[security]>=2.0\"\n", []refs.Ref{ref(refs.Package, "pypi:requests")}},
 	{"python module pip", "SKILL.md", "python -m pip install numpy pandas==1.0\n", []refs.Ref{ref(refs.Package, "pypi:numpy"), ref(refs.Package, "pypi:pandas")}},
 	{"uv pip", "SKILL.md", "uv pip install httpx\n", []refs.Ref{ref(refs.Package, "pypi:httpx")}},
 	{"pipx", "SKILL.md", "pipx install Flask_Login\n", []refs.Ref{ref(refs.Package, "pypi:flask-login")}},
+	{"uv run with", "SKILL.md", "uv run --with moviepy --with=Pillow scripts/overlay.py\n", []refs.Ref{ref(refs.Package, "pypi:moviepy"), ref(refs.Package, "pypi:pillow")}},
+	{"uv run without with", "SKILL.md", "uv run scripts/overlay.py\n", nil},
 	{"editable path", "SKILL.md", "pip install -e .\n", nil},
 	{"requirements flag", "SKILL.md", "pip install -r requirements.txt\n", nil},
 	{"index url flag", "SKILL.md", "pip install --index-url https://x.test/simple foo\n", []refs.Ref{ref(refs.Package, "pypi:foo")}},
@@ -101,6 +104,7 @@ var packageExtractCases = []extractCase{
 	{"uvx from", "SKILL.md", "uvx --from httpie http\n", []refs.Ref{ref(refs.Package, "pypi:httpie")}},
 	{"npm install", "SKILL.md", "npm install express lodash@4\n", []refs.Ref{ref(refs.Package, "npm:express"), ref(refs.Package, "npm:lodash")}},
 	{"npm global", "SKILL.md", "npm i -g TypeScript\n", []refs.Ref{ref(refs.Package, "npm:typescript")}},
+	{"pnpm inline code", "SKILL.md", "| Fix | Update with `pnpm add -g openclaw@latest` |\n", []refs.Ref{ref(refs.Package, "npm:openclaw")}},
 	{"npm option value", "SKILL.md", "npm install --otp 123456 react\n", []refs.Ref{ref(refs.Package, "npm:react")}},
 	{"yarn scoped", "SKILL.md", "yarn add @types/node@18\n", []refs.Ref{ref(refs.Package, "npm:@types/node")}},
 	{"pnpm alias", "SKILL.md", "pnpm add myalias@npm:react@18\n", []refs.Ref{ref(refs.Package, "npm:react")}},
