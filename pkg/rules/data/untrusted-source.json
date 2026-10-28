@@ -68,7 +68,7 @@
      "who": {
       "subject": "frame",
       "template": "who",
-      "focus": "The scanner rule looks for a step that clones a repository or installs from a Git source without a commit hash. A clone followed by a checkout of a commit hash, or a URL that carries a commit hash, is `not-a-match`."
+      "focus": "The scanner rule looks for a step that clones a repository or installs from a Git source. Words after the command that are not a repository are `not-a-match`."
      },
      "source": {
       "subject": "frame",
@@ -78,13 +78,22 @@
        "user-given": "the user names the repository, or it is the project the agent works in.",
        "not-a-match": "the marked text clones or installs no repository."
       }
+     },
+     "pin": {
+      "subject": "frame",
+      "question": "What fixes the commit that the marked step gets?",
+      "options": {
+       "none": "nothing fixes the commit: the step names no ref, a branch or a tag, and no later line checks out a commit hash.",
+       "hash": "a commit hash fixes it: in the URL, in a revision option, or in a checkout right after the clone.",
+       "not-a-match": "the marked text clones or installs no repository."
+      }
      }
     },
     "outcome": {
-     "confirm": [{"who": ["agent-runs", "platform-install"], "source": "skill-named"}],
+     "confirm": [{"who": ["agent-runs", "platform-install"], "source": "skill-named", "pin": "none"}],
      "severity": {"medium": [{"who": "user-step"}]},
      "dismiss": [{"who": ["documentation", "not-a-match"]}],
-     "misfire": [{"who": "not-a-match"}, {"source": ["user-given", "not-a-match"]}]
+     "misfire": [{"who": "not-a-match"}, {"source": ["user-given", "not-a-match"]}, {"pin": ["hash", "not-a-match"]}]
     }
    },
    "enabled": true

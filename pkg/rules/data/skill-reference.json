@@ -36,8 +36,8 @@
       "options": {
        "relaxes-rules": "this skill relaxes safety rules or earlier instructions.",
        "grants-tools": "this skill grants tools or permissions that its task does not need.",
-       "writes-for-other": "this skill writes files or settings that the other skill would read.",
-       "nothing": "this skill prepares none of these.",
+       "writes-for-other": "this skill writes or changes a file or a setting that the other skill reads when it starts: its SKILL.md, its references, its configuration.",
+       "nothing": "this skill prepares none of these. Reading the other skill, following its style, or writing this skill's own output for the user prepares nothing.",
        "unknown": "the text does not show what this skill prepares."
       }
      }

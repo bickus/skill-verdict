@@ -159,7 +159,7 @@ func (src *source) build(r rules.Compiled, m []int) (finding.Finding, bool) {
 	end := max(a.Source(m[1]), start+1)
 	line := textutil.LineAt(src.starts, start)
 	f := r.Finding(finding.Location{File: a.Path, Line: line}, textutil.Evidence(src.text[m[0]:m[1]]))
-	if readOnly(r, src.text[m[0]:m[1]]) && f.Severity.Rank() > finding.Medium.Rank() {
+	if src.lowered(r, m, row) && f.Severity.Rank() > finding.Medium.Rank() {
 		f.Severity = finding.Medium
 	}
 	if endLine := textutil.LineAt(src.starts, end-1); endLine > line {
@@ -190,16 +190,36 @@ func (src *source) selfInstall(row int, m []int) bool {
 	return false
 }
 
-func readOnly(r rules.Compiled, match string) bool {
-	if len(r.ReadOnly) == 0 {
+func (src *source) lowered(r rules.Compiled, m []int, row int) bool {
+	if len(r.Lowered) == 0 {
 		return false
+	}
+	match := src.text[m[0]:m[1]]
+	if strings.HasPrefix(match, "```!") {
+		return src.fenceLowered(r, row)
 	}
 	_, command, opened := strings.Cut(match, "!`")
 	command, closed := strings.CutSuffix(command, "`")
-	if !opened || !closed || strings.ContainsAny(command, "|;&<>`") || strings.Contains(command, "$(") {
+	return opened && closed && plain(r, command)
+}
+
+func (src *source) fenceLowered(r rules.Compiled, row int) bool {
+	for _, line := range src.lines[row:] {
+		if strings.HasPrefix(line, "```") {
+			return true
+		}
+		if strings.TrimSpace(line) != "" && !plain(r, line) {
+			return false
+		}
+	}
+	return false
+}
+
+func plain(r rules.Compiled, command string) bool {
+	if strings.ContainsAny(command, "|;&<>`") || strings.Contains(command, "$(") {
 		return false
 	}
-	return matchesAny(r.ReadOnly, command)
+	return matchesAny(r.Lowered, strings.TrimSpace(command))
 }
 
 func installed(skill *inventory.Skill, r rules.Compiled, manifest *inventory.Artifact) bool {

@@ -14,7 +14,7 @@
   "question": "What does the skill do with the reference at this place?",
   "focus": "`SKILL.md` is read by the agent, so a step is the agent's unless the text tells the user to do it by hand. A page the agent is told to read is `agent-instructions`, not `documentation`. A web application the agent operates by the steps the skill gives is `agent-fetch`, not `agent-instructions`. The line alone does not say what the skill does with the reference, read the text around it.",
   "options": {
-   "citation": "the reference is named and nobody is told to open it: a credit, a source, an example.",
+   "citation": "the reference is named and nobody is told to open it: a credit, a source, an example, an entry in a references or links list.",
    "documentation": "the reader is pointed at the page to learn from it.",
    "user-action": "the user does something there by hand: signs up, gets a key, installs a tool.",
    "tool-server": "the agent is connected to it as an MCP or other tool server and calls its tools. The agent sends what the tools ask for and acts on what they return.",

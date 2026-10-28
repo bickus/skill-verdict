@@ -5,7 +5,7 @@
    "category": "load-time-exec",
    "severity": "high",
    "title": "Command run when the skill loads",
-   "description": "Claude Code runs a backtick-quoted command preceded by an exclamation mark, and every fenced block opened with ```!, when it loads `SKILL.md` or a command file, before the model reads the file. The text around the command changes nothing. A read-only command such as `git status` is medium.",
+   "description": "Claude Code runs a backtick-quoted command preceded by an exclamation mark, and every fenced block opened with ```!, when it loads `SKILL.md` or a command file, before the model reads the file. The text around the command changes nothing. A read-only command such as `git status`, or a script shipped in the skill folder, is medium.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -14,10 +14,11 @@
     "(?m)(?:^|\\s)!`[^`\\r\\n]+`",
     "(?m)^```!"
    ],
-   "readOnly": [
+   "lowered": [
     "^(date|pwd|whoami|uname|hostname)( -[A-Za-z]+)*$",
     "^git (status|branch|log|diff|rev-parse)( [A-Za-z0-9_./]+)*$",
-    "^(ls|cat|head|tail)( -[A-Za-z0-9]+)*( [A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*)*$"
+    "^(ls|cat|head|tail)( -[A-Za-z0-9]+)*( [A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*)*$",
+    "^(bash|sh|zsh|python3?|node|ruby|perl) \"?\\$\\{?CLAUDE_SKILL_DIR\\}?/[A-Za-z0-9_./-]+\"?( \"?[^\\s\"]*\"?)*$"
    ],
    "judge": {"downgrade": false},
    "enabled": true

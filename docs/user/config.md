@@ -361,7 +361,7 @@ Block skills shipping legacy or risky file types (e.g. `.bat`, `.cmd`, `.vbs`):
 | `files` | No | File patterns to match (e.g. `["*.py", "*.sh"]`). Empty matches all files. Case-insensitive. A pattern with a `/` matches the last folders and the file name of the path, so `commands/*.md` matches `plugins/p/commands/run.md`. |
 | `patterns` | Yes (static) | Array of RE2 regular expressions. Use `(?i)` for case-insensitive matching. |
 | `exclude` | No | RE2 patterns that suppress a match if present on the same line. |
-| `readOnly` | No | RE2 patterns of commands that only read. A load-time command that matches one of them in full gets severity `medium`. Only `COMMAND-ON-LOAD` uses it. |
+| `lowered` | No | RE2 patterns of commands that end at `medium`: commands that only read, and scripts shipped in the skill folder. A load-time command that matches one of them in full, or a fenced block whose every line does, gets severity `medium`. Only `COMMAND-ON-LOAD` uses it. |
 | `installers` | No | Groups of install commands, one group per package ecosystem. A group lists the manifests it installs in `files` and RE2 patterns of the commands in `patterns`. A finding in a manifest stays only when another file of the skill names the manifest or matches a pattern of the manifest's group. Only `UNPINNED-DEPENDENCY` uses it. |
 | `judge.downgrade` | No | Boolean: whether a model may lower this finding. The decision layer lowers a rule with a `decision` block, the AI Judge lowers a discovery rule. Default `false`. |
 | `judge.downgradeFloor`| No | Lowest severity a model may assign. `""` allows total dismissal. |

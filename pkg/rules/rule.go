@@ -44,7 +44,7 @@ type Rule struct {
 	Files       []string         `json:"files,omitempty"`
 	Patterns    []string         `json:"patterns,omitempty"`
 	Exclude     []string         `json:"exclude,omitempty"`
-	ReadOnly    []string         `json:"readOnly,omitempty"`
+	Lowered     []string         `json:"lowered,omitempty"`
 	Installers  []Installer      `json:"installers,omitempty"`
 	Judge       JudgePolicy      `json:"judge"`
 	Usages      []string         `json:"usages,omitempty"`
@@ -135,7 +135,7 @@ type Compiled struct {
 	Rule
 	Patterns   []*regexp.Regexp
 	Exclude    []*regexp.Regexp
-	ReadOnly   []*regexp.Regexp
+	Lowered    []*regexp.Regexp
 	Installers []CompiledInstaller
 }
 
@@ -159,7 +159,7 @@ func compile(r Rule) (Compiled, error) {
 	if c.Exclude, err = expressions("exclude", r.Exclude, "%s"); err != nil {
 		return Compiled{}, err
 	}
-	if c.ReadOnly, err = expressions("readOnly", r.ReadOnly, "^(?:%s)$"); err != nil {
+	if c.Lowered, err = expressions("lowered", r.Lowered, "^(?:%s)$"); err != nil {
 		return Compiled{}, err
 	}
 	for _, in := range r.Installers {
