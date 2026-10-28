@@ -5,7 +5,7 @@
    "category": "prompt-injection",
    "severity": "high",
    "title": "Another skill referenced",
-   "description": "The text points at another skill: a path or URL ending in SKILL.md, or a path under a skills directory such as .claude/skills/. The agent loads that file and the scanner never reads it. Pointing at another skill is normal on its own. The danger is a pair: this skill prepares something, the unseen skill uses it.",
+   "description": "The text points at another skill: a path or URL ending in SKILL.md, or a path under a skills directory such as .claude/skills/. The agent loads that file and the scanner never reads it. A path into this skill's own folder is not a reference. Pointing at another skill is normal on its own. The danger is a pair: this skill prepares something, the unseen skill uses it.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "prose",

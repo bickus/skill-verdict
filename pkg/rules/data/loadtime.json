@@ -11,7 +11,7 @@
    "scope": "any",
    "files": ["*.md"],
    "patterns": [
-    "(?i)!`[^`\\r\\n]+`"
+    "(?m)(?:^|\\s)!`[^`\\r\\n]+`"
    ],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true

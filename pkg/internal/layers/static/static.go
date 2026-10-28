@@ -71,6 +71,7 @@ type source struct {
 	state    *pipeline.State
 	artifact *inventory.Artifact
 	text     string
+	folder   string
 	starts   []int
 	scanned  []int
 	lines    []string
@@ -79,7 +80,7 @@ type source struct {
 }
 
 func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool, self refcheck.SelfInstall) {
-	src := &source{state: s, artifact: a, text: a.Text(), starts: textutil.LineStarts(a.Content), self: self}
+	src := &source{state: s, artifact: a, text: a.Text(), folder: strings.ToLower(s.Skill.Folder()), starts: textutil.LineStarts(a.Content), self: self}
 	src.scanned, src.lines = src.starts, textutil.Lines(src.text)
 	if a.Clean != "" {
 		src.scanned = textutil.LineStarts(a.Clean)
@@ -137,7 +138,7 @@ func (src *source) build(r rules.Compiled, m []int) (finding.Finding, bool) {
 	if !allowed(a.ContentType, r.Scope, src.fenced != nil && src.fenced[row-1]) || matchesAny(r.Exclude, src.lines[row-1]) {
 		return finding.Finding{}, false
 	}
-	if src.selfInstall(row, m) {
+	if src.selfInstall(row, m) || src.selfPath(m) {
 		return finding.Finding{}, false
 	}
 	start := a.Source(m[0])
@@ -166,6 +167,22 @@ func (src *source) selfInstall(row int, m []int) bool {
 	start, end = start-src.scanned[row-1], end-src.scanned[row-1]
 	for _, span := range spans {
 		if start >= span[0] && end <= span[1] {
+			return true
+		}
+	}
+	return false
+}
+
+func (src *source) selfPath(m []int) bool {
+	text := strings.Trim(src.text[m[0]:m[1]], edges+"[]<>")
+	if src.folder == "" || strings.Contains(text, "://") || strings.ContainsAny(text, " \t") {
+		return false
+	}
+	parts := strings.Split(strings.ToLower(strings.ReplaceAll(text, `\`, "/")), "/")
+	for i := 1; i < len(parts); i++ {
+		underSkills := parts[i] == src.folder && parts[i-1] == "skills"
+		ownEntry := parts[i] == "skill.md" && parts[i-1] == src.folder
+		if underSkills || ownEntry {
 			return true
 		}
 	}

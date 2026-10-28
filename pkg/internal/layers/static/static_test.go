@@ -179,7 +179,7 @@ func TestEveryClassHasHitAndNearMiss(t *testing.T) {
 		{"tool-misuse", "client.py", "client-miss.py"},
 		{"load-time-exec", "loadtime.md", "loadtime-miss.md"},
 		{"privilege-escalation", "sudoers.sh", ""},
-		{"prompt-injection", "skillref.md", ""},
+		{"prompt-injection", "skillref.md", "skillref-miss.md"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.class), func(t *testing.T) {
@@ -191,6 +191,33 @@ func TestEveryClassHasHitAndNearMiss(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSecretEnvNameMatchesWholeTokens(t *testing.T) {
+	s := scan(t, "testdata/categories", "")
+	found := inFile(s, "SECRETS-ENV-USED", "secrets-env.sh")
+	cases := []struct {
+		name string
+		line int
+		want bool
+	}{
+		{"name ending in _PAT", 1, true},
+		{"_PAT_ inside the name", 2, true},
+		{"bare PAT", 3, true},
+		{"_PATH is not a token", 4, false},
+		{"PATCH is not a token", 5, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := onLine(found, tc.line); got != tc.want {
+				t.Errorf("finding on line %d = %v, want %v", tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
+func onLine(found []finding.Finding, line int) bool {
+	return slices.ContainsFunc(found, func(f finding.Finding) bool { return f.Location.Line == line })
 }
 
 func TestRunRecordsLayerOutcome(t *testing.T) {

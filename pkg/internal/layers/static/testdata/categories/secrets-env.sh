@@ -1,0 +1,5 @@
+token="$GITHUB_PAT"
+backup="${MY_PAT_2}"
+pat="$PAT"
+plan="$PLAN_PATH"
+size="$PATCH_SIZE"

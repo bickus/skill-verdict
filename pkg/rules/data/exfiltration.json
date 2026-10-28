@@ -89,11 +89,11 @@
    "layer": "static",
    "scope": "any",
    "patterns": [
-    "(?:environ|env|ENV|Env)\\s*(?:\\.\\s*get\\s*\\(|\\[)\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
-    "[gG]etenv\\s*\\(\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
-    "process\\.env\\.(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
-    "\\$(?:\\{|env:)?(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
-    "printenv\\s+(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b"
+    "(?:environ|env|ENV|Env)\\s*(?:\\.\\s*get\\s*\\(|\\[)\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
+    "[gG]etenv\\s*\\(\\s*['\"](?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)['\"]",
+    "process\\.env\\.(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
+    "\\$(?:\\{|env:)?(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
+    "printenv\\s+(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b"
    ],
    "judge": {"downgrade": true, "instructions": "Dismiss when the variable is the skill's own configuration, declared in its frontmatter or README, and the value only reaches the service that variable is for. Dismiss when the match is documentation, a sample or a placeholder. Keep when the skill reads a variable that belongs to another product, the agent or the platform, or one its stated purpose does not need. Follow the value: a read that ends in a request, a file the skill writes, a log line or a derived identifier keeps the severity."},
    "decision": {
