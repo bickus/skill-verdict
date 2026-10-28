@@ -134,18 +134,18 @@ func TestRunAppliesTheVerdict(t *testing.T) {
 
 func TestRunLeavesFindingsUnjudged(t *testing.T) {
 	cases := []struct {
-		name  string
-		reply llm.Message
+		name    string
+		replies []llm.Message
 	}{
-		{"a guess below the threshold", record(verdict("D1", "dismiss", 2))},
-		{"an unknown finding id", record(verdict("D9", "dismiss", 4))},
-		{"a verdict that is neither a severity nor dismiss", record(verdict("D1", "maybe", 4))},
+		{"a guess below the threshold", []llm.Message{record(verdict("D1", "dismiss", 2))}},
+		{"an unknown finding id", []llm.Message{record(verdict("D9", "dismiss", 4)), record(verdict("D1", "high", 1))}},
+		{"a verdict that is neither a severity nor dismiss", []llm.Message{record(verdict("D1", "maybe", 4)), record(verdict("D1", "high", 1))}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			original := found("DROP", "SKILL.md", 3, finding.High)
 			s := newState(t, original)
-			run(s, &fake{replies: []llm.Message{tc.reply}}, 10)
+			run(s, &fake{replies: tc.replies}, 10)
 			if !reflect.DeepEqual(s.Findings, []finding.Finding{original}) {
 				t.Errorf("findings %+v, want %+v untouched", s.Findings, original)
 			}
@@ -195,8 +195,19 @@ func TestRunSkipsTheModelWithoutFindings(t *testing.T) {
 
 func TestRunListsSeverestFileFirstAndServesFiles(t *testing.T) {
 	s := newState(t, found("DROP", "SKILL.md", 3, finding.Low), found("DROP", "helper.sh", 2, finding.Critical))
-	run(s, &fake{replies: []llm.Message{read("helper.sh"), submit(verdict("D1", "critical", 4))}}, 10)
+	run(s, &fake{replies: []llm.Message{read("helper.sh"), submit(verdict("D1", "critical", 4), verdict("D2", "low", 1))}}, 10)
 	if s.Findings[1].Judgement == nil || s.Findings[1].Judgement.State != finding.Confirmed || s.Findings[0].Judgement != nil {
 		t.Errorf("findings %+v, want only helper.sh confirmed", s.Findings)
+	}
+}
+
+func TestRunRefusesSubmitUntilEveryFindingHasAVerdict(t *testing.T) {
+	s := newState(t, found("DROP", "SKILL.md", 3, finding.Low), found("DROP", "helper.sh", 2, finding.Critical))
+	run(s, &fake{replies: []llm.Message{submit(verdict("D1", "critical", 4)), submit(verdict("D2", "dismiss", 4))}}, 10)
+	if s.Findings[1].Judgement == nil || s.Findings[1].Judgement.State != finding.Confirmed || s.Findings[0].Judgement == nil || s.Findings[0].Judgement.State != finding.Dismissed {
+		t.Errorf("findings %+v, want helper.sh confirmed and SKILL.md dismissed", s.Findings)
+	}
+	if len(s.Layers) != 2 || s.Layers[1].Status != pipeline.Done {
+		t.Errorf("layers %+v, want a done judge layer", s.Layers)
 	}
 }

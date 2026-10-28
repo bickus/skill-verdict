@@ -60,8 +60,5 @@ func Origins(s *inventory.Skill) string {
 const skillFile = "SKILL.md"
 
 func Entry(s *inventory.Skill) *inventory.Artifact {
-	if a := s.Artifact(inventory.RevealedPath(skillFile)); a != nil {
-		return a
-	}
 	return s.Artifact(skillFile)
 }

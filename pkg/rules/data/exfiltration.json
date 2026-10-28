@@ -33,6 +33,29 @@
     "(?i)127\\.0\\.0\\.1"
    ],
    "judge": {"downgrade": true, "instructions": "Lower or dismiss only when the request goes to the service the skill is for and carries only what that service needs, its own API key included. Data from other files or services keeps it."},
+   "decision": {
+    "subject": "request",
+    "question": "Look at every request in the state. What do the requests send? When requests differ, answer for the request that sends the most.",
+    "options": {
+     "inputs-only": "every request sends only literal values, values the user passes to the program, or results of earlier requests to the same service.",
+     "own-credential": "besides such values a request sends a credential read from an environment variable, and that request goes to the service the credential belongs to.",
+     "local-data": "at least one request sends content of files, environment variables that belong to another service, or other data taken from the machine or the agent.",
+     "unknown": "the state does not show what a request sends."
+    },
+    "dismiss": ["inputs-only", "own-credential"]
+   },
+   "enabled": true
+  },
+  {
+   "id": "REMOTE-ENDPOINT-UPLOAD-HIDDEN",
+   "category": "exfiltration",
+   "severity": "high",
+   "title": "Data sent to a referenced host",
+   "description": "The agent sends data from the user, the machine or another service to the referenced host. Found by reading what the skill does with the reference, not by a text pattern.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Dismiss when the host is the service the skill is for and only that service's data goes there, or if a false positive."},
    "enabled": true
   },
   {
@@ -73,6 +96,17 @@
     "printenv\\s+(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR|_PAT)[A-Z0-9_]*|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b"
    ],
    "judge": {"downgrade": true, "instructions": "Dismiss when the variable is the skill's own configuration, declared in its frontmatter or README, and the value only reaches the service that variable is for. Dismiss when the match is documentation, a sample or a placeholder. Keep when the skill reads a variable that belongs to another product, the agent or the platform, or one its stated purpose does not need. Follow the value: a read that ends in a request, a file the skill writes, a log line or a derived identifier keeps the severity."},
+   "decision": {
+    "subject": "env-read",
+    "question": "Look at every call in the state that takes the value of the environment variable. Where does the value go? When calls differ, answer for the call that sends the value furthest from the service it belongs to.",
+    "options": {
+     "own-service-only": "every request that carries the value goes to the service the variable belongs to, and the value serves as its credential.",
+     "other-host": "at least one request sends the value, or data that contains it, to a host that is not the service the variable belongs to.",
+     "not-sent": "no request or command in the state sends the value anywhere.",
+     "unknown": "the state does not show where a request that carries the value goes."
+    },
+    "dismiss": ["own-service-only", "not-sent"]
+   },
    "enabled": true
   },
   {

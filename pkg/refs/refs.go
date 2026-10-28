@@ -5,6 +5,7 @@ package refs
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"github.com/bickus/skill-verdict/pkg/finding"
@@ -49,16 +50,36 @@ type Fact struct {
 }
 
 type Report struct {
+	ID       string   `json:"id,omitempty"`
 	Ref      Ref      `json:"reference"`
 	Status   Status   `json:"status"`
 	Detail   string   `json:"detail,omitempty"`
 	Facts    []Fact   `json:"facts"`
+	Usages   []string `json:"usages,omitempty"`
 	Findings []string `json:"-"`
 	Derived  []Ref    `json:"-"`
+}
+
+func (r Report) LocationID(i int) string {
+	return fmt.Sprintf("%s.%d", r.ID, i+1)
+}
+
+func (r Report) Usage(i int) string {
+	if i < len(r.Usages) {
+		return r.Usages[i]
+	}
+	return ""
 }
 
 func Sort(reports []Report) {
 	slices.SortStableFunc(reports, func(a, b Report) int {
 		return cmp.Or(cmp.Compare(a.Ref.Kind, b.Ref.Kind), cmp.Compare(a.Ref.Value, b.Ref.Value))
 	})
+}
+
+func Number(reports []Report) {
+	Sort(reports)
+	for i := range reports {
+		reports[i].ID = fmt.Sprintf("R%d", i+1)
+	}
 }

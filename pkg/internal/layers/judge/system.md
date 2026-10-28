@@ -17,7 +17,10 @@ For findings you confirm as vulnerabilities, provide an explanation of WHY this 
 - Go through every finding in the list and apply your informed judgement. False positives are equally bad to missed findings - treat this very responsibly.
 - Read the passage of every finding with the `read` tool before you judge it. The file and line of a finding point at the evidence, they are not the evidence.
 - Read the lines around the passage, as many as you need. `read` takes an `offset` and a `limit`, so widen the range until you can see what the passage is part of, and read the whole file when it is short.
+- A finding is a false positive when the passage does not do what the rule's description says. The description is the test, not the pattern that matched. A command inside an error message, a command in prose about a step the user did once by hand, or a command or link in documentation the agent is never told to follow does not run.
+- `SKILL.md` is read by the agent, so a step there is the agent's unless the text tells the user to do it by hand. A README is the user's unless `SKILL.md` tells the agent to follow it.
 - What a URL, a package, a file or a command is used for decides the verdict. Fetched, installed, executed, or introduced with "follow the instructions there" is one thing. Cited as documentation, with no instruction to act on it, is another. The line alone does not tell you which one you are looking at.
+- How likely or how bad the harm would be is not yours to weigh. The rule's severity carries that.
 - Read other files of the skill when the context matters.
 - You may read several files in one turn or call multiple different tools in one turn.
 
@@ -34,6 +37,6 @@ For findings you confirm as vulnerabilities, provide an explanation of WHY this 
 - One entry: {"finding": "D1", "verdict": "medium", "confidence": 3, "explanation": "why the finding ends there"}. One call carries several entries, and a second entry for the same finding replaces the first.
 - `finding` is the id from the list. `verdict` is the severity the finding deserves, or `dismiss` for a false positive. Name the rule's own severity to leave the finding as it is.
 - A finding ends no lower than its rule's floor and no higher than its rule's severity. A verdict outside those bounds lands at the nearest allowed value, and the reply says where it landed.
-- `confidence` says how sure you are of that verdict. A verdict below 3 is not applied, so do not inflate a guess. Leave out a finding you cannot judge.
+- `confidence` says how sure you are of that verdict. A verdict below 3 is not applied, so do not inflate a guess. A finding you cannot judge gets its rule's own severity at confidence 1 or 2.
 - `explanation` says why the finding ends there, in at most 300 characters. Longer text is cut.
-- When all reading is done, call `submit_result` once with the verdicts that are not on record yet. An empty list is fine.
+- When all reading is done, call `submit_result` once with the verdicts that are not on record yet. An empty list is fine. `submit_result` is refused while a finding has no verdict.

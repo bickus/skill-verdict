@@ -142,8 +142,10 @@ Every layer can be individually enabled or disabled under `layers`:
 {
   "layers": {
     "reveal": {"enabled": true},
+    "ast": {"enabled": true},
     "static": {"enabled": true},
     "references": {"enabled": true},
+    "decision": {"enabled": false},
     "honeypot": {"enabled": true, "calls": 10},
     "discovery": {"enabled": true, "calls": 24},
     "judge": {"enabled": true, "calls": 15}
@@ -156,6 +158,63 @@ Every layer can be individually enabled or disabled under `layers`:
 ### Layer Call Budgets (`calls`)
 
 The `calls` parameter sets the maximum number of model requests a layer may make per skill. If a model layer exhausts its call budget before completing, the layer fails and the scan verdict becomes `incomplete`.
+
+### Decision Layer (`layers.decision`)
+
+The decision layer has its own model settings, separate from `llm`, because a decision model takes a state and questions and returns probabilities, not text. The layer is off by default. It needs the `ast` and `static` layers. See [Detection](detection.md) for what it dismisses and when.
+
+```json
+{
+  "layers": {
+    "decision": {
+      "enabled": true,
+      "baseUrl": "https://openrouter.ai/api/alpha",
+      "model": "~typesafe/jev-latest",
+      "keyEnv": "SKILL_VERDICT_DECISION_API_KEY",
+      "keyFile": "",
+      "timeout": "1m0s",
+      "maxStateChars": 60000,
+      "maxRequestChars": 120000,
+      "minProbability": 0.6,
+      "inputPrice": 0.042
+    }
+  }
+}
+```
+
+| Setting | Meaning |
+|---|---|
+| `baseUrl`, `model` | The scanner posts to `<baseUrl>/decisions`. |
+| `keyEnv`, `keyFile` | Where the API key comes from. The configuration never holds the key. |
+| `maxStateChars` | Largest trace the layer sends. A larger trace keeps its finding without a request. |
+| `maxRequestChars` | Largest request, trace and question together. A larger request keeps its finding without being sent. |
+| `minProbability` | Lowest probability that dismisses. The chosen answer must be a dismissing one, and the probabilities of all dismissing answers are added up. Below it the finding stays. Default `0.6`. |
+| `inputPrice` | USD per million input tokens, used for the cost in the report. |
+
+A rule takes part when its settings have a `decision` object with these fields:
+
+- `subject`:
+  - `env-read` or `request` for a traced value
+  - `lines` for the lines around the finding
+  - `places` for one request with every finding of the rule whose evidence ends in the same name, or with every finding of the rule when the discovery layer raises it
+- `question` and `options`, the question to the model and its answers.
+- `dismiss`, the options that dismiss the finding.
+- `confirm`, optional, the options that confirm the finding. The Judge then leaves the finding alone.
+- `minProbability`, optional.
+
+No option may be in both `dismiss` and `confirm`. The higher of the rule's `minProbability` and `layers.decision.minProbability` applies to the rule. An empty `dismiss` list switches the decision off for that rule:
+
+```json
+{
+  "layers": {
+    "static": {
+      "rules": {
+        "REMOTE-ENDPOINT-UPLOAD": {"decision": {"dismiss": []}}
+      }
+    }
+  }
+}
+```
 
 ---
 

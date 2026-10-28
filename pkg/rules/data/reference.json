@@ -57,6 +57,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "instructions": "Age is a fact. Do not lower because the name looks familiar or the site looks finished. Lower only when nothing is fetched, installed or run from it."},
    "enabled": true
   },
@@ -81,6 +82,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true
   },
@@ -93,6 +95,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true
   },
@@ -105,6 +108,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "instructions": ""},
    "enabled": true
   },
@@ -117,6 +121,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "instructions": ""},
    "enabled": true
   },
@@ -129,6 +134,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true
   },
@@ -141,6 +147,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true
   },
@@ -153,6 +160,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "instructions": "Age is a fact. Do not lower because the name looks familiar or the site looks finished. Lower only when nothing is fetched, installed or run from it."},
    "enabled": true
   },
@@ -165,6 +173,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
+   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
    "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
    "enabled": true
   },
@@ -214,6 +223,18 @@
    "layer": "references",
    "scope": "any",
    "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower or dismiss only on a false positive: the named package is its own project with its own purpose, and the popular package it resembles is unrelated. Nothing else lowers it."},
+   "enabled": true
+  },
+  {
+   "id": "TOOL-SERVER-UNTRUSTED",
+   "category": "reference",
+   "severity": "critical",
+   "title": "Tool server on a host with a bad fact",
+   "description": "The skill connects the agent to an MCP or other tool server, and the scanner holds a fact against that host: a young, expiring, unregistered or unreachable domain, an error at the root, a shortener, a paste site, a file host, a bare IP address, a missing or renamed owner. The agent sends what the tools ask for and acts on what they return, and it does that in every later conversation.",
+   "kind": "fact",
+   "layer": "references",
+   "scope": "any",
+   "judge": {"downgrade": true, "downgradeFloor": "high", "instructions": "Lower only on a false positive: the agent is not connected to this host as a tool server. A host that is the skill's own service does not lower it."},
    "enabled": true
   },
   {

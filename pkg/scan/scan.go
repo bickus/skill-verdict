@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bickus/skill-verdict/pkg/config"
+	"github.com/bickus/skill-verdict/pkg/internal/code"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/references"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/walk"
@@ -20,6 +21,7 @@ import (
 	"github.com/bickus/skill-verdict/pkg/internal/refcheck"
 	"github.com/bickus/skill-verdict/pkg/llm"
 	"github.com/bickus/skill-verdict/pkg/llm/completions"
+	"github.com/bickus/skill-verdict/pkg/llm/decisions"
 	"github.com/bickus/skill-verdict/pkg/llm/responses"
 	"github.com/bickus/skill-verdict/pkg/rules"
 )
@@ -41,10 +43,12 @@ func (e *StoppedError) Error() string {
 }
 
 type runner struct {
-	cfg      config.Config
-	set      *rules.Set
-	refs     pipeline.Layer
-	provider llm.Provider
+	cfg       config.Config
+	set       *rules.Set
+	refs      pipeline.Layer
+	provider  llm.Provider
+	decisions *decisions.Client
+	parser    *code.Parser
 }
 
 func Run(ctx context.Context, paths []string, opts Options) ([]Result, error) {
@@ -63,11 +67,19 @@ func Run(ctx context.Context, paths []string, opts Options) ([]Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &runner{cfg: cfg, set: opts.Rules, provider: p}
+	d, err := decider(cfg)
+	if err != nil {
+		return nil, err
+	}
+	r := &runner{cfg: cfg, set: opts.Rules, provider: p, decisions: d, parser: &code.Parser{}}
 	if refs := cfg.Layers.References; refs.Enabled {
 		r.refs = references.New(client(opts), refs, token(refs))
 	}
-	return r.run(ctx, targets, opts.Each)
+	results, err := r.run(ctx, targets, opts.Each)
+	if closing := r.parser.Close(context.WithoutCancel(ctx)); err == nil {
+		err = closing
+	}
+	return results, err
 }
 
 func (r *runner) run(ctx context.Context, targets []string, each func(Result) error) ([]Result, error) {
@@ -112,6 +124,17 @@ func provider(opts Options, cfg config.Config) (llm.Provider, error) {
 		return responses.New(cfg.LLM, key, &http.Client{}), nil
 	}
 	return completions.New(cfg.LLM, key, &http.Client{}), nil
+}
+
+func decider(cfg config.Config) (*decisions.Client, error) {
+	if !cfg.Layers.Decision.Enabled {
+		return nil, nil
+	}
+	key, err := cfg.DecisionKey()
+	if err != nil {
+		return nil, err
+	}
+	return decisions.New(cfg.Layers.Decision, key, &http.Client{}), nil
 }
 
 func client(opts Options) *http.Client {

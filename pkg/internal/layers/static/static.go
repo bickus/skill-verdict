@@ -7,11 +7,14 @@ import (
 	"context"
 	"path"
 	"regexp"
+	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
+	"github.com/bickus/skill-verdict/pkg/internal/code"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/pipeline"
+	"github.com/bickus/skill-verdict/pkg/internal/refcheck"
 	"github.com/bickus/skill-verdict/pkg/internal/textutil"
 	"github.com/bickus/skill-verdict/pkg/rules"
 )
@@ -19,6 +22,7 @@ import (
 const (
 	name       = "static"
 	maxPerRule = 50
+	edges      = " \t\r\n;&|()`\"',"
 )
 
 type Layer struct{}
@@ -35,6 +39,7 @@ type key struct {
 
 func (Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error) {
 	seen := make(map[key]bool)
+	self := refcheck.NewSelfInstall(s.Skill.Folder())
 	for i := range s.Skill.Artifacts {
 		if err := ctx.Err(); err != nil {
 			return pipeline.Report{}, err
@@ -45,31 +50,40 @@ func (Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error
 		}
 		switch a.ContentType {
 		case inventory.Markdown, inventory.Code, inventory.Text, inventory.Data:
-			scanArtifact(s, a, seen)
+			scanArtifact(s, a, seen, self)
 		case inventory.Symlink:
 			scanLink(s, a)
 		case inventory.Media, inventory.Unknown, inventory.Special, inventory.Directory:
 		}
 	}
+	brief(s)
 	return pipeline.Report{}, nil
 }
 
 func applies(r rules.Compiled, a *inventory.Artifact) bool {
-	if len(r.Files) > 0 && !config.MatchAny(r.Files, path.Base(inventory.OriginalPath(a.Path))) {
+	if len(r.Files) > 0 && !config.MatchAny(r.Files, path.Base(a.Path)) {
 		return false
 	}
 	return (r.Scope == rules.Link) == (a.ContentType == inventory.Symlink)
 }
 
 type source struct {
+	state    *pipeline.State
 	artifact *inventory.Artifact
+	text     string
 	starts   []int
+	scanned  []int
 	lines    []string
 	fenced   []bool
+	self     refcheck.SelfInstall
 }
 
-func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool) {
-	src := &source{artifact: a, starts: textutil.LineStarts(a.Content), lines: textutil.Lines(a.Content)}
+func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool, self refcheck.SelfInstall) {
+	src := &source{state: s, artifact: a, text: a.Text(), starts: textutil.LineStarts(a.Content), self: self}
+	src.scanned, src.lines = src.starts, textutil.Lines(src.text)
+	if a.Clean != "" {
+		src.scanned = textutil.LineStarts(a.Clean)
+	}
 	if a.ContentType == inventory.Markdown {
 		src.fenced = fences(src.lines)
 	}
@@ -89,7 +103,7 @@ func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool) {
 func unique(found []finding.Finding, seen map[key]bool) []finding.Finding {
 	var out []finding.Finding
 	for _, f := range found {
-		k := key{f.Rule, inventory.OriginalPath(f.Location.File), f.Location.Line}
+		k := key{f.Rule, f.Location.File, f.Location.Line}
 		if seen[k] {
 			continue
 		}
@@ -102,7 +116,7 @@ func unique(found []finding.Finding, seen map[key]bool) []finding.Finding {
 func (src *source) matches(r rules.Compiled) []finding.Finding {
 	var out []finding.Finding
 	for _, re := range r.Patterns {
-		for _, m := range re.FindAllStringIndex(src.artifact.Content, -1) {
+		for _, m := range re.FindAllStringIndex(src.text, -1) {
 			if m[0] == m[1] {
 				continue
 			}
@@ -116,15 +130,46 @@ func (src *source) matches(r rules.Compiled) []finding.Finding {
 
 func (src *source) build(r rules.Compiled, m []int) (finding.Finding, bool) {
 	a := src.artifact
-	line := textutil.LineAt(src.starts, m[0])
-	if !allowed(a.ContentType, r.Scope, src.fenced != nil && src.fenced[line-1]) || matchesAny(r.Exclude, src.lines[line-1]) {
+	if src.text[m[0]] == '\n' && m[1]-m[0] > 1 {
+		m = []int{m[0] + 1, m[1]}
+	}
+	row := textutil.LineAt(src.scanned, m[0])
+	if !allowed(a.ContentType, r.Scope, src.fenced != nil && src.fenced[row-1]) || matchesAny(r.Exclude, src.lines[row-1]) {
 		return finding.Finding{}, false
 	}
-	f := r.Finding(finding.Location{File: a.Path, Line: line}, textutil.Evidence(a.Content[m[0]:m[1]]))
-	if endLine := textutil.LineAt(src.starts, m[1]-1); endLine > line {
+	if src.selfInstall(row, m) {
+		return finding.Finding{}, false
+	}
+	start := a.Source(m[0])
+	end := max(a.Source(m[1]), start+1)
+	line := textutil.LineAt(src.starts, start)
+	f := r.Finding(finding.Location{File: a.Path, Line: line}, textutil.Evidence(src.text[m[0]:m[1]]))
+	if endLine := textutil.LineAt(src.starts, end-1); endLine > line {
 		f.Location.EndLine = endLine
 	}
+	src.link(r, code.Span{Start: start, End: end}, line)
 	return f, true
+}
+
+func (src *source) selfInstall(row int, m []int) bool {
+	spans := src.self.Spans(src.lines[row-1])
+	if len(spans) == 0 {
+		return false
+	}
+	start, end := m[0], m[1]
+	if strings.IndexByte(edges, src.text[start]) >= 0 {
+		start++
+	}
+	if end > start && strings.IndexByte(edges, src.text[end-1]) >= 0 {
+		end--
+	}
+	start, end = start-src.scanned[row-1], end-src.scanned[row-1]
+	for _, span := range spans {
+		if start >= span[0] && end <= span[1] {
+			return true
+		}
+	}
+	return false
 }
 
 func matchesAny(patterns []*regexp.Regexp, text string) bool {

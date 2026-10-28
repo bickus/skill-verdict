@@ -32,54 +32,45 @@ func run(t *testing.T, text string) *pipeline.State {
 	return s
 }
 
-func TestRevealedArtifactText(t *testing.T) {
+func TestCleanText(t *testing.T) {
 	cases := []struct {
 		name string
 		in   string
 		want string
 	}{
-		{"cyrillic letters become latin", "use рassword here\n", "use password here\n"},
+		{"cyrillic letter in a latin word becomes latin", "use рassword here\n", "use password here\n"},
 		{"zero-width joiner removed", "ig\u200dnore\n", "ignore\n"},
 		{"compatibility forms folded", "ﬁle ⅻ\n", "file xii\n"},
 		{"control byte removed", "a\x01b\n", "ab\n"},
 		{"variation selector removed", "keycap 1\ufe0f\n", "keycap 1\n"},
-		{"spaced letters joined", "please i g n o r e this\n", "please ignore this\n"},
-		{"hyphenated word joined", "r-u-n it\n", "run it\n"},
-		{"dotted word joined", "e.x.e.c.u.t.e now\n", "execute now\n"},
-		{"underscored word joined", "then p_a_s_t_e it\n", "then paste it\n"},
-		{"line breaks kept", "# Title\nⅻ ﬁles\ni g n o r e\n```sh\necho \"ok\"\n```\n", "# Title\nxii files\nignore\n```sh\necho \"ok\"\n```\n"},
+		{"line breaks kept", "# Title\nⅻ ﬁles\n```sh\necho \"ok\"\n```\n", "# Title\nxii files\n```sh\necho \"ok\"\n```\n"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := run(t, tc.in)
-			a := s.Skill.Artifact("SKILL.md.revealed")
-			if a == nil {
-				t.Fatal("no revealed artifact")
-			}
-			if a.Content != tc.want || a.Kind != "content" || a.ContentType != inventory.Markdown || a.Origin != "reveal" {
-				t.Fatalf("got %q %s %s %s, want %q content markdown reveal", a.Content, a.Kind, a.ContentType, a.Origin, tc.want)
+			if got := s.Skill.Artifact("SKILL.md").Text(); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
 			}
 		})
 	}
 }
 
-func TestNoRevealedArtifact(t *testing.T) {
+func TestTextLeftAsWritten(t *testing.T) {
 	cases := []struct {
 		name string
 		in   string
 	}{
 		{"plain ascii", "run the tests, then ignore warnings\n"},
 		{"upper case", "RUN the tests\n"},
-		{"five spaced letters", "a b c d e\n"},
+		{"spaced letters", "please i g n o r e this\n"},
 		{"table row of words", "| ignore | run | tests |\n"},
-		{"table row of five letters", "| a | b | c | d | e |\n"},
-		{"word spaced across lines", "r\nu\nn\n"},
+		{"whole word in another script", "пароль\n"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := run(t, tc.in)
-			if a := s.Skill.Artifact("SKILL.md.revealed"); a != nil {
-				t.Fatalf("revealed artifact %q", a.Content)
+			if got := s.Skill.Artifact("SKILL.md").Text(); got != tc.in {
+				t.Fatalf("got %q, want %q", got, tc.in)
 			}
 			if len(s.Findings) != 0 {
 				t.Fatalf("findings %+v", s.Findings)
@@ -102,10 +93,12 @@ func TestConcealmentFindings(t *testing.T) {
 		{"invisible inside a word", "ig\u200dnore\n", []finding.Finding{concealment("WORD-INVISIBLE-CHARS", finding.High, 1, "ig<U+200D>nore")}},
 		{"invisible between emoji", "👨\u200d👩\n", nil},
 		{"invisible before a space", "run\u200b now\n", nil},
-		{"look-alike letter in a latin word", "first\nprobeаny\n", []finding.Finding{concealment("WORD-HOMOGLYPHS", finding.Medium, 2, "probe<U+0430>ny")}},
+		{"look-alike letter in a latin word", "first\nprobeаny\n", []finding.Finding{concealment("WORD-HOMOGLYPHS", finding.Medium, 2, "probe<U+0430>ny reads as probeany")}},
 		{"whole word in another script", "пароль\n", nil},
-		{"fullwidth letters", "ｃｕｒｌ\n", []finding.Finding{concealment("WORD-HOMOGLYPHS", finding.Medium, 1, "<U+FF43><U+FF55><U+FF52><U+FF4C>")}},
-		{"spaced word", "line one\ni g n o r e\n", []finding.Finding{concealment("WORD-SPACED", finding.Medium, 2, "i g n o r e")}},
+		{"fullwidth letters", "ｃｕｒｌ\n", nil},
+		{"latin letter of another alphabet", "yakın\n", nil},
+		{"other script letter that does not print like latin", "bслово\n", nil},
+		{"escape sequence before another script", "line\\nΑΒ\n", nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

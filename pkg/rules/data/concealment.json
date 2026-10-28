@@ -17,23 +17,38 @@
    "category": "obfuscation",
    "severity": "medium",
    "title": "Look-alike characters inside a word",
-   "description": "Letters from another script or compatibility forms that print like ASCII letters replace them inside a word - a usual attempt to bypass static regex checks.",
+   "description": "Letters of another script that print like Latin letters sit inside a word next to Latin letters - a usual attempt to bypass static regex checks.",
    "kind": "heuristic",
    "layer": "reveal",
    "scope": "any",
    "judge": {"downgrade": true, "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "decision": {
+    "subject": "lines",
+    "question": "The marked line holds a word that mixes Latin letters with letters of another script that print like Latin letters. The subject shows the word with those letters as code points, then the word as it reads. Why is the word written this way?",
+    "options": {
+     "notation": "the other letter is a symbol with its own meaning: a mathematical or physical quantity, a unit, a phonetic sign or a variable name.",
+     "other-language": "the lines are text in a language that uses the other script, or text damaged by a wrong encoding, and the Latin letters next to it are an escape sequence, markup, a product name or a unit.",
+     "disguised-word": "the word reads as an ordinary English word, command, file name or host name, and nothing in the lines explains a letter of another script inside it.",
+     "unknown": "the lines do not show why the word is written this way."
+    },
+    "dismiss": ["notation", "other-language"]
+   },
    "enabled": true
   },
   {
-   "id": "WORD-SPACED",
+   "id": "LINK-IN-COMMENT",
    "category": "obfuscation",
-   "severity": "medium",
-   "title": "Spaced-out word",
-   "description": "A word is written with separators between its letters, so it reads normally but does not match as text - a usual attempt to bypass static regex checks.",
+   "severity": "high",
+   "title": "Link inside an HTML comment",
+   "description": "A Markdown file holds a URL inside an HTML comment. The rendered page hides it from the person who reads the skill, and the agent reads it as plain text.",
    "kind": "heuristic",
-   "layer": "reveal",
-   "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "layer": "static",
+   "scope": "prose",
+   "files": ["*.md"],
+   "patterns": [
+    "(?s)<!--(?:[^-]|-[^-]|--[^>])*?https?://[^\\s<>\"')]+"
+   ],
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Lower when the comment is a note for the author, a credit or a license, and no step sends the agent to the URL."},
    "enabled": true
   }
  ]

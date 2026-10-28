@@ -32,6 +32,9 @@ func (c Config) Validate() error {
 	if err := c.validatePrices(); err != nil {
 		return err
 	}
+	if err := c.validateDecision(); err != nil {
+		return err
+	}
 	return c.validateProvider()
 }
 
@@ -75,6 +78,9 @@ func (c Config) validatePositive() error {
 		{"layers.references.youngOwnerDays", int64(refs.YoungOwnerDays)},
 		{"layers.references.newPackageDays", int64(refs.NewPackageDays)},
 		{"layers.references.lowDownloads", int64(refs.LowDownloads)},
+		{"layers.decision.timeout", int64(c.Layers.Decision.Timeout)},
+		{"layers.decision.maxStateChars", int64(c.Layers.Decision.MaxStateChars)},
+		{"layers.decision.maxRequestChars", int64(c.Layers.Decision.MaxRequestChars)},
 		{"layers.honeypot.calls", int64(c.Layers.Honeypot.Calls)},
 		{"layers.discovery.calls", int64(c.Layers.Discovery.Calls)},
 		{"layers.judge.calls", int64(c.Layers.Judge.Calls)},
@@ -177,6 +183,23 @@ func (c Config) validateProvider() error {
 	}
 	if c.LLM.CompactionAt > c.LLM.InputTokens {
 		return fmt.Errorf("llm.compactionAt: must not exceed llm.inputTokens")
+	}
+	return nil
+}
+
+func (c Config) validateDecision() error {
+	d := c.Layers.Decision
+	switch {
+	case d.MinProbability <= 0 || d.MinProbability > 1:
+		return fmt.Errorf("layers.%s.minProbability: must be above 0 and at most 1", DecisionLayer)
+	case d.InputPrice < 0:
+		return fmt.Errorf("layers.%s.inputPrice: must not be negative", DecisionLayer)
+	case d.MaxStateChars > d.MaxRequestChars:
+		return fmt.Errorf("layers.%s.maxStateChars: must not exceed layers.%s.maxRequestChars", DecisionLayer, DecisionLayer)
+	case d.Enabled && d.Model == "":
+		return fmt.Errorf("layers.%s.model: required while layers.%s.enabled is true", DecisionLayer, DecisionLayer)
+	case d.Enabled && d.BaseURL == "":
+		return fmt.Errorf("layers.%s.baseUrl: required while layers.%s.enabled is true", DecisionLayer, DecisionLayer)
 	}
 	return nil
 }

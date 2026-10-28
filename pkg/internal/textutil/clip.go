@@ -27,7 +27,7 @@ func Cut(s string, limit int) string {
 		return s
 	}
 	cut := limit
-	for !utf8.RuneStart(s[cut]) {
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
 		cut--
 	}
 	return s[:cut]

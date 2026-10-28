@@ -41,7 +41,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Decide from where the data ends up. Lower to the floor when it stays in files on the user's machine, or when it goes to the service the skill is for and the skill says so. Keep when it reaches another person, a group chat, a service the purpose does not need, or when a credential is printed or sent. Missing consent or missing redaction alone is not a reason to keep."},
    "enabled": true
   },
   {
@@ -53,7 +53,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Decide from who is misled. Lower to the floor when it is the target of a declared exercise: a CTF challenge, a simulation the user set up. Keep when the user, a customer or another real person is misled, or when the steps end in running code or handing over a secret."},
    "enabled": true
   }
  ]

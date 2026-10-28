@@ -5,6 +5,8 @@ CLAUDE.local.md
 .opencode/
 bin/
 dist/
+pkg/internal/syntax/treesitter.wasm
+pkg/internal/syntax/treesitter.wasm.inputs
 .directory
 .annotations/
 .annotations.json

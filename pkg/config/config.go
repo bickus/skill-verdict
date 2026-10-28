@@ -44,6 +44,7 @@ const (
 	RevealLayer     = "reveal"
 	StaticLayer     = "static"
 	ReferencesLayer = "references"
+	DecisionLayer   = "decision"
 	HoneypotLayer   = "honeypot"
 	DiscoveryLayer  = "discovery"
 	JudgeLayer      = "judge"
@@ -52,8 +53,10 @@ const (
 type LayersConfig struct {
 	Walk       WalkConfig       `json:"walk"`
 	Reveal     LayerConfig      `json:"reveal"`
+	AST        SwitchConfig     `json:"ast"`
 	Static     LayerConfig      `json:"static"`
 	References ReferencesConfig `json:"references"`
+	Decision   DecisionConfig   `json:"decision"`
 	Honeypot   ModelLayerConfig `json:"honeypot"`
 	Discovery  ModelLayerConfig `json:"discovery"`
 	Judge      ModelLayerConfig `json:"judge"`
@@ -90,6 +93,23 @@ type LayerConfig struct {
 	Rules   map[string]RuleSetting `json:"rules,omitempty"`
 }
 
+type SwitchConfig struct {
+	Enabled bool `json:"enabled"`
+}
+
+type DecisionConfig struct {
+	Enabled         bool     `json:"enabled"`
+	BaseURL         string   `json:"baseUrl"`
+	Model           string   `json:"model"`
+	KeyEnv          string   `json:"keyEnv"`
+	KeyFile         string   `json:"keyFile"`
+	Timeout         Duration `json:"timeout"`
+	MaxStateChars   int      `json:"maxStateChars"`
+	MaxRequestChars int      `json:"maxRequestChars"`
+	MinProbability  float64  `json:"minProbability"`
+	InputPrice      float64  `json:"inputPrice"`
+}
+
 type ModelLayerConfig struct {
 	Enabled bool                   `json:"enabled"`
 	Calls   int                    `json:"calls"`
@@ -109,7 +129,17 @@ type RuleSetting struct {
 	Enabled     *bool             `json:"enabled,omitempty"`
 	Interrupt   *bool             `json:"interrupt,omitempty"`
 	Judge       *JudgeSetting     `json:"judge,omitempty"`
+	Decision    *DecisionSetting  `json:"decision,omitempty"`
 	Attribution json.RawMessage   `json:"attribution,omitempty"`
+}
+
+type DecisionSetting struct {
+	Subject        *string           `json:"subject,omitempty"`
+	Question       *string           `json:"question,omitempty"`
+	Options        map[string]string `json:"options,omitempty"`
+	Dismiss        []string          `json:"dismiss,omitempty"`
+	Confirm        []string          `json:"confirm,omitempty"`
+	MinProbability *float64          `json:"minProbability,omitempty"`
 }
 
 type JudgeSetting struct {
@@ -205,6 +235,19 @@ func kindNames() []string {
 	return names
 }
 
+func defaultDecision() DecisionConfig {
+	return DecisionConfig{
+		BaseURL:         "https://openrouter.ai/api/alpha",
+		Model:           "~typesafe/jev-latest",
+		KeyEnv:          "SKILL_VERDICT_DECISION_API_KEY",
+		Timeout:         Duration(60 * time.Second),
+		MaxStateChars:   60000,
+		MaxRequestChars: 120000,
+		MinProbability:  0.6,
+		InputPrice:      0.042,
+	}
+}
+
 func Default() Config {
 	collectors := make(map[string]bool)
 	for _, name := range kindNames() {
@@ -220,6 +263,7 @@ func Default() Config {
 				MaxDepth:       5,
 			},
 			Reveal: LayerConfig{Enabled: true},
+			AST:    SwitchConfig{Enabled: true},
 			Static: LayerConfig{Enabled: true},
 			References: ReferencesConfig{
 				Enabled:         true,
@@ -239,6 +283,7 @@ func Default() Config {
 				LowDownloads:    1000,
 				GitHubTokenEnv:  githubEnvVar,
 			},
+			Decision:  defaultDecision(),
 			Honeypot:  ModelLayerConfig{Enabled: true, Calls: 10},
 			Discovery: ModelLayerConfig{Enabled: true, Calls: 24},
 			Judge:     ModelLayerConfig{Enabled: true, Calls: 15},
@@ -251,7 +296,7 @@ func Default() Config {
 			InputTokens:     200000,
 			CompactionAt:    160000,
 			MaxInputChars:   200000,
-			MaxOutputTokens: 8192,
+			MaxOutputTokens: 32768,
 		},
 		Gate: GateConfig{
 			Severity: finding.High,

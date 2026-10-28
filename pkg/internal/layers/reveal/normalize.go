@@ -9,12 +9,13 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 )
 
 const (
 	invisible = "WORD-INVISIBLE-CHARS"
 	lookAlike = "WORD-HOMOGLYPHS"
-	spaced    = "WORD-SPACED"
 )
 
 type hit struct {
@@ -26,8 +27,10 @@ type hit struct {
 type pass struct {
 	src     string
 	out     strings.Builder
-	offsets []int
+	shifts  []inventory.Shift
 	hits    []hit
+	until   int
+	swapped bool
 }
 
 func needsNormalize(text string) bool {
@@ -55,8 +58,8 @@ func dropped(r rune) bool {
 		unicode.Is(unicode.Variation_Selector, r)
 }
 
-func normalize(text string) (string, []int, []hit) {
-	p := &pass{src: text, offsets: make([]int, 0, len(text))}
+func normalize(text string) *pass {
+	p := &pass{src: text}
 	for i := 0; i < len(text); {
 		r, n := utf8.DecodeRuneInString(text[i:])
 		switch {
@@ -65,28 +68,59 @@ func normalize(text string) (string, []int, []hit) {
 				p.add(invisible, i, i+n)
 			}
 		case r < utf8.RuneSelf:
-			p.write(text[i:i+n], i)
+			p.write(text[i:i+n], i, n)
 		default:
 			p.expand(r, i, n)
 		}
 		i += n
 	}
-	return p.out.String(), p.offsets, p.hits
+	return p
 }
 
-func (p *pass) write(s string, at int) {
+func (p *pass) write(s string, at, size int) {
+	if s == p.src[at:at+size] {
+		p.mark(p.out.Len(), at)
+	} else {
+		for j := range len(s) {
+			p.mark(p.out.Len()+j, at)
+		}
+	}
 	p.out.WriteString(s)
-	for range len(s) {
-		p.offsets = append(p.offsets, at)
+}
+
+func (p *pass) mark(clean, source int) {
+	shift := 0
+	if n := len(p.shifts); n > 0 {
+		shift = p.shifts[n-1].Source - p.shifts[n-1].Clean
+	}
+	if source-clean != shift {
+		p.shifts = append(p.shifts, inventory.Shift{Clean: clean, Source: source})
 	}
 }
 
 func (p *pass) expand(r rune, at, size int) {
 	folded, mapped := fold(r)
-	p.write(mapped, at)
-	if unicode.IsLetter(r) && isASCII(mapped) && (isASCII(folded) || mixed(p.src, at, at+size)) {
+	switch {
+	case !foreign(r):
+		p.write(mapped, at, size)
+	case p.swap(at):
+		p.write(mapped, at, size)
 		p.add(lookAlike, at, at+size)
+	default:
+		p.write(folded, at, size)
 	}
+}
+
+func (p *pass) swap(at int) bool {
+	if at < p.until {
+		return p.swapped
+	}
+	start, end := wordStart(p.src, at), wordEnd(p.src, at)
+	if at < start {
+		return false
+	}
+	p.until, p.swapped = end, lookalike(p.src[start:end])
+	return p.swapped
 }
 
 func (p *pass) add(rule string, start, end int) {
@@ -118,9 +152,23 @@ func concealed(r rune) bool {
 	return isASCII(mapped)
 }
 
-func mixed(text string, start, end int) bool {
-	word := text[wordStart(text, start):wordEnd(text, end)]
-	return strings.IndexFunc(word, func(r rune) bool { return r < utf8.RuneSelf && unicode.IsLetter(r) }) >= 0
+func foreign(r rune) bool {
+	return unicode.IsLetter(r) && !unicode.In(r, unicode.Latin, unicode.Common, unicode.Inherited)
+}
+
+func lookalike(word string) bool {
+	latin := false
+	for _, r := range word {
+		switch {
+		case foreign(r):
+			if !concealed(r) {
+				return false
+			}
+		case unicode.Is(unicode.Latin, r):
+			latin = true
+		}
+	}
+	return latin
 }
 
 func wordStart(text string, i int) int {
@@ -130,6 +178,10 @@ func wordStart(text string, i int) int {
 			break
 		}
 		i -= n
+	}
+	if i > 0 && text[i-1] == '\\' {
+		_, n := utf8.DecodeRuneInString(text[i:])
+		i += n
 	}
 	return i
 }

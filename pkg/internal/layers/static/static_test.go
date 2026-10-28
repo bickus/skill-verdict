@@ -56,7 +56,7 @@ type hit struct {
 func probes(s *pipeline.State, file string) []hit {
 	var out []hit
 	for _, f := range s.Findings {
-		if inventory.OriginalPath(f.Location.File) == file && strings.HasPrefix(f.Rule, "T-") {
+		if f.Location.File == file && strings.HasPrefix(f.Rule, "T-") {
 			out = append(out, hit{f.Rule, f.Location.Line, f.Location.File})
 		}
 	}
@@ -106,7 +106,7 @@ func TestScopeFollowsArtifactKindAndFences(t *testing.T) {
 	}
 }
 
-func TestGlobExcludeAndRevealedDedup(t *testing.T) {
+func TestGlobExcludeAndOneFindingPerLine(t *testing.T) {
 	s := scan(t, "testdata/mechanics", "testdata/rules")
 	cases := []struct {
 		name string
@@ -116,7 +116,7 @@ func TestGlobExcludeAndRevealedDedup(t *testing.T) {
 		{"glob matches base name", "glob.cfg", []hit{{"T-GLOB", 1, "glob.cfg"}}},
 		{"glob rejects other names", "glob.txt", nil},
 		{"exclude applies to its own line only", "excl.txt", []hit{{"T-EXCL", 2, "excl.txt"}}},
-		{"same line in original and revealed is credited to the original", "dedup.txt", []hit{{"T-ANY", 1, "dedup.txt"}}},
+		{"line with an invisible character is reported once", "dedup.txt", []hit{{"T-ANY", 1, "dedup.txt"}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestGlobExcludeAndRevealedDedup(t *testing.T) {
 	}
 }
 
-func TestRevealedArtifactFindings(t *testing.T) {
+func TestMatchInCleanTextPointsAtTheWrittenLine(t *testing.T) {
 	s := scan(t, "testdata/mechanics", "testdata/rules")
 	cases := []struct {
 		name string
@@ -136,13 +136,7 @@ func TestRevealedArtifactFindings(t *testing.T) {
 		{"homoglyph", finding.Finding{
 			Rule:     "T-ANY",
 			Severity: finding.Low,
-			Location: finding.Location{File: "homoglyph.txt.revealed", Line: 3},
-			Evidence: "probeany",
-		}},
-		{"letter spacing", finding.Finding{
-			Rule:     "T-ANY",
-			Severity: finding.Low,
-			Location: finding.Location{File: "spaced.txt.revealed", Line: 2},
+			Location: finding.Location{File: "homoglyph.txt", Line: 3},
 			Evidence: "probeany",
 		}},
 	}
@@ -151,9 +145,6 @@ func TestRevealedArtifactFindings(t *testing.T) {
 			got := inFile(s, tc.want.Rule, tc.want.Location.File)
 			if !reflect.DeepEqual(got, []finding.Finding{tc.want}) {
 				t.Errorf("got %+v, want %+v", got, tc.want)
-			}
-			if original := inFile(s, tc.want.Rule, inventory.OriginalPath(tc.want.Location.File)); len(original) != 0 {
-				t.Errorf("original has %+v", original)
 			}
 		})
 	}

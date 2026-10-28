@@ -37,7 +37,7 @@ func (*PackageCollector) Kind() refs.Kind {
 }
 
 func (*PackageCollector) Extract(a *inventory.Artifact) []refs.Ref {
-	return packageRefs(a)
+	return append(packageRefs(a), specRefs(a)...)
 }
 
 func (p *PackageCollector) Collect(ctx context.Context, ref refs.Ref) refs.Report {

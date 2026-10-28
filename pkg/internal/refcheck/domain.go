@@ -192,6 +192,7 @@ func (d *DomainCollector) follow(ctx context.Context, host, registrable string, 
 	if resp.StatusCode >= http.StatusBadRequest {
 		addFact(rep, "http_status", strconv.Itoa(resp.StatusCode))
 		addFinding(rep, "DOMAIN-HTTP-ERROR")
+		d.parent(ctx, host, registrable, rep)
 	}
 	final := strings.ToLower(resp.Request.URL.Hostname())
 	if final == registrable || strings.HasSuffix(final, "."+registrable) {
@@ -203,6 +204,28 @@ func (d *DomainCollector) follow(ctx context.Context, host, registrable string, 
 		rep.Derived = append(rep.Derived, refs.Ref{Kind: refs.Domain, Value: final})
 	}
 	return true, nil
+}
+
+const ParentStatus = "parent_http_status"
+
+func (d *DomainCollector) parent(ctx context.Context, host, registrable string, rep *refs.Report) {
+	if registrable == host {
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+registrable+"/", nil)
+	if err != nil {
+		return
+	}
+	req.Header = chromeHeaders.Clone()
+	resp, err := (&http.Client{Transport: d.transport}).Do(req)
+	if err != nil {
+		addFact(rep, ParentStatus, "unreachable")
+		return
+	}
+	if err = resp.Body.Close(); err != nil {
+		return
+	}
+	addFact(rep, ParentStatus, strconv.Itoa(resp.StatusCode))
 }
 
 var dropped = []error{syscall.ECONNREFUSED, syscall.ECONNRESET, io.EOF, io.ErrUnexpectedEOF}

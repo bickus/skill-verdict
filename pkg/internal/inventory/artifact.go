@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -64,7 +65,10 @@ func Origins() []OriginInfo {
 
 var Original = RegisterOrigin("original", "Original raw item from the skill bundle")
 
-const revealedSuffix = ".revealed"
+type Shift struct {
+	Clean  int
+	Source int
+}
 
 type Artifact struct {
 	Path        string
@@ -74,11 +78,28 @@ type Artifact struct {
 	ReadStatus  ReadStatus
 	Size        int64
 	Content     string
+	Clean       string
+	Shifts      []Shift
 	ScanNotes   []string
 }
 
 func (a *Artifact) Note(text string) {
 	a.ScanNotes = append(a.ScanNotes, text)
+}
+
+func (a *Artifact) Text() string {
+	if a.Clean != "" {
+		return a.Clean
+	}
+	return a.Content
+}
+
+func (a *Artifact) Source(at int) int {
+	i := sort.Search(len(a.Shifts), func(i int) bool { return a.Shifts[i].Clean > at })
+	if i == 0 {
+		return at
+	}
+	return at + a.Shifts[i-1].Source - a.Shifts[i-1].Clean
 }
 
 func Regular(rel string, raw []byte) Artifact {
@@ -94,14 +115,6 @@ func Regular(rel string, raw []byte) Artifact {
 		a.Note(fmt.Sprintf("utf8: %d invalid bytes replaced", replaced))
 	}
 	return a
-}
-
-func RevealedPath(path string) string {
-	return path + revealedSuffix
-}
-
-func OriginalPath(path string) string {
-	return strings.TrimSuffix(path, revealedSuffix)
 }
 
 const sniffLen = 8192

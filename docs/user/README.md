@@ -24,7 +24,7 @@ This documentation covers everything from running your first scan to fine-tuning
   Understanding the four verdicts (`clean`, `review`, `incomplete`, `block`), how the Gate works, why unfinished checks cannot be assumed clean, and how the AI Judge eliminates false positives while keeping guardrails intact.
 
 * **[Detection Pipeline](detection.md)**  
-  How the scanner inspects skills across all 7 layers: bundle hygiene, text concealment revealing, static heuristics, external references, simulated agent honeypots, semantic discovery, and AI review.
+  How the scanner inspects skills across all 9 layers: bundle hygiene, text concealment revealing, code parsing, static heuristics, external references, decision model checks, simulated agent honeypots, semantic discovery, and AI review.
 
 ### Threats & Rule Catalog
 

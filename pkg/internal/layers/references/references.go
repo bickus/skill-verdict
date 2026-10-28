@@ -62,6 +62,7 @@ func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, err
 	if s.Interrupt != "" {
 		reports = slices.DeleteFunc(reports, func(rep refs.Report) bool { return rep.Status != refs.Checked })
 	}
+	refs.Number(reports)
 	s.Refs = append(s.Refs, reports...)
 	for _, rep := range reports {
 		for _, id := range rep.Findings {

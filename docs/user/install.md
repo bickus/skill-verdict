@@ -33,19 +33,11 @@ sudo mv skill-verdict-linux-amd64 /usr/local/bin/skill-verdict
 
 ---
 
-## Install with Go
-
-If you have Go 1.26 or later installed, you can compile and install directly to `$GOPATH/bin`:
-
-```sh
-go install github.com/bickus/skill-verdict/pkg/cmd/skill-verdict@latest
-```
-
-*(And as noted on the README: if you instinctively run `@latest` in production environments, train yourself to pin hashes or versions!)*
-
----
-
 ## Build from Source
+
+`go install` does not work. The binary embeds a WebAssembly module with the code parsers, the build compiles that module from pinned sources, and the repository does not contain it.
+
+You need Go 1.26 or later and Podman. The module is compiled inside a container, so no C or Zig compiler is needed on the host.
 
 Clone the repository and run the repository build script:
 
@@ -55,7 +47,7 @@ cd skill-verdict
 scripts/check
 ```
 
-`scripts/check` runs the linter, test suite, and cross-compiles static binaries for all supported platforms into `bin/`:
+`scripts/check` compiles the parser module through `scripts/wasm`, runs the linter and the test suite, and cross-compiles static binaries for all supported platforms into `bin/`:
 
 - `bin/linux-amd64/skill-verdict`
 - `bin/darwin-arm64/skill-verdict`

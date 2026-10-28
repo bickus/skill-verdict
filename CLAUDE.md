@@ -10,7 +10,8 @@ one static binary.
 - **No comments in code.** The only exception is the SPDX header from `CONTRIBUTING.md` on
   the first two lines of every source file. The `pre-commit` hook rejects both a missing
   header and any other comment.
-- **Standard library only, static binary, no cgo.**
+- **Standard library only, static binary, no cgo.** The parser modules of ADR 0014 are the
+  exception.
 - **YAGNI.** Code exists for a present need. Code without a caller, code only tests call,
   and generality with a single implementation are removed, version control keeps them.
 - **Caps, enforced by the hook and the linter.** 400 lines per file, 60 lines and cognitive

@@ -1,6 +1,7 @@
 #!/bin/sh
 set -u
 cd "$(dirname "$0")/.." || exit 2
+scripts/wasm || { echo 'wasm: parser module build failed'; exit 1; }
 lint=github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
 targets="linux/amd64 windows/amd64 darwin/arm64"
 out=$(mktemp)

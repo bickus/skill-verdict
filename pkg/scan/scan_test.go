@@ -126,8 +126,8 @@ func TestRunInterrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 	off, low := false, finding.Low
-	stopped := []scan.LayerStatus{{Layer: "walk", Status: "interrupted", Interrupt: "FILE-PDF"}, {Layer: "reveal", Status: "skipped"}, {Layer: "static", Status: "skipped"}}
-	ran := []scan.LayerStatus{{Layer: "walk", Status: "done"}, {Layer: "reveal", Status: "done"}, {Layer: "static", Status: "done"}}
+	stopped := []scan.LayerStatus{{Layer: "walk", Status: "interrupted", Interrupt: "FILE-PDF"}, {Layer: "reveal", Status: "skipped"}, {Layer: "ast", Status: "skipped"}, {Layer: "static", Status: "skipped"}}
+	ran := []scan.LayerStatus{{Layer: "walk", Status: "done"}, {Layer: "reveal", Status: "done"}, {Layer: "ast", Status: "done"}, {Layer: "static", Status: "done"}}
 	cases := []struct {
 		name    string
 		setting config.RuleSetting

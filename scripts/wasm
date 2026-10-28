@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.." || exit 2
+image=localhost/skill-verdict-wasm
+dir=pkg/internal/syntax
+out=$dir/treesitter.wasm
+stamp=$out.inputs
+want=$(cat scripts/wasm scripts/wasm.Containerfile "$dir/shim/shim.c" | sha256sum | cut -d' ' -f1)
+if [ -f "$out" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then
+  exit 0
+fi
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+quiet() {
+  "$@" >"$log" 2>&1 || { cat "$log" >&2; exit 1; }
+}
+quiet podman build --network=host --http-proxy=false -t "$image" -f scripts/wasm.Containerfile scripts
+sources="/work/shim/shim.c /src/core/lib/src/lib.c"
+for lang in python javascript typescript/typescript typescript/tsx powershell; do
+  sources="$sources /src/$lang/src/parser.c /src/$lang/src/scanner.c"
+done
+quiet podman run --rm --network=none --cap-drop=all --security-opt=no-new-privileges --userns=keep-id \
+  --tmpfs '/tmp:rw,exec,size=2g' --volume "$PWD/$dir:/work:Z" --env HOME=/tmp \
+  --env ZIG_GLOBAL_CACHE_DIR=/tmp/zig-cache --env ZIG_LOCAL_CACHE_DIR=/tmp/zig-local "$image" \
+  sh -c "python3 -m ziglang cc -target wasm32-wasi -O2 -mexec-model=reactor -fno-sanitize=undefined -Wno-everything \
+    -I/src/core/lib/include -I/src/core/lib/src -I/src/typescript/typescript/src \
+    -Wl,--strip-all -o /work/treesitter.wasm $sources"
+printf '%s\n' "$want" > "$stamp"

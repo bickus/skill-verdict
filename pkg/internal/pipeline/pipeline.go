@@ -5,9 +5,11 @@ package pipeline
 
 import (
 	"context"
+	"slices"
 
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
+	"github.com/bickus/skill-verdict/pkg/internal/trace"
 	"github.com/bickus/skill-verdict/pkg/llm"
 	"github.com/bickus/skill-verdict/pkg/refs"
 	"github.com/bickus/skill-verdict/pkg/rules"
@@ -48,7 +50,41 @@ type State struct {
 	Refs      []refs.Report
 	Layers    []LayerStatus
 	Interrupt string
+	Code      *trace.Program
+	links     map[link][]*trace.Subject
+	unlinked  map[link]bool
+	covers    map[covered][]lines
 	stop      context.CancelFunc
+}
+
+type link struct {
+	rule string
+	file string
+	line int
+}
+
+func (s *State) Link(rule, file string, line int, subjects []*trace.Subject) {
+	if s.links == nil {
+		s.links = make(map[link][]*trace.Subject)
+		s.unlinked = make(map[link]bool)
+	}
+	k := link{rule, file, line}
+	if len(subjects) == 0 {
+		s.unlinked[k] = true
+	}
+	for _, sub := range subjects {
+		if !slices.Contains(s.links[k], sub) {
+			s.links[k] = append(s.links[k], sub)
+		}
+	}
+}
+
+func (s *State) Linked(f finding.Finding) []*trace.Subject {
+	k := link{f.Rule, f.Location.File, f.Location.Line}
+	if s.unlinked[k] {
+		return nil
+	}
+	return s.links[k]
 }
 
 func (s *State) Record(fs ...finding.Finding) {

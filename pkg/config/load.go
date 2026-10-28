@@ -48,13 +48,21 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) APIKey() (string, error) {
-	if key := os.Getenv(c.LLM.KeyEnv); key != "" {
+	return readKey(c.LLM.KeyEnv, c.LLM.KeyFile)
+}
+
+func (c Config) DecisionKey() (string, error) {
+	return readKey(c.Layers.Decision.KeyEnv, c.Layers.Decision.KeyFile)
+}
+
+func readKey(env, file string) (string, error) {
+	if key := os.Getenv(env); key != "" {
 		return strings.TrimSpace(key), nil
 	}
-	if c.LLM.KeyFile == "" {
+	if file == "" {
 		return "", nil
 	}
-	data, err := os.ReadFile(c.LLM.KeyFile)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return "", err
 	}

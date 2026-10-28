@@ -106,6 +106,7 @@ func (l Layer) user(s *pipeline.State, down, fixed []labelled) string {
 		"findingsdowngradeable":    findingBlock(s, down, "findings-downgradeable.md"),
 		"findingsnondowngradeable": findingBlock(s, fixed, "findings-nondowngradeable.md"),
 		"briefs":                   l.briefs(s.Skill),
+		"folder":                   s.Skill.Folder(),
 		"entry":                    entry.Path,
 		"content":                  llmcall.Inline(entry, l.LLM.MaxInputChars),
 	})

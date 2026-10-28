@@ -40,6 +40,7 @@ func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, err
 		User: llmcall.Render(files, "user.md", map[string]string{
 			"origins":   llmcall.Origins(s.Skill),
 			"artifacts": llmcall.Artifacts(s.Skill),
+			"folder":    s.Skill.Folder(),
 			"entry":     entry.Path,
 			"content":   llmcall.Inline(entry, l.LLM.MaxInputChars),
 		}),
@@ -62,7 +63,7 @@ func ruleList(set *rules.Set) string {
 func convert(s *pipeline.State, allowed map[string]bool, items []item) []finding.Finding {
 	var out []finding.Finding
 	for _, it := range items {
-		if !allowed[it.RuleID] {
+		if !allowed[it.RuleID] || s.Covered(it.RuleID, it.File, it.StartLine, max(it.StartLine, it.EndLine)) {
 			continue
 		}
 		f := s.Rules.ByID[it.RuleID].Finding(finding.Location{File: it.File, Line: it.StartLine}, textutil.Clip(it.Message))

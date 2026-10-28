@@ -9,8 +9,6 @@
 
 - `pkg/internal/layers/reveal/data/confusables.json`: `ASCII_CONFUSABLE_SKELETON` from
   `src/skillspector/unicode_confusables.py`.
-- `pkg/internal/layers/reveal/data/spaced-words.json`: `_SPACED_SECURITY_WORDS` from
-  `src/skillspector/security_reconstruction.py`.
 - `pkg/rules/data/exfiltration.json`: E1, E2, E3 and E5 patterns from
   `src/skillspector/nodes/analyzers/static_patterns_data_exfiltration.py`.
 - `pkg/rules/data/snooping.json`: AS1 and AS2 patterns from

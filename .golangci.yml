@@ -30,6 +30,8 @@ linters:
             - $gostd
             - github.com/bickus/skill-verdict
             - golang.org/x/text
+            - github.com/tetratelabs/wazero
+            - mvdan.cc/sh/v3
     errcheck:
       check-blank: true
       check-type-assertions: true

@@ -98,11 +98,12 @@ func result(s *pipeline.State, cfg config.Config) Result {
 		Dismissed:  dismissed,
 		References: reports,
 		Artifacts:  artifacts(s),
-		Layers:     layers(s, cfg.LLM.Price),
+		Layers:     layers(s, cfg),
 	}
-	if used, sum := usage(r.Layers); used {
+	model, sum := usage(r.Layers)
+	r.Cost = sum
+	if model {
 		r.Model = &Model{Name: cfg.LLM.Model, Effort: cfg.LLM.ReasoningEffort}
-		r.Cost = sum
 	}
 	r.Verdict = Compute(s.Findings, r.Artifacts, r.References, r.Layers, cfg.Gate)
 	return r
@@ -119,7 +120,7 @@ func artifacts(s *pipeline.State) []Artifact {
 	return out
 }
 
-func layers(s *pipeline.State, price config.PriceConfig) []LayerStatus {
+func layers(s *pipeline.State, cfg config.Config) []LayerStatus {
 	out := make([]LayerStatus, 0, len(s.Layers))
 	for _, l := range s.Layers {
 		st := LayerStatus{Layer: l.Layer, Status: string(l.Status), Error: l.Error, Interrupt: l.Interrupt}
@@ -127,7 +128,10 @@ func layers(s *pipeline.State, price config.PriceConfig) []LayerStatus {
 			st.Errors = append(st.Errors, ArtifactError{Artifact: e.Artifact, Error: e.Error})
 		}
 		if l.Requests > 0 {
-			u := l.Usage
+			u, price := l.Usage, cfg.LLM.Price
+			if l.Layer == config.DecisionLayer {
+				price = config.PriceConfig{Input: cfg.Layers.Decision.InputPrice}
+			}
 			st.Tokens = &Tokens{Requests: l.Requests, Input: u.Input, Cached: u.Cached, Output: u.Output, Reasoning: u.Reasoning,
 				Cost: price.Cost(u.Input, u.Cached, u.Output)}
 		}
@@ -137,12 +141,12 @@ func layers(s *pipeline.State, price config.PriceConfig) []LayerStatus {
 }
 
 func usage(layers []LayerStatus) (bool, float64) {
-	used, sum := false, 0.0
+	model, sum := false, 0.0
 	for _, l := range layers {
 		if l.Tokens != nil {
-			used = true
+			model = model || l.Layer != config.DecisionLayer
 			sum += l.Tokens.Cost
 		}
 	}
-	return used, sum
+	return model, sum
 }

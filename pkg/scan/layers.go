@@ -4,6 +4,8 @@
 package scan
 
 import (
+	"github.com/bickus/skill-verdict/pkg/internal/layers/ast"
+	"github.com/bickus/skill-verdict/pkg/internal/layers/decision"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/discovery"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/honeypot"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/judge"
@@ -20,17 +22,26 @@ func (r *runner) layers() []pipeline.Layer {
 	if l.Reveal.Enabled {
 		out = append(out, reveal.Layer{})
 	}
+	if l.AST.Enabled {
+		out = append(out, ast.Layer{Parser: r.parser})
+	}
 	if l.Static.Enabled {
 		out = append(out, static.Layer{})
 	}
 	if r.refs != nil {
 		out = append(out, r.refs)
 	}
+	if r.decisions != nil {
+		out = append(out, decision.Layer{Client: r.decisions, Config: l.Decision})
+	}
 	if l.Honeypot.Enabled {
 		out = append(out, honeypot.Layer{Runner: r.model(l.Honeypot.Calls)})
 	}
 	if l.Discovery.Enabled {
 		out = append(out, discovery.Layer{Runner: r.model(l.Discovery.Calls)})
+	}
+	if r.decisions != nil && l.Discovery.Enabled {
+		out = append(out, decision.Layer{Client: r.decisions, Config: l.Decision, Late: true})
 	}
 	if l.Judge.Enabled {
 		out = append(out, judge.Layer{Runner: r.model(l.Judge.Calls)})

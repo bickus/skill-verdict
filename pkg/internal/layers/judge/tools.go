@@ -51,6 +51,7 @@ type outcome struct {
 
 type store struct {
 	targets map[string]target
+	ids     []string
 	byID    map[string]outcome
 	order   []string
 }
@@ -61,9 +62,20 @@ func newStore(s *pipeline.State, groups ...[]labelled) *store {
 		for _, e := range group {
 			f := s.Findings[e.index]
 			st.targets[e.id] = target{index: e.index, rule: f.Rule, from: f.Severity, policy: s.Rules.ByID[f.Rule].Judge}
+			st.ids = append(st.ids, e.id)
 		}
 	}
 	return st
+}
+
+func (s *store) missing() []string {
+	var out []string
+	for _, id := range s.ids {
+		if _, seen := s.byID[id]; !seen {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func (s *store) results() []outcome {
@@ -233,5 +245,11 @@ func (s submit) Call(_ context.Context, raw json.RawMessage) (string, error) {
 		return "", err
 	}
 	_, err = s.take(args.Verdicts)
-	return "", err
+	if err != nil {
+		return "", err
+	}
+	if missing := s.missing(); len(missing) > 0 {
+		return "", fmt.Errorf("not submitted, no verdict for: %s", strings.Join(missing, ", "))
+	}
+	return "", nil
 }

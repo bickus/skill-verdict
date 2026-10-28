@@ -4,6 +4,7 @@ cd "$(dirname "$0")/.." || exit 2
 targets="linux/amd64 windows/amd64 darwin/arm64"
 version=$(git describe --tags --exact-match 2>/dev/null) || { echo 'HEAD carries no tag' >&2; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo 'working tree is not clean' >&2; exit 1; }
+scripts/wasm
 dist=dist/$version
 rm -rf "$dist"
 mkdir -p "$dist"

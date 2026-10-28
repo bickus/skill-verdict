@@ -18,13 +18,15 @@
    "layer": "static",
    "scope": "code",
    "patterns": [
-    "(?i)open\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)/",
-    "(?i)(?:Path|pathlib\\.Path)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)/",
-    "(?i)os\\.path\\.(?:join|exists|isfile)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue)",
-    "(?i)(?:read|load|open|access|fetch)\\s+(?:the\\s+)?(?:agent|claude|codex|gemini)\\s+(?:config|configuration|settings?)\\s+(?:from|at|in)\\s+~?/?\\.(?:claude|codex|gemini)",
-    "(?i)(?:cat|less|head|tail|grep|find)\\s+[^|&;\\n]*~?/?\\.(claude|codex|gemini)/",
-    "(?i)~?/\\.(?:claude|codex|gemini|continue)/(?:config|settings?|preferences?|credentials?)(?:\\.(?:json|yaml|yml|toml))?",
-    "(?i)(?:read|access|inspect|examine|retrieve)\\s+(?:the\\s+)?(?:agent|assistant)\\s+(?:config(?:uration)?|settings?|preferences?)\\s+(?:file|directory|folder)"
+    "(?i)open\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue|openclaw|clawdbot|moltbot)/",
+    "(?i)(?:Path|pathlib\\.Path)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue|openclaw|clawdbot|moltbot)/",
+    "(?i)os\\.path\\.(?:join|exists|isfile)\\s*\\(\\s*['\"]?\\.(?:claude|codex|gemini|continue|openclaw|clawdbot|moltbot)",
+    "(?i)(?:read|load|open|access|fetch)\\s+(?:the\\s+)?(?:agent|claude|codex|gemini|openclaw|clawdbot|moltbot)\\s+(?:config|configuration|settings?)\\s+(?:from|at|in)\\s+~?/?\\.(?:claude|codex|gemini|openclaw|clawdbot|moltbot)",
+    "(?i)(?:cat|less|head|tail|grep|find)\\s+[^|&;\\n]*~?/?\\.(claude|codex|gemini|openclaw|clawdbot|moltbot)/",
+    "(?i)~?/\\.(?:claude|codex|gemini|continue|openclaw|clawdbot|moltbot)/(?:config|settings?|preferences?|credentials?)(?:\\.(?:json|yaml|yml|toml))?",
+    "(?i)(?:read|access|inspect|examine|retrieve)\\s+(?:the\\s+)?(?:agent|assistant)\\s+(?:config(?:uration)?|settings?|preferences?)\\s+(?:file|directory|folder)",
+    "(?i)\\.(?:openclaw|clawdbot|moltbot)/(?:[\\w.-]+/)*(?:(?:openclaw|clawdbot|moltbot)\\.json|\\.env)\\b",
+    "(?i)[\"']\\.(?:openclaw|clawdbot|moltbot)[\"']\\s*[,/]\\s*[\"'](?:(?:openclaw|clawdbot|moltbot)\\.json|\\.env)[\"']"
    ],
    "judge": {"downgrade": true, "instructions": "A skill that manages agent settings may read them. Lower only when what is read stays on the machine. A read followed by any send or log keeps it."},
    "enabled": true

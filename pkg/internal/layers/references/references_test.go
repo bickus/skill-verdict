@@ -98,8 +98,8 @@ func TestRunTurnsFactsIntoFindings(t *testing.T) {
 			if !reflect.DeepEqual(s.Findings, tc.want) {
 				t.Errorf("findings %+v, want %+v", s.Findings, tc.want)
 			}
-			if len(s.Refs) != 1 || s.Refs[0].Ref.Value != "acme/gone" || s.Refs[0].Status != "checked" {
-				t.Errorf("refs %+v, want one checked for acme/gone", s.Refs)
+			if len(s.Refs) != 1 || s.Refs[0].ID != "R1" || s.Refs[0].Ref.Value != "acme/gone" || s.Refs[0].Status != "checked" {
+				t.Errorf("refs %+v, want one checked for acme/gone numbered R1", s.Refs)
 			}
 			if want := []pipeline.LayerStatus{{Layer: "walk", Status: "done"}, {Layer: "references", Status: "done"}}; !reflect.DeepEqual(s.Layers, want) {
 				t.Errorf("layers %+v, want %+v", s.Layers, want)
@@ -121,7 +121,7 @@ func TestRunWritesTheBriefArtifact(t *testing.T) {
 	if a.Kind != inventory.Brief || a.Origin != "references" || a.ContentType != inventory.Markdown || a.Size != int64(len(a.Content)) {
 		t.Errorf("artifact %+v, want kind brief, origin references, markdown", a)
 	}
-	for _, part := range []string{"### acme/gone\n", "- status: checked\n", "- used at: SKILL.md:3 `Uses https://github.com/acme/gone for things.`\n", "- repo: missing\n"} {
+	for _, part := range []string{"### R1 acme/gone\n", "- status: checked\n", "- R1.1 used at SKILL.md:3 `Uses https://github.com/acme/gone for things.`\n", "- repo: missing\n"} {
 		if !strings.Contains(a.Content, part) {
 			t.Errorf("brief lacks %q:\n%s", part, a.Content)
 		}

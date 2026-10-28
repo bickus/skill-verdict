@@ -14,3 +14,4 @@
 | [0010](0010-model-loop.md) | A model layer runs a tool loop with its own tools and ends with the tool it marks final. Adapters replay their native reply form. Configuration never contains the API key. |
 | [0012](0012-walk-layer-and-interrupting-rules.md) | Reading the files is a layer with no switch that never unpacks a container. Its limits are rules with findings. Every rule has an `interrupt` setting, and an interrupting finding stops the scan through one recording point. |
 | [0013](0013-rule-identifiers.md) | A rule id is uppercase hyphenated English, subject first, then condition, with one word per condition across the set. It carries no layer, category, kind or number. |
+| [0014](0014-code-parsers.md) | Checks on code structure read a syntax tree. The scanner parses code with the C tree-sitter as a WebAssembly module run by wazero, and shell with mvdan.cc/sh. The build compiles the module from pinned sources, and the repository does not contain it. |

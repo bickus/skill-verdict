@@ -1,6 +1,6 @@
 # Built-in Rules Reference
 
-`skill-verdict` includes 71 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
+`skill-verdict` includes 75 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
 
 Rather than sorting rules alphabetically, this reference groups every rule by the **real-world threat** it defends against.
 
@@ -21,10 +21,10 @@ Attackers can easily compromise unpinned software by:
 
 | Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
 |---|---|:---:|:---:|---|
-| `UNPINNED-INSTALL` | `high`, dismissable | static | No | Install or execution command (e.g. `pip install pkg`, `npm i pkg`) without an exact pinned version. Runs every time the skill executes. |
+| `UNPINNED-INSTALL` | `high`, dismissable | static | No | Install or execution command without an exact pinned version: `pip install pkg`, `npm i pkg`, `npx pkg`, `docker pull img`, `gem install`, `cargo install`, `brew tap` and a tap formula, `clawhub install` and `openclaw skills install` or `openclaw plugins install`. Also an install entry in the `SKILL.md` frontmatter metadata and an MCP server entry that runs `npx` or `uvx`. Runs every time the skill executes. The scanner skips a registry install of the skill's own folder name. The decision layer may dismiss a place where the user runs the command by hand, the command is only documentation, or the words after the command are not a package. The decision layer confirms a place where the agent runs the command. The Judge then leaves the finding alone. |
 | `UNPINNED-DEPENDENCY` | `medium`, dismissable | static | No | Dependency declared in `package.json` or `requirements.txt` with a wildcard, range, or no version pin. |
-| `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw, blob or archive URLs on `main` at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. |
-| `UNPINNED-GIT` | `high`, floor `medium` | static | No | Cloning a Git repository (`git clone`, `gh repo clone`, `go install ...@branch`) without a pinned commit hash. Every run pulls whatever the branch currently contains. |
+| `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw, blob or archive URLs on `main` at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. When a person does the download by hand, the Judge lowers the finding to the floor. |
+| `UNPINNED-GIT` | `high`, floor `medium` | static | No | Cloning a Git repository (`git clone`, `gh repo clone`, `go install ...@branch`, `openclaw skills install git:...`) without a pinned commit hash. Every run pulls whatever the branch currently contains. The decision layer may dismiss a place that is only documentation or that checks out a commit hash. The decision layer confirms a place where the agent does the step. When a person does the clone by hand, the Judge lowers the finding to the floor. |
 | `GITHUB-OWNER-MISSING` | `critical`, floor `medium` | references | No | The referenced GitHub owner account does not exist. Anyone can register the username and ship malware under the URL the skill trusts. |
 | `GITHUB-OWNER-RENAMED` | `critical`, floor `medium` | references | No | The referenced repository redirects to a new account, leaving the original owner name available for anyone to claim. |
 | `GITHUB-REPO-MISSING` | `high`, floor `medium` | references | No | The GitHub owner exists, but the repository has been deleted. The owner can recreate it with arbitrary code at any time. |
@@ -56,6 +56,7 @@ Skills often provide documentation links or API endpoints. If an attacker purcha
 | `DOMAIN-UNREACHABLE` | `high`, dismissable | references | No | Domain cannot be reached (DNS failure, invalid TLS certificate, or connection refused). Could indicate deliberate concealment from scanners. |
 | `DOMAIN-HTTP-ERROR` | `high`, dismissable | references | No | The domain root responds with an HTTP 4xx or 5xx status. |
 | `IP-ADDRESS-PUBLIC` | `critical`, floor `medium` | references | No | A URL, connection command, or script targets a raw public IP address instead of a registered domain name. |
+| `TOOL-SERVER-UNTRUSTED` | `critical`, floor `high` | references | No | The skill connects the agent to an MCP or other tool server, and the host has at least one reference fact finding. Raised by the `decision` layer from the usage of the reference. |
 | `REFERENCES-TOO-MANY` | `high`, no downgrade | references | **Yes** | Skill contains more than 100 external references. Often used to overwhelm scanners or obscure malicious needles in haystacks. |
 
 ---
@@ -69,8 +70,8 @@ An agent skill should perform repetitive tasks within clear boundaries. Instruct
 
 | Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
 |---|---|:---:|:---:|---|
-| `REMOTE-SCRIPT-PIPED` | `critical`, floor `high` | static | No | A shell command fetches remote content and immediately pipes it to a shell (`curl ... \| bash`, `wget ... \| sh`). |
-| `REMOTE-CODE-AT-INSTALL` | `high`, floor `low` | discovery | No | Instructions telling the agent or reader to download external scripts, binaries, or helpers that are not bundled in the skill. |
+| `REMOTE-SCRIPT-PIPED` | `critical`, floor `high` | static | No | A shell command fetches remote content and runs it at once: `curl ... \| bash`, `wget ... \| sh`, `curl ... \| python3 -`, `sh -c "$(curl ...)"`, `bash <(curl ...)`, `source <(curl ...)`, `eval "$(curl ...)"`. A pipe into `python3 -c` or `python3 -m` does not match, because the script does not come from the download. |
+| `REMOTE-CODE-AT-INSTALL` | `high`, floor `low` | discovery | No | Instructions telling the agent to download and run a script, binary, package with no fixed version, registry skill or helper that is not bundled in the skill. The scanner reviews the bundle, not what the download contains. The decision layer may dismiss a place that runs only bundled code, a package a person installs by hand, a system package, a pinned version, a lock file entry or plain documentation. The decision layer confirms a place where the agent does the step. When a person does the download by hand, the Judge lowers the finding to the floor. |
 | `COMMAND-ON-LOAD` | `high`, floor `medium` | static | No | Commands configured to execute automatically the moment a coding agent loads the skill file (e.g. Claude Code `!` command syntax). |
 | `ROOT-PASSWORDLESS` | `critical`, floor `medium` | static | No | Commands that modify `/etc/sudoers` or grant passwordless root/administrator privileges. |
 | `ROOT-PASSWORDLESS-HIDDEN` | `critical`, floor `medium` | discovery | No | Grants passwordless root/admin privileges using obscured or joined text, downloaded scripts, or natural language prompts. |
@@ -95,10 +96,11 @@ Coding agents typically operate in repositories containing environment variables
 | `SECRETS-ENV-USED` | `critical`, dismissable | static | No | A read of one environment variable named as a secret: `_TOKEN`, `_SECRET`, `_API_KEY`, `_PASSWORD`, `_CREDENTIALS`, `_CONNECTION_STRING`, `_PAT` and the fixed names `DATABASE_URL`, `SSH_AUTH_SOCK`, `SQLCONNSTR_*`. Covers Python, JavaScript, Go, shell and PowerShell read forms. The judge dismisses the skill's own declared variables. |
 | `SECRETS-DIRS-LISTED` | `high`, floor `low` | static | No | Searching or listing files in sensitive directories such as `~/.ssh`, `~/.aws`, `~/.gnupg`, or root credentials. |
 | `ENV-NAME-COMPUTED` | `critical`, floor `medium` | static | No | A read of one environment variable whose name is decoded, concatenated, reversed, formatted or otherwise built at run time, so the name never appears in the code. Covers Python, JavaScript, shell, Ruby, Go, PowerShell, Rust, PHP, Java and C# read forms. |
-| `AGENT-CONFIG-READ` | `medium`, dismissable | static | No | Code or instructions reading the coding agent's own private configuration directories. |
+| `AGENT-CONFIG-READ` | `medium`, dismissable | static | No | Code or instructions reading the coding agent's own private configuration directories: `.claude`, `.codex`, `.gemini`, `.continue`, and `.openclaw`, `.clawdbot` or `.moltbot` with their config file and `.env`. |
 | `AGENT-MCP-CONFIG-READ` | `medium`, dismissable | static | No | Reading Model Context Protocol (MCP) server configuration files, which frequently store API tokens and tool credentials. |
 | `CLOUD-METADATA-READ` | `high`, floor `low` | static | No | Addressing cloud instance metadata services (`169.254.169.254`) to harvest temporary IAM instance credentials. |
 | `REMOTE-ENDPOINT-UPLOAD` | `medium`, dismissable | static | No | Posting data to remote URLs, APIs, or telemetry collection endpoints. |
+| `REMOTE-ENDPOINT-UPLOAD-HIDDEN` | `high`, dismissable | discovery | No | Code or instructions sending user input, files from the machine or data from another service to a referenced host, in wording the `REMOTE-ENDPOINT-UPLOAD` patterns miss. A service receiving only its own data is dismissed. |
 | `CLOUD-STORAGE-UPLOAD` | `medium`, dismissable | static | No | Uploading files directly to remote Amazon S3, Google Cloud Storage, or Azure Blob containers. |
 | `EXFILTRATION-IN-PROSE` | `high`, floor `low` | discovery | No | Natural-language instructions directing the agent to remember user inputs, log sensitive context, or echo secrets in replies. |
 
@@ -117,8 +119,10 @@ Adversarial skills often manipulate the AI model's cognitive state rather than r
 | `DECEPTION-GRADUAL` | `high`, floor `low` | discovery | No | Incremental instruction sequences that appear harmless step-by-step but progressively escalate permissions or normalize malicious acts. |
 | `PROMPT-INJECTION-SEMANTIC` | `medium`, floor `low` | discovery | No | Subtle prompt injection: polite reframings of ignoring safety guidelines, hypothetical scenarios, or role-play setups granting elevated permissions. *(Disabled by default)*. |
 | `PROMPT-INJECTION-PARAPHRASED`| `medium`, floor `low` | discovery | No | Reformulations of known jailbreak techniques using creative synonyms, cultural framing, or encoded wording. *(Disabled by default)*. |
-| `SKILL-REFERENCED` | `high`, dismissable | static | No | A path or URL to another skill (`.../SKILL.md`, `.claude/skills/<name>`). The agent loads a file the scanner never read. Kept only when this skill also prepares the ground for it, such as relaxing safety rules or granting tools the referenced skill can use. |
+| `SKILL-REFERENCED` | `high`, dismissable | static | No | A path or URL to another skill (`.../SKILL.md`, `.claude/skills/<name>`). The agent loads a file the scanner never read. Kept only when this skill also prepares the ground for it, such as relaxing safety rules or granting tools the referenced skill can use. The decision layer may dismiss it when the lines only name the skill's own files or mention another skill as information. |
 | `SKILL-REFERENCED-HIDDEN` | `high`, dismissable | discovery | No | An instruction to load or follow another skill in wording without a path, together with preparation the unseen skill can act on. |
+| `REMOTE-INSTRUCTIONS-FOLLOWED` | `high`, dismissable | discovery | No | Instructions telling the agent to open a URL and follow what it finds there (a prompt, rules, a config, a list of steps). The scanner never reads that page, so the reviewed skill is not what actually runs. Plain documentation lookups are dismissed. |
+| `INSTRUCTIONS-FORWARDED` | `high`, dismissable | discovery | No | The skill tells the agent to put instructions into what it hands to other agents, sessions or skills, so the instructions spread past the agent that installed the skill. Passing on data, the user's own request, or the prompt of a subagent the task starts is dismissed. |
 
 ---
 
@@ -132,8 +136,8 @@ To evade basic keyword searches, regex filters, and human audits, malicious auth
 | Rule ID | Severity & Judge Policy | Layer | Interrupt? | What It Detects |
 |---|---|:---:|:---:|---|
 | `WORD-INVISIBLE-CHARS` | `high`, floor `low` | reveal | No | Non-printing zero-width characters or directional formatting inserted inside words to bypass regex scanners (e.g. `c\u200Burl`). |
-| `WORD-HOMOGLYPHS` | `medium`, dismissable | reveal | No | Lookalike Unicode characters (e.g. Cyrillic `а` or Greek `о`) replacing standard ASCII letters inside words. |
-| `WORD-SPACED` | `medium`, dismissable | reveal | No | Words written with separators between letters (e.g. `c u r l`) to avoid text matching. |
+| `WORD-HOMOGLYPHS` | `medium`, dismissable | reveal | No | A word that mixes Latin letters with letters of another script that print like ASCII letters (e.g. Cyrillic `а` or Greek `ο`). The decision layer may dismiss it after reading the lines around it. |
+| `LINK-IN-COMMENT` | `high`, floor `medium` | static | No | A URL inside an HTML comment in a Markdown file, outside code blocks. The rendered page hides it from the person who reads the skill, and the agent reads it as plain text. |
 | `ARCHIVE-ENCRYPTED` | `critical`, no downgrade | walk | **Yes** | The skill bundle ships an encrypted/password-protected archive. The scanner cannot inspect its contents, and shipping encrypted files in a skill bundle is inherently dangerous. |
 | `ARCHIVE-PASSWORD-GIVEN` | `critical`, floor `medium` | discovery | No | Instructions providing a password or extraction code to open an external or bundled archive. Bypasses file scanners. |
 | `ARCHIVE-RAR` | `high`, floor `medium` | walk | No | The skill bundle ships a `.rar` archive, which requires third-party extractors and cannot be inspected as text. As a bonus - `.rar` files are rarely used in "normal operations" but are loved by malicious groups around the world in certain countries. |

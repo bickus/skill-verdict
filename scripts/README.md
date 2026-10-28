@@ -7,6 +7,8 @@
 | [`bench-image`](bench-image) | Runs inside that image. Extracts one skill from the mounted archive and scans it. |
 | [`check`](check) | Format, header, vet, lint, tidy, cross platform build and tests. Prints `Success` or the errors. |
 | [`release`](release) | Builds the stripped release binaries for the tag at HEAD into `dist/<tag>/` with a `SHA256SUMS` file. Refuses an untagged commit or a dirty tree. |
+| [`wasm`](wasm) | Compiles the tree-sitter runtime and the Python, JavaScript, TypeScript and TSX grammars into `pkg/internal/syntax/treesitter.wasm`, which the binary embeds. Skips the build while the inputs are unchanged. `check` and `release` call it first. |
+| [`wasm.Containerfile`](wasm.Containerfile) | Image for `wasm`: the Zig compiler and the pinned tree-sitter sources. |
 
 ## Sample archive
 

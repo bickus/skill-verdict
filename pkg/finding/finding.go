@@ -38,12 +38,20 @@ type Judgement struct {
 	Reason     string   `json:"reason"`
 }
 
+type Decision struct {
+	Choice      string  `json:"choice,omitempty"`
+	Probability float64 `json:"probability,omitempty"`
+	Dismiss     float64 `json:"dismiss,omitempty"`
+	Skipped     string  `json:"skipped,omitempty"`
+}
+
 type Finding struct {
 	Rule      string     `json:"rule"`
 	Severity  Severity   `json:"severity"`
 	Location  Location   `json:"location"`
 	Evidence  string     `json:"evidence"`
 	Reference string     `json:"reference,omitempty"`
+	Decision  *Decision  `json:"decision,omitempty"`
 	Judgement *Judgement `json:"judgement,omitempty"`
 }
 

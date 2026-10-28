@@ -27,7 +27,7 @@
     "(?i)install\\s+(?:the\\s+)?latest\\s+(?:version\\s+)?(?:of\\s+)?(?:all\\s+)?(?:packages?|dependencies)",
     "(?i)(?:don't|do\\s+not)\\s+(?:pin|lock|specify)\\s+(?:package\\s+)?versions?"
    ],
-   "judge": {"downgrade": true, "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "judge": {"downgrade": true, "instructions": "Judge only whether the passage does what the description says: a dependency declaration that lets a later version in. Do not weigh how likely or how bad a supply chain attack is."},
    "enabled": true
   },
   {
@@ -35,18 +35,48 @@
    "category": "supply-chain",
    "severity": "high",
    "title": "Unpinned install command",
-   "description": "An install or run command names a package without a version, so any later release, including a hijacked one, is installed. The command is in the skill text, not in a dependency manifest, and runs every time the skill is used.",
+   "description": "An install or run command, or an install entry in the skill's frontmatter metadata, names a package without a version, so any later release, including a hijacked one, is installed. That covers npm, PyPI, RubyGems, crates.io, a Homebrew tap, a skill registry such as ClawHub, and container images. The command is in the skill text, not in a dependency manifest, and runs every time the skill is used.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
    "patterns": [
-    "(?im)(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"']|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"']|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:[\\s`\"']|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(?:\\S+\\s+)*?--with(?:=|\\s+)[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"']|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])docker\\s+pull\\s+(?:-[\\w-]+\\s+)*[a-z0-9][a-z0-9._/-]*(?::[\\w.-]*latest[\\w.-]*)?(?:[\\s`\"']|$)"
+    "(?im)(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(?:\\S+\\s+)*?--with(?:=|\\s+)[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])docker\\s+pull\\s+(?:-[\\w-]+\\s+)*[a-z0-9][a-z0-9._/-]*(?::[\\w.-]*latest[\\w.-]*)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?))\\s+install\\s+(?:--?[\\w-]+\\s+)*(?:(?:npm|clawhub):)?(?:@?[\\w.-]+/)?\\w[\\w.-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+tap\\s+[\\w-]+/[\\w-]+(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+install\\s+(?:--?[\\w-]+\\s+)*[\\w-]+/[\\w-]+/[\\w@.+-]+(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])gem\\s+install\\s+(?:--?[\\w-]+\\s+)*[A-Za-z][\\w.-]*(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])cargo\\s+(?:install|binstall)\\s+(?:--?[\\w-]+\\s+)*[A-Za-z][\\w-]*(?:[\\s`\"'),;&|]|$)",
+    "(?i)\"kind\"\\s*:\\s*\"(?:node|npm|pnpm|yarn|bun|pip|pipx|uv|python|gem|cargo)\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
+    "(?i)\"kind\"\\s*:\\s*\"brew\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:formula|package)\"\\s*:\\s*\"[\\w-]+/[\\w-]+/[\\w@.+-]+\"",
+    "(?i)\"kind\"\\s*:\\s*\"go\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:module|package)\"\\s*:\\s*\"[\\w-]+(?:\\.[\\w-]+)+/[^\"@\\s]+(?:@(?:latest|main|master|HEAD))?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?(?:node|npm|pnpm|yarn|bun|pip|pipx|uv|python|gem|cargo)[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?brew[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:formula|package):[ \\t]*[\"']?[\\w-]+/[\\w-]+/[\\w@.+-]+[\"']?[ \\t]*\\r?$",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?go[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:module|package):[ \\t]*[\"']?[\\w-]+(?:\\.[\\w-]+)+/[^\"'@\\s]+(?:@(?:latest|main|master|HEAD))?[\"']?[ \\t]*\\r?$",
+    "(?i)\"command\"\\s*:\\s*\"(?:npx|bunx|pnpx|uvx)\"\\s*,\\s*\"args\"\\s*:\\s*\\[\\s*(?:\"-[^\"]*\"\\s*,\\s*)*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\""
    ],
-   "judge": {"downgrade": true, "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "exclude": [
+    "(?i)\\b(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?)|gem|cargo)\\s+(?:install|binstall)\\b.*\\s(?:-v|--version)(?:[\\s=]|$)",
+    "(?i)\\bbrew\\s+(?:tap|install)\\s+(?:--?[\\w-]+\\s+)*homebrew/"
+   ],
+   "judge": {"downgrade": true, "instructions": "Judge only whether the passage does what the description says: a command the agent runs, or an install entry in the frontmatter metadata, naming a package without a version. A command written for a person to run by hand, words after the command that are not a package, and a registry install of the skill's own folder name are false positives. The `name` in the frontmatter does not count as the skill's own. Do not weigh how likely or how bad a supply chain attack is."},
+   "decision": {
+    "subject": "places",
+    "question": "The state lists every place where the skill names one package in an install or run command, or in an install entry of its metadata. The package is shown as the subject. Who does the text at this place expect to run the command?",
+    "options": {
+     "agent-runs": "the command installs or runs the package shown as the subject, and it is part of the skill's instructions: a setup, install or usage step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an install entry in the `metadata` of the `SKILL.md` frontmatter, which the agent platform runs when the skill is installed. `SKILL.md` is written for the agent, so `you` there means the agent.",
+     "user-step": "the place is written for a person and not for the agent: a README or a guide for people who install the skill, a message that a script prints to tell the user what to install, or a step that names the user as the one who does it.",
+     "documentation": "the command is shown as an example, a troubleshooting hint, a changelog entry or a note, and no one is told to run it as a step.",
+     "not-a-package": "the words after the command are not a package the command installs: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name.",
+     "unknown": "the lines do not show who runs the command."
+    },
+    "dismiss": ["user-step", "documentation", "not-a-package"],
+    "confirm": ["agent-runs"],
+    "minProbability": 0.8
+   },
    "enabled": true
   },
   {
@@ -59,12 +89,14 @@
    "layer": "static",
    "scope": "any",
    "patterns": [
-    "(?i)curl\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:ba)?sh",
-    "(?i)wget\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:ba)?sh",
-    "(?i)curl\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:python|python3|node|ruby|perl)",
-    "(?i)wget\\s+[^|]*\\|\\s*(?:sudo\\s+)?(?:python|python3|node|ruby|perl)",
-    "(?i)curl\\s+[^&]*-o\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba)?sh",
-    "(?i)wget\\s+[^&]*-O\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba)?sh",
+    "(?im)(?:curl|wget)\\s+(?:[^|\\n]|\\\\\\n)*\\|\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
+    "(?im)(?:curl|wget)\\s+(?:[^|\\n]|\\\\\\n)*\\|\\s*(?:sudo\\s+)?(?:python[23]?|node|ruby|perl)(?:\\s+-(?:\\s|$)|[ \\t]*(?:$|[;&|)`'\"]))",
+    "(?im)curl\\s+(?:[^&\\n]|\\\\\\n)*-o\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
+    "(?im)wget\\s+(?:[^&\\n]|\\\\\\n)*-O\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
+    "(?i)\\b(?:ba|z)?sh\\s+-c\\s+\\\\?[\"']?\\$\\(\\s*(?:curl|wget)\\b",
+    "(?i)\\b(?:ba|z)?sh\\s+<\\(\\s*(?:curl|wget)\\b",
+    "(?im)(?:^|[\\s;&|])(?:source|\\.)\\s+<\\(\\s*(?:curl|wget)\\b",
+    "(?i)\\beval\\s+[\"']?\\$\\(\\s*(?:curl|wget)\\b",
     "(?i)exec\\s*\\(\\s*(?:urllib|requests|httpx)\\.[^)]+\\.(?:read|text|content)",
     "(?i)eval\\s*\\(\\s*(?:urllib|requests|httpx)\\.[^)]+\\.(?:read|text|content)",
     "(?i)eval\\s*\\(\\s*(?:await\\s+)?fetch\\s*\\(",

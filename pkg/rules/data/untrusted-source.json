@@ -5,7 +5,7 @@
    "category": "supply-chain",
    "severity": "critical",
    "title": "Code fetched from a moving target",
-   "description": "A referenced URL serves whatever its owner put there last: a raw, blob or archive link on a branch at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. Judge the finding by what the skill does with the URL: fetching it, installing from it, running it, or telling the reader to follow the instructions there keeps the severity, a citation nobody is told to act on can be lowered. A widely used project can also lower it when fetching from that project fits what the skill does. Decide that on the reference facts in this report, an owner that exists, an old account, a repository many people use, not on how familiar the name looks, because imitating a familiar name is what a typosquat does.",
+   "description": "A referenced URL serves whatever its owner put there last: a raw, blob or archive link on a branch at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. Judge the finding by what the skill does with the URL. The agent fetching it, installing from it, running it, or following the instructions there keeps the severity. A download a person is told to do by hand is lowered to the floor. A citation nobody is told to act on can be lowered. A widely used project can also lower it when fetching from that project fits what the skill does. Decide that on the reference facts in this report, an owner that exists, an old account, a repository many people use, not on how familiar the name looks, because imitating a familiar name is what a typosquat does.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -28,7 +28,7 @@
     "(?i)cdn\\.jsdelivr\\.net/gh/[^/\\s@]+/[^/\\s@]+@[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
     "(?i)cdn\\.jsdelivr\\.net/npm/(?:@[^/\\s@]+/)?[^/\\s@]+(?:@latest)?/"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge only whether the passage does what the description says. Do not weigh how likely or how bad a supply chain attack is."},
    "enabled": true
   },
   {
@@ -36,7 +36,7 @@
    "category": "supply-chain",
    "severity": "high",
    "title": "Code fetched from a default branch",
-   "description": "The skill clones a repository or installs from a Git source without a commit hash: git clone, gh repo clone, a git+ URL, an npm github: spec, or a Go module at latest or on a branch. Every run fetches whatever the branch holds at that moment, so what a reviewer reads today is not what the user gets tomorrow. A skill does repeated work and cloning a repository is a one-time step, so the step is out of place in a skill. A reference pinned to a commit hash does not match this rule. Unless this is a false positive, do not trust the skill. The fix is to clone the repository once, review it, and remove the step from the skill.",
+   "description": "The skill clones a repository or installs from a Git source without a commit hash: git clone, gh repo clone, a git+ URL, an npm github: spec, an OpenClaw `git:` source, or a Go module at latest or on a branch. Every run fetches whatever the branch holds at that moment, so what a reviewer reads today is not what the user gets tomorrow. A skill does repeated work and cloning a repository is a one-time step, so the step is out of place in a skill. A reference pinned to a commit hash does not match this rule. When the agent does the step, do not trust the skill unless the finding is a false positive. A clone a person is told to do by hand is lowered to the floor. The fix is to clone the repository once, review it, and remove the step from the skill.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -45,9 +45,24 @@
     "(?i)\\bgh\\s+repo\\s+clone\\b",
     "(?i)\\bgit\\+(?:https?|ssh)://[^\\s@#]+(?:@[^\\s#]*[^0-9a-f\\s#][^\\s#]*)?(?:[\\s#]|$)",
     "(?i)\\bgithub:[\\w.-]+/[\\w.-]+(?:#[^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)",
-    "(?i)\\bgo\\s+(?:install|get|run)\\s+\\S+@(?:latest|upgrade|patch|main|master|HEAD)\\b"
+    "(?i)\\bgo\\s+(?:install|get|run)\\s+\\S+@(?:latest|upgrade|patch|main|master|HEAD)\\b",
+    "(?i)\\bopenclaw\\s+(?:skills?|plugins?)\\s+install\\s+(?:--?[\\w-]+\\s+)*git:[^\\s@#]+(?:[@#][^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing that should be judged is if it a false-positive or no."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge only whether the passage does what the description says: a clone or install from a Git source without a commit hash, run as a step of the skill. A clone a person is told to do by hand is lowered to the floor. Do not weigh how likely or how bad a supply chain attack is."},
+   "decision": {
+    "subject": "places",
+    "question": "The state lists every place where the skill clones a repository or installs from a Git source without a commit hash. Who does the text at this place expect to do that step?",
+    "options": {
+     "agent-runs": "the step is part of the skill's instructions: a setup, install or usage step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, or something that a script of the skill does, and no commit hash fixes the code. `SKILL.md` is written for the agent, so `you` there means the agent.",
+     "user-step": "the place is written for a person and not for the agent: a README or a guide for people who install the skill, a message that a script prints to tell the user what to install, or a step that names the user as the one who does it.",
+     "documentation": "the step is shown as an example, a troubleshooting hint, a changelog entry or a note, and no one is told to do it.",
+     "pinned": "the step fixes the code to a commit hash: the source names one, or a checkout of a hash follows the clone.",
+     "unknown": "the lines do not show who does the step."
+    },
+    "dismiss": ["documentation", "pinned"],
+    "confirm": ["agent-runs"],
+    "minProbability": 0.8
+   },
    "enabled": true
   },
   {
@@ -55,11 +70,53 @@
    "category": "remote-execution",
    "severity": "high",
    "title": "Install step that runs code from outside the skill",
-   "description": "Instructions telling the reader or the agent to fetch, unpack, paste or run something that is not in the skill bundle: download an executable and start it, copy a script from a web page into a terminal, install a helper utility before the skill works at all. The files of the skill are reviewed, the outside code is not. Report the instruction even when the link looks ordinary.",
+   "description": "The agent fetches, unpacks or runs code that is not in the skill bundle: a script from a URL, a binary, a package with no fixed version, a skill from a skill registry, a helper installed before the skill works at all. The files of the skill are reviewed, the outside code is not. Report the step even when the link looks ordinary. The operating system's package manager, Homebrew core, code fixed by commit, checksum or an exact registry version, and a registry install of the skill's own folder name do not count. The `name` in the frontmatter does not count as the skill's own.",
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Judge is not judging the probability or a risk of a supply chain attack. The only thing is judged is false-positive or no."},
+   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Keep the finding when the agent fetches, installs or runs the code. Lower it to the floor when a person, not the agent, is told to download, clone or run the code by hand. Lower it when the step is a named package a person installs by hand, a system package, or code fixed by commit, checksum or an exact registry version. A registry install of the skill's own folder name is a false positive. The risk of a supply chain attack is not judged."},
+   "decision": {
+    "subject": "places",
+    "question": "The state lists every place where a reviewer marked a step that fetches, installs or runs code from outside the skill. What is the step at this place?",
+    "options": {
+     "agent-runs": "the agent does the step, and the code comes from outside the skill: a setup, install or usage step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, something a script of the skill does, or an install entry in the `SKILL.md` frontmatter metadata. The code does not come from a system package manager and nothing fixes its version. `SKILL.md` is written for the agent, so `you` there means the agent.",
+     "not-outside-code": "the step runs only code bundled with the skill, or runs no code at all: a script in the skill's folder, a local command, a question to the user.",
+     "user-package": "a person, not the agent, installs a named package by hand, from npm, PyPI, RubyGems, crates.io, Go modules, a container registry, a Homebrew tap or a skill registry such as ClawHub.",
+     "user-download": "a person, not the agent, downloads a file, script, archive or binary by hand, or clones a repository, and runs or unpacks it.",
+     "system-package": "whoever does it, the step installs from the operating system's package manager, such as apt, dnf, yum, pacman, apk, snap, winget or choco, or from Homebrew's own formulae and casks, not from a tap.",
+     "pinned": "whoever does it, the step fixes what it gets: a commit hash, a checksum, or an exact version from a package registry or from the download site of the vendor that makes the tool. A version tag on GitHub or another code host does not count, the owner can replace the files behind it.",
+     "lock-entry": "the place is an entry in a lock file or a dependency manifest, not a step anyone is told to do.",
+     "documentation": "the step is shown as an example, a troubleshooting hint, a changelog entry or a note, and no one is told to do it.",
+     "unknown": "the lines do not show who does the step."
+    },
+    "dismiss": ["not-outside-code", "user-package", "system-package", "pinned", "lock-entry", "documentation"],
+    "confirm": ["agent-runs"],
+    "minProbability": 0.8
+   },
+   "enabled": true
+  },
+  {
+   "id": "REMOTE-INSTRUCTIONS-FOLLOWED",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Agent acts on instructions from a URL",
+   "description": "The agent opens a URL and acts on what is there, or what comes back steers the agent: a prompt, rules, a config. The scanner never reads that content, so the reviewed skill is not the skill that runs.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Dismiss when the content is reference material the agent looks things up in and no step depends on instructions from it, or if a false positive."},
+   "enabled": true
+  },
+  {
+   "id": "INSTRUCTIONS-FORWARDED",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Instructions passed on to other agents",
+   "description": "The skill tells the agent to put instructions into what it hands to other agents, sessions or skills, so the instructions spread past the agent that installed the skill.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true, "instructions": "Dismiss when only data or the user's own request is passed on, or when the skill writes the prompt for a subagent its own task starts. Keep it when the text asks the receivers to pass it on, or reaches agents, sessions or skills outside the task."},
    "enabled": true
   }
  ]

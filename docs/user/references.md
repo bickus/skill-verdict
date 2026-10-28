@@ -14,10 +14,41 @@ During scanning, `skill-verdict` parses all text files and extracts four categor
 |---|---|---|
 | **Domains** | Hostnames extracted from HTTP/HTTPS URLs. | `https://example.com/docs`, `http://api.service.io` |
 | **GitHub** | GitHub repositories, SSH clone URLs, and `gh repo clone` commands. | `github.com/org/repo`, `git@github.com:user/tool.git` |
-| **Packages** | Package install commands (`pip`, `pipx`, `uv`, `npm`, `pnpm`, `yarn`, `npx`), `package.json` dependencies, and `requirements.txt`. | `pip install requests`, `npm i express` |
+| **Packages** | Package install commands (`pip`, `pipx`, `uv`, `npm`, `pnpm`, `yarn`, `npx`), `package.json` dependencies, `requirements.txt`, npm and PyPI install entries in the frontmatter metadata, and MCP server entries that run `npx` or `uvx`. | `pip install requests`, `npm i express`, `{"kind":"node","package":"latchkey"}` |
 | **IP Addresses** | Raw IPv4/IPv6 addresses in URLs, `host:port` pairs, or network commands (`curl`, `nc`, `ssh`, etc.). | `http://198.51.100.4:8080`, `nc 203.0.113.5 4444` |
 
 References are deduplicated across the entire skill so each external resource is evaluated only once per scan.
+
+---
+
+## What the Skill Does With a Reference
+
+The checks below say what a reference is. They do not say what the skill does with it. A cited link and a downloaded script are different risks. A regular expression cannot tell them apart. The decision model can. The scanner gives each reference place an id such as `R3.1`. The `decision` layer sends one request per reference, with every place of the reference in it and one question per place. The model reads the lines around each place. For a place in code it also reads the trace of the value. The answer gives the place one usage:
+
+| Usage | Meaning | Rule |
+|---|---|---|
+| `citation` | Named in text, nobody is told to open it. | none |
+| `documentation` | The reader is pointed at the page to learn from it. | none |
+| `user-action` | The user does something there by hand: signs up, gets a key, installs a tool. | none |
+| `tool-server` | The agent is connected to it as an MCP or other tool server and calls its tools. | `TOOL-SERVER-UNTRUSTED`, only when the reference also has a fact finding |
+| `agent-fetch` | The agent works with the service there: gets data the skill processes, or operates its pages or its API by the steps the skill gives. | none |
+| `agent-instructions` | The agent reads text from it and does what the text says, or what comes back steers the agent. | `REMOTE-INSTRUCTIONS-FOLLOWED` |
+| `agent-install` | The agent installs or runs code from it. | `REMOTE-CODE-AT-INSTALL` |
+| `agent-upload` | The agent sends data from the user, the machine or another service to it. | `REMOTE-ENDPOINT-UPLOAD-HIDDEN` |
+
+Packages and references reached through a redirect get no usage. A place with no clear answer, or with an answer below `layers.decision.minProbability`, gets no usage in the reference brief. The discovery model then reads the place itself. The `decision` layer must be enabled, no other layer gives usages. The judge sees every usage in the reference brief. A reference gets one finding per rule, at the first place whose top answer has that usage, however many places have it and whatever the probability of the answer. A `REMOTE-CODE-AT-INSTALL` finding raised this way gets the rule's own question about who does the step, see [Detection](detection.md#layer-6-decision). The other findings go to the judge like any other finding. The discovery model may report the same three rules on its own. Such a finding is left out, with no message to the model, when its lines overlap the lines around a place whose usage raised the same rule. A usage that raises no rule removes no discovery finding.
+
+Some fact rules name the usages they apply to: `user-action`, `tool-server`, `agent-fetch`, `agent-instructions`, `agent-install` and `agent-upload`. These rules are `DOMAIN-NEW`, `DOMAIN-EXPIRING`, `DOMAIN-UNREGISTERED`, `DOMAIN-HTTP-ERROR`, `DOMAIN-UNREACHABLE`, `GITHUB-OWNER-NEW`, `GITHUB-OWNER-MISSING`, `GITHUB-OWNER-RENAMED` and `GITHUB-REPO-MISSING`. Their finding drops to the rule's floor with no judge call when all of this holds:
+
+- every place of the reference has a usage,
+- every answer has a probability at or above `layers.decision.minProbability`,
+- no place has a usage the rule applies to.
+
+A rule with no floor is dismissed. Anything else leaves the finding to the judge.
+
+A tool server gets what the agent sends and steers the agent with its tool descriptions and replies. A reference with a `tool-server` place and at least one finding of the `references` layer raises `TOOL-SERVER-UNTRUSTED` at the first such place. The evidence names the fact rules. The fact findings stay as they are.
+
+An API host often answers with an error at its root. When a host does, the scanner also requests the root of its registered domain and records `parent_http_status`. For `TOOL-SERVER-UNTRUSTED` the root error does not count when the registered domain serves a page. A host on a hosting platform such as `vercel.app` has no registered domain of its own, so its root error counts.
 
 ---
 

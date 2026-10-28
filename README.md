@@ -23,6 +23,18 @@ The scanner reports every install that has no fixed version or a code execution 
 - A clone of a branch.
 - A download link with replaceable content behind it.
 
+The verdict depends on who runs the step:
+
+- An install the agent does blocks. The agent does these steps:
+  - a command in `SKILL.md` or in a file that `SKILL.md` sends the agent to
+  - a command that a script of the skill runs
+  - an install entry in the frontmatter metadata
+- The scanner reads installs from npm, PyPI, RubyGems, crates.io, Go modules, container registries, Homebrew taps and skill registries such as ClawHub.
+- A package that the skill tells a person to install by hand gets no finding.
+- A download or clone that the skill tells a person to do by hand gets a finding below the block gate.
+- The operating system's package manager, Homebrew core and a fixed version get no finding. A version tag on GitHub does not count as fixed. The owner can replace the files behind it.
+- A skill that installs itself from a skill registry gets no finding. The scanner compares the install with the name of the skill folder. The `name` in the frontmatter does not count.
+
 You'd say that it generates noise findings, but let me try to convince you with some data.
 
 Between September 2025 and September 2026, official releases of well-known packages on their official registries shipped malware in at least nine separate incidents[^1]. Some of the affected packages:
@@ -67,16 +79,13 @@ An optional honeypot gives a model the tools of a coding agent. None of that too
 
 ## Install
 
-Download the binary for your platform from [Releases](https://github.com/bickus/skill-verdict/releases). Check it against `SHA256SUMS` and put it on `PATH`. Or install with [Go](https://go.dev/doc/install) 1.26 or later:
+Download the binary for your platform from [Releases](https://github.com/bickus/skill-verdict/releases). Check it against `SHA256SUMS` and put it on `PATH`:
 
 ```sh
-go install github.com/bickus/skill-verdict/pkg/cmd/skill-verdict@latest
 skill-verdict --version
 ```
 
-The result is a single static binary with no runtime or shared libraries to install. See [Install](docs/user/install.md) for platform builds from a checkout.
-
-N.B.: If you copy-pasted and executed that "go install ...@latest" - you should trigger your internal trigger on any @latest and avoid using them :)
+The result is a single static binary with no runtime or shared libraries to install. `go install` does not work: the binary embeds a parser module that the build compiles, and the repository does not contain it. See [Install](docs/user/install.md) for platform builds from a checkout.
 
 ## Run a scan
 
@@ -116,7 +125,7 @@ Or scan every skill located inside a directory:
 skill-verdict scan --config config.json ./path/to/skills
 ```
 
-Want an instant, air-gapped offline scan with zero network calls and zero AI tokens? Turn off the four network/model layers (`references`, `honeypot`, `discovery`, and `judge`) in your config. See [Configuration](docs/user/config.md) for how to tune every layer, and [Rules](docs/user/rules.md) for the full catalog of checks.
+Want an instant, air-gapped offline scan with zero network calls and zero AI tokens? Turn off the four network/model layers (`references`, `honeypot`, `discovery`, and `judge`) in your config, and leave `decision` off as it is by default. See [Configuration](docs/user/config.md) for how to tune every layer, and [Rules](docs/user/rules.md) for the full catalog of checks.
 
 ## Understand the result
 

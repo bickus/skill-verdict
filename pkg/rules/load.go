@@ -113,6 +113,9 @@ func apply(rules []Compiled, byLayer map[string]map[string]config.RuleSetting) (
 		}
 		if s, ok := settings[c.ID]; ok {
 			rules[i].Rule = override(c.Rule, s)
+			if err := rules[i].Decision.validate(); err != nil {
+				return nil, fmt.Errorf("layers.%s.rules.%s.%w", c.Layer, c.ID, err)
+			}
 		}
 	}
 	return rules, unknownSettings(rules, byLayer)
@@ -143,6 +146,7 @@ func override(r Rule, s config.RuleSetting) Rule {
 	if s.Interrupt != nil {
 		r.Interrupt = *s.Interrupt
 	}
+	r.Decision = overrideDecision(r.Decision, s.Decision)
 	if s.Judge == nil {
 		return r
 	}
@@ -156,6 +160,35 @@ func override(r Rule, s config.RuleSetting) Rule {
 		r.Judge.Instructions = *s.Judge.Instructions
 	}
 	return r
+}
+
+func overrideDecision(d *DecisionPolicy, s *config.DecisionSetting) *DecisionPolicy {
+	if s == nil {
+		return d
+	}
+	out := DecisionPolicy{}
+	if d != nil {
+		out = *d
+	}
+	if s.Subject != nil {
+		out.Subject = Subject(*s.Subject)
+	}
+	if s.Question != nil {
+		out.Question = *s.Question
+	}
+	if s.Options != nil {
+		out.Options = s.Options
+	}
+	if s.Dismiss != nil {
+		out.Dismiss = s.Dismiss
+	}
+	if s.Confirm != nil {
+		out.Confirm = s.Confirm
+	}
+	if s.MinProbability != nil {
+		out.MinProbability = *s.MinProbability
+	}
+	return &out
 }
 
 func build(rules []Compiled) *Set {

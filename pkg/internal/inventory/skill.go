@@ -27,6 +27,10 @@ func (s *Skill) Identify() {
 		s.Name, s.Description = frontmatter(a.Content)
 	}
 	if s.Name == "" {
-		s.Name = filepath.Base(s.Root)
+		s.Name = s.Folder()
 	}
+}
+
+func (s *Skill) Folder() string {
+	return filepath.Base(s.Root)
 }

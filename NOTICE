@@ -10,3 +10,13 @@ NVIDIA SkillSpector
 Copyright 2026 NVIDIA CORPORATION & AFFILIATES
 Licensed under the Apache License, Version 2.0
 https://github.com/NVIDIA/skillspector
+
+tree-sitter, with its Python, JavaScript and TypeScript grammars
+Copyright (c) 2018 Max Brunsfeld
+Licensed under the MIT License
+https://github.com/tree-sitter/tree-sitter
+
+tree-sitter-powershell
+Copyright (c) 2023 Airbus CERT
+Licensed under the MIT License
+https://github.com/airbus-cert/tree-sitter-powershell

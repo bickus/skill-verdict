@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/textutil"
 	"github.com/bickus/skill-verdict/pkg/refs"
@@ -26,20 +27,23 @@ func Brief(skill *inventory.Skill, reports []refs.Report) string {
 	refs.Sort(sorted)
 	var b strings.Builder
 	b.WriteString(briefHeader)
-	src := sources{skill: skill, lines: make(map[string][]string)}
 	var kind refs.Kind
 	for _, rep := range sorted {
 		if rep.Ref.Kind != kind {
 			kind = rep.Ref.Kind
 			fmt.Fprintf(&b, "\n## %s\n", headings[kind])
 		}
-		describe(&b, rep, src)
+		describe(&b, skill, rep)
 	}
 	return b.String()
 }
 
-func describe(b *strings.Builder, rep refs.Report, src sources) {
-	fmt.Fprintf(b, "\n### %s\n", rep.Ref.Value)
+func Categorized(rep refs.Report) bool {
+	return !rep.Ref.Derived && rep.Ref.Kind != refs.Package
+}
+
+func describe(b *strings.Builder, skill *inventory.Skill, rep refs.Report) {
+	fmt.Fprintf(b, "\n### %s %s\n", rep.ID, rep.Ref.Value)
 	fmt.Fprintf(b, "- status: %s\n", rep.Status)
 	if rep.Detail != "" {
 		fmt.Fprintf(b, "- detail: %s\n", rep.Detail)
@@ -47,17 +51,8 @@ func describe(b *strings.Builder, rep refs.Report, src sources) {
 	if rep.Ref.Derived {
 		b.WriteString("- derived: true\n")
 	}
-	for _, loc := range rep.Ref.Locations {
-		text := src.line(loc.File, loc.Line)
-		if text == "" {
-			fmt.Fprintf(b, "- used at: %s:%d\n", loc.File, loc.Line)
-			continue
-		}
-		fmt.Fprintf(b, "- used at: %s:%d `%s`\n", loc.File, loc.Line, textutil.Clip(text))
-		if registry := installRegistry(text); rep.Ref.Kind == refs.Package && registry != "" {
-			def, _, _ := strings.Cut(rep.Ref.Value, ":")
-			fmt.Fprintf(b, "  - note: the facts below are from %s, this command installs from %s\n", def, registry)
-		}
+	for i := range rep.Ref.Locations {
+		place(b, skill, rep, i)
 	}
 	for _, u := range rep.Ref.URLs {
 		fmt.Fprintf(b, "- url: %s\n", u)
@@ -67,21 +62,31 @@ func describe(b *strings.Builder, rep refs.Report, src sources) {
 	}
 }
 
-type sources struct {
-	skill *inventory.Skill
-	lines map[string][]string
+func place(b *strings.Builder, skill *inventory.Skill, rep refs.Report, i int) {
+	loc := rep.Ref.Locations[i]
+	text := Line(skill, loc)
+	if text == "" {
+		fmt.Fprintf(b, "- %s used at %s:%d\n", rep.LocationID(i), loc.File, loc.Line)
+	} else {
+		fmt.Fprintf(b, "- %s used at %s:%d `%s`\n", rep.LocationID(i), loc.File, loc.Line, textutil.Clip(text))
+	}
+	if registry := installRegistry(text); rep.Ref.Kind == refs.Package && registry != "" {
+		def, _, _ := strings.Cut(rep.Ref.Value, ":")
+		fmt.Fprintf(b, "  - note: the facts below are from %s, this command installs from %s\n", def, registry)
+	}
+	if usage := rep.Usage(i); usage != "" {
+		fmt.Fprintf(b, "  - usage: %s\n", usage)
+	}
 }
 
-func (s sources) line(file string, n int) string {
-	lines, seen := s.lines[file]
-	if !seen {
-		if a := s.skill.Artifact(file); a != nil {
-			lines = textutil.Lines(a.Content)
-		}
-		s.lines[file] = lines
-	}
-	if n < 1 || n > len(lines) {
+func Line(skill *inventory.Skill, loc finding.Location) string {
+	a := skill.Artifact(loc.File)
+	if a == nil {
 		return ""
 	}
-	return strings.TrimSpace(lines[n-1])
+	lines := textutil.Lines(a.Content)
+	if loc.Line < 1 || loc.Line > len(lines) {
+		return ""
+	}
+	return strings.TrimSpace(lines[loc.Line-1])
 }

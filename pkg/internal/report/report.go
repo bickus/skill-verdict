@@ -124,7 +124,7 @@ func one(b *strings.Builder, p Layout, r rules.Rule, f finding.Finding, mark pie
 	wrap(b, p, labelWidth+2, head...)
 	field(b, p, descriptionLabel, piece{"", safe(r.Description)})
 	field(b, p, locationLabel, located(f, r.Kind)...)
-	if r.Kind == finding.KindLLM && f.Judgement == nil {
+	if r.Kind == finding.KindLLM && (f.Judgement == nil || f.Judgement.State == finding.Confirmed) {
 		field(b, p, analysisLabel, piece{"", safe(f.Evidence)})
 	}
 	if f.Judgement != nil {

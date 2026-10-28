@@ -19,6 +19,13 @@ binary embeds the files. Edit a file, rebuild, done.
 | `pkg/internal/layers/honeypot/<tool>.md`, `<tool>.json` | Description and parameter schema of each honeypot tool: `agent`, `bash`, `edit`, `read`, `skill`, `webfetch`, `websearch`, `write` and `submit` for `submit_result`. |
 | `pkg/internal/layers/honeypot/loaded.md` | What the honeypot `Skill` tool returns. |
 | `pkg/internal/refcheck/brief.md` | Start of the `references.brief.md` artifact. |
+| `pkg/internal/trace/brief.md` | Start of the `code.brief.md` artifact. |
+| `pkg/internal/trace/note.md` | First line of the text state the decision model reads. |
+| `pkg/internal/layers/decision/warning.md` | `warning` instruction of the question to the decision model. |
+| `pkg/internal/layers/decision/lines.md` | Text state for a rule whose decision subject is `lines`: the file, the marked line and the lines around the finding. |
+| `pkg/internal/layers/decision/places.md` | Text state for a rule whose decision subject is `places`: the name the findings share, then one `place.md` block per finding. |
+| `pkg/internal/layers/decision/usage.json` | Question, `focus` instruction and options the decision model gets for the usage of a reference place. |
+| `pkg/internal/layers/decision/reference.md`, `place.md`, `place-trace.md` | Text state for one reference: the reference, its URLs, then one `place.md` block per place with its id, the file, the line, the lines around it, and the trace when the place is in traced code. |
 
 A layer builds its tool parameters from `item.json`. Discovery adds the `action` field to it
 and takes one entry per call. The judge fills the `verdict` field with the severities the
@@ -38,13 +45,18 @@ The values:
 |---|---|---|
 | `{{origins}}` | discovery, judge | `origins.md` rendered with one line per origin present, `- name: description` from the origin registry. Empty when every artifact is from the bundle. |
 | `{{artifacts}}` | discovery, judge | One line per artifact, paths in case-insensitive A-Z order: `path - type, size bytes[, origin x][, not read: status]`. |
-| `{{entry}}` | discovery, judge | Path of the entry file: `SKILL.md.revealed` when the reveal layer made one, else `SKILL.md`. |
+| `{{entry}}` | discovery, judge | Path of the entry file, `SKILL.md`. |
+| `{{folder}}` | discovery, judge | The name of the skill folder. A skill registry installs the skill under this name. |
 | `{{content}}` | discovery, judge | The entry file as the `read` tool returns it, cut at `llm.maxInputChars`. |
 | `{{rulesdowngradeable}}`, `{{rulesnondowngradeable}}` | judge | `rules-downgradeable.md` and `rules-nondowngradeable.md` rendered for the findings of that group. Empty when the group has no finding. |
 | `{{findingsdowngradeable}}`, `{{findingsnondowngradeable}}` | judge | `findings-downgradeable.md` and `findings-nondowngradeable.md` rendered for the findings of that group. Empty when the group has no finding. |
 | `{{rules}}` | discovery system prompt | One block per enabled discovery rule, by ID: `rule_id`, `title` and `description` from the rule data. |
 | `{{rules}}` | judge rule blocks | Two lines per rule that raised a finding in the group, first appearance first. The first line reads `[id] - title - severity - floor`. The second is the rule description, indented. The floor reads `none` when the rule declares none and `n/a` when the rule forbids downgrading. |
 | `{{findings}}` | judge finding blocks | One line per finding of the group: `id: file@line:rule: evidence`. The id is `D1`, `D2` and so on in the downgradeable group, `ND1`, `ND2` and so on in the other. |
+| `{{file}}`, `{{line}}`, `{{spot}}`, `{{lines}}` | decision `lines.md` | The path of the file, the line of the finding, where the line sits in a markdown file (frontmatter, fenced code block or prose, and the headings above it), and eleven numbered lines around it. For other files `{{spot}}` holds up to three lines of other files that name the file. |
+| `{{subject}}`, `{{places}}` | decision `places.md` | The name the grouped findings share, such as a package, and the `place.md` blocks with ids `P1`, `P2` and so on. |
+| `{{reference}}`, `{{urls}}`, `{{places}}` | decision `reference.md` | The reference value, one `url:` line per URL, and the `place.md` blocks. Places with the same file, line, text and trace share one block. |
+| `{{id}}`, `{{file}}`, `{{line}}`, `{{spot}}`, `{{lines}}`, `{{trace}}` | decision `place.md` | The place id such as `R3.1`, the path of the file, the line number, the same `{{spot}}` text as in `lines.md`, eleven numbered lines around the place, and `place-trace.md` rendered with the trace. The trace is empty when the place is not in traced code. |
 | `{{cwd}}`, `{{date}}` | honeypot system prompt | The working directory of the agent and the date of the scan. |
 | `{{skills}}`, `{{name}}` | honeypot user message | The skill list line, `- name: description`, and the skill name. |
 | `{{base}}`, `{{body}}` | honeypot `loaded.md` | The directory of the skill as the agent sees it, and `SKILL.md` without its frontmatter. |

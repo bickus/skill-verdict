@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
@@ -21,8 +20,6 @@ const (
 	maxPerRule = 50
 )
 
-var revealed = inventory.RegisterOrigin(name, "Modified item from the skill bundle with concealment attempts removed. Created by the scanner itself")
-
 type Layer struct{}
 
 func (Layer) Name() string {
@@ -31,15 +28,13 @@ func (Layer) Name() string {
 
 func (Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error) {
 	allowed := s.Rules.ForLayer(name)
-	count := len(s.Skill.Artifacts)
-	for i := range count {
+	for i := range s.Skill.Artifacts {
 		if err := ctx.Err(); err != nil {
 			return pipeline.Report{}, err
 		}
-		if !wanted(&s.Skill.Artifacts[i]) {
-			continue
+		if a := &s.Skill.Artifacts[i]; wanted(a) && needsNormalize(a.Content) {
+			artifact(s, a, allowed)
 		}
-		artifact(s, i, allowed)
 	}
 	return pipeline.Report{}, nil
 }
@@ -56,52 +51,19 @@ func wanted(a *inventory.Artifact) bool {
 	return false
 }
 
-func artifact(s *pipeline.State, i int, allowed map[string]bool) {
-	a := s.Skill.Artifacts[i]
-	text, hits := reveal(a.Content)
-	if text == a.Content {
-		return
+func artifact(s *pipeline.State, a *inventory.Artifact, allowed map[string]bool) {
+	p := normalize(a.Content)
+	if text := p.out.String(); text != a.Content {
+		a.Clean, a.Shifts = text, p.shifts
 	}
-	path := inventory.RevealedPath(a.Path)
-	s.Skill.Artifacts = append(s.Skill.Artifacts, inventory.Artifact{
-		Path: path, Kind: inventory.Content, Origin: revealed, ContentType: a.ContentType, Size: int64(len(text)), Content: text,
-	})
-	found, capped := limit(finding.Dedup(findings(s.Rules, allowed, a, hits)))
+	found, capped := limit(finding.Dedup(findings(s.Rules, allowed, a, p.hits)))
 	s.Record(found...)
 	for _, id := range capped {
-		s.Skill.Artifacts[i].Note(name + ": " + id + " capped at 50")
+		a.Note(name + ": " + id + " capped at 50")
 	}
 }
 
-func reveal(src string) (string, []hit) {
-	text, offsets, hits := src, []int(nil), []hit(nil)
-	if needsNormalize(src) {
-		text, offsets, hits = normalize(src)
-	}
-	compacted, matched := compact(text)
-	for _, sp := range matched {
-		hits = append(hits, hit{spaced, source(offsets, sp.start), sourceEnd(src, offsets, sp.end)})
-	}
-	return compacted, hits
-}
-
-func source(offsets []int, i int) int {
-	if offsets == nil {
-		return i
-	}
-	return offsets[i]
-}
-
-func sourceEnd(src string, offsets []int, i int) int {
-	if offsets == nil {
-		return i
-	}
-	start := offsets[i-1]
-	_, n := utf8.DecodeRuneInString(src[start:])
-	return start + n
-}
-
-func findings(set *rules.Set, allowed map[string]bool, a inventory.Artifact, hits []hit) []finding.Finding {
+func findings(set *rules.Set, allowed map[string]bool, a *inventory.Artifact, hits []hit) []finding.Finding {
 	starts := textutil.LineStarts(a.Content)
 	var out []finding.Finding
 	for _, h := range hits {
@@ -115,18 +77,24 @@ func findings(set *rules.Set, allowed map[string]bool, a inventory.Artifact, hit
 }
 
 func evidence(text string, h hit) string {
-	if h.rule == spaced {
-		return textutil.Evidence(text[h.start:h.end])
-	}
-	var b strings.Builder
+	var written, read strings.Builder
 	for _, r := range text[wordStart(text, h.start):wordEnd(text, h.end)] {
-		if dropped(r) || concealed(r) {
-			fmt.Fprintf(&b, "<U+%04X>", r)
-		} else {
-			b.WriteRune(r)
+		switch {
+		case dropped(r):
+			fmt.Fprintf(&written, "<U+%04X>", r)
+		case concealed(r):
+			fmt.Fprintf(&written, "<U+%04X>", r)
+			_, mapped := fold(r)
+			read.WriteString(mapped)
+		default:
+			written.WriteRune(r)
+			read.WriteRune(r)
 		}
 	}
-	return textutil.Clip(b.String())
+	if h.rule == lookAlike {
+		return textutil.Clip(written.String() + " reads as " + read.String())
+	}
+	return textutil.Clip(written.String())
 }
 
 func limit(fs []finding.Finding) ([]finding.Finding, []string) {
