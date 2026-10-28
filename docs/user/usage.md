@@ -49,7 +49,7 @@ skill-verdict scan [--config P] [--rules-dir D] [--format text|json] [--verbose]
 | `--config P` | System default config | Path to a custom JSON configuration file. Fails if the file does not exist. |
 | `--rules-dir D` | `rules.dir` setting | Directory containing additional `*.json` custom rule definitions. |
 | `--format text\|json` | `text` | Output format: human-readable terminal text or machine-parsable JSON. |
-| `--verbose` | off | Include full details (such as dismissed findings and internal token breakdowns) in JSON output. A finding the decision layer looked at carries a `decision` object: the `choice` and `probability` of the answer, `dismiss` with the summed probability of all dismissing answers, which is the number compared with `minProbability`, or `skipped` with the reason no request was made. |
+| `--verbose` | off | Include full details (such as dismissed findings and internal token breakdowns) in JSON output. A finding the decision layer looked at has a `decision` object with an `answers` list. An answer names the `question` and, for a question asked per place, the `place`. The answer then gives the `choice` and its `probability`, or `skipped` with the reason the question got no answer. |
 | `--fail-on LEVEL` | `block` | Set the minimum verdict severity that triggers an exit code of `1`. Choices: `block`, `incomplete`, `review`, `never`. |
 
 ---

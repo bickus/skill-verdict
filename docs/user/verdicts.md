@@ -56,6 +56,8 @@ Static text rules are fast and broad, but they don't understand context. For exa
 
 If model review is enabled (`layers.judge.enabled: true`), the scanner invokes an **AI Judge**. The Judge reads the complete file around the finding, reviews the evidence, and makes a contextual decision.
 
+The Judge reviews only findings of the discovery layer. A model raised those findings. A finding of a text rule or a reference rule gets the closed questions of the decision layer instead, see [Detection](detection.md#layer-6-decision). Without that layer it keeps its severity.
+
 ### Possible Judge Decisions:
 
 | Judge Decision | Scanner Action |

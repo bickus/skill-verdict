@@ -5,28 +5,17 @@ package decision
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"maps"
 	"slices"
-	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/pipeline"
-	"github.com/bickus/skill-verdict/pkg/internal/refcheck"
-	"github.com/bickus/skill-verdict/pkg/internal/textutil"
-	"github.com/bickus/skill-verdict/pkg/internal/trace"
 	"github.com/bickus/skill-verdict/pkg/llm/decisions"
 	"github.com/bickus/skill-verdict/pkg/rules"
 )
 
-const (
-	name       = "decision"
-	questionID = "trace"
-	confident  = 3
-	certain    = 4
-	certainty  = 0.95
-)
+const name = "decision"
 
 type Layer struct {
 	Client *decisions.Client
@@ -38,184 +27,126 @@ func (Layer) Name() string {
 	return name
 }
 
-type asked struct {
-	rule    string
-	subject *trace.Subject
-}
-
-type outcome struct {
-	pass        bool
-	confirmed   bool
-	choices     []string
-	probability float64
-	dismiss     float64
-	confirm     float64
-	skipped     string
-}
-
 type run struct {
-	layer  Layer
-	state  *pipeline.State
-	report pipeline.Report
-	done   map[asked]outcome
-	placed map[spotted]outcome
-	self   refcheck.SelfInstall
+	layer      Layer
+	state      *pipeline.State
+	report     pipeline.Report
+	err        error
+	ruleGroups map[string]*group
+	refGroups  map[string]*group
 }
 
 func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error) {
-	r := &run{layer: l, state: s, done: make(map[asked]outcome), placed: make(map[spotted]outcome), self: refcheck.NewSelfInstall(s.Skill.Folder())}
-	if err := r.findings(ctx); err != nil || l.Late {
-		return r.report, err
+	r := &run{layer: l, state: s, ruleGroups: make(map[string]*group), refGroups: make(map[string]*group)}
+	if !l.Late {
+		r.usages(ctx)
 	}
-	if err := r.usages(ctx); err != nil {
-		return r.report, err
-	}
-	return r.report, r.findings(ctx)
+	r.findings(ctx)
+	return r.report, r.err
 }
 
-func (r *run) findings(ctx context.Context) error {
+func (r *run) findings(ctx context.Context) {
 	s := r.state
 	for i := range s.Findings {
 		f := &s.Findings[i]
 		rule := s.Rules.ByID[f.Rule]
-		if f.Judgement != nil || f.Decision != nil || rule.Decision == nil || len(rule.Decision.Dismiss) == 0 {
+		if f.Judgement != nil || f.Decision != nil || rule.Decision == nil {
 			continue
 		}
-		total, err := r.answer(ctx, rule, *f)
-		if err != nil {
-			return err
-		}
-		f.Decision = &finding.Decision{Choice: strings.Join(total.choices, ", "), Probability: total.probability, Dismiss: total.dismiss, Skipped: total.skipped}
-		switch {
-		case total.pass:
-			f.Judgement = &finding.Judgement{State: finding.Dismissed, From: f.Severity, Confidence: level(total.dismiss), Reason: reason(rule.Decision.Subject, total)}
-		case total.confirmed && !r.selfLine(*f):
-			f.Judgement = &finding.Judgement{State: finding.Confirmed, From: f.Severity, Confidence: level(total.confirm), Reason: reason(rule.Decision.Subject, total)}
+		e := r.evidence(ctx, rule, *f)
+		f.Decision = e.record()
+		if v := judge(rule, *f, e, r.limits()); v != nil {
+			f.Judgement = &finding.Judgement{State: v.state, From: f.Severity, Confidence: v.confidence, Reason: v.reason}
+			f.Severity = v.severity
 		}
 	}
-	return nil
 }
 
-func (r *run) selfLine(f finding.Finding) bool {
-	return len(r.self.Spans(refcheck.Line(r.state.Skill, f.Location))) > 0
+func (r *run) limits() limits {
+	c := r.layer.Config
+	return limits{confirm: c.ConfirmProbability, dismiss: c.DismissProbability, guard: c.GuardProbability}
 }
 
-func (r *run) answer(ctx context.Context, rule rules.Rule, f finding.Finding) (outcome, error) {
-	switch rule.Decision.Subject {
-	case rules.Lines:
-		return r.lines(ctx, rule, f)
-	case rules.Places:
-		return r.places(ctx, rule, f)
-	case rules.EnvRead, rules.Request:
+func (r *run) evidence(ctx context.Context, rule rules.Rule, f finding.Finding) evidence {
+	e := evidence{instances: make(map[rules.Subject][]instance)}
+	for _, subject := range subjects(rule.Decision) {
+		questions := asked(rule.Decision, subject)
+		switch subject {
+		case rules.Places:
+			r.places(ctx, rule, f, questions, &e)
+		case rules.Trace:
+			r.traced(ctx, f, questions, &e)
+		case rules.Frame, rules.Entry, rules.Facts:
+			state, skipped := r.stateOf(subject, f)
+			r.single(ctx, subject, state, skipped, f.Evidence, questions, &e)
+		}
 	}
-	subjects := r.state.Linked(f)
-	if len(subjects) == 0 {
-		return r.lines(ctx, rule, f)
-	}
-	return r.all(ctx, rule, subjects)
+	return e
 }
 
-func (r *run) all(ctx context.Context, rule rules.Rule, subjects []*trace.Subject) (outcome, error) {
-	total := outcome{pass: true, probability: 1, dismiss: 1}
-	for _, sub := range subjects {
-		key := asked{rule.ID, sub}
-		o, seen := r.done[key]
-		if !seen {
-			var err error
-			if o, err = r.decide(ctx, rule.Decision, r.state.Code.Trace(sub)); err != nil {
-				return outcome{}, err
+func (r *run) single(ctx context.Context, subject rules.Subject, state, skipped, about string, questions []named, e *evidence) {
+	if skipped != "" {
+		e.add(subject, instance{replies: skip(questions, skipped)})
+		return
+	}
+	replies, guard := r.ask(ctx, state, queries(questions, about, ""))
+	e.add(subject, instance{replies: replies})
+	e.guards = append(e.guards, guard)
+}
+
+func (r *run) traced(ctx context.Context, f finding.Finding, questions []named, e *evidence) {
+	linked := r.state.Linked(f)
+	if len(linked) == 0 {
+		state, skipped := r.stateOf(rules.Frame, f)
+		r.single(ctx, rules.Trace, state, skipped, f.Evidence, questions, e)
+		return
+	}
+	for i, sub := range linked {
+		state, skipped := r.traceState(sub)
+		before := len(e.instances[rules.Trace])
+		r.single(ctx, rules.Trace, state, skipped, sub.Match, questions, e)
+		if len(linked) > 1 {
+			e.instances[rules.Trace][before].label = traceLabel(i)
+		}
+	}
+}
+
+func subjects(d *rules.Decision) []rules.Subject {
+	var out []rules.Subject
+	for _, q := range d.Questions {
+		if !slices.Contains(out, q.Subject) {
+			out = append(out, q.Subject)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+func asked(d *rules.Decision, subject rules.Subject) []named {
+	var out []named
+	for _, n := range slices.Sorted(maps.Keys(d.Questions)) {
+		if q := d.Questions[n]; q.Subject == subject {
+			out = append(out, named{name: n, question: q})
+		}
+	}
+	return out
+}
+
+func (e *evidence) add(subject rules.Subject, in instance) {
+	e.instances[subject] = append(e.instances[subject], in)
+}
+
+func (e evidence) record() *finding.Decision {
+	d := &finding.Decision{}
+	for _, subject := range slices.Sorted(maps.Keys(e.instances)) {
+		for _, in := range e.instances[subject] {
+			for _, q := range slices.Sorted(maps.Keys(in.replies)) {
+				d.Answers = append(d.Answers, in.replies[q].answer(q, in.label))
 			}
-			r.done[key] = o
-		}
-		if !o.pass {
-			return o, nil
-		}
-		total = merge(total, o)
-	}
-	return total, nil
-}
-
-func merge(a, b outcome) outcome {
-	a.probability = min(a.probability, b.probability)
-	a.dismiss = min(a.dismiss, b.dismiss)
-	for _, c := range b.choices {
-		if !slices.Contains(a.choices, c) {
-			a.choices = append(a.choices, c)
 		}
 	}
-	return a
-}
-
-func (r *run) decide(ctx context.Context, d *rules.DecisionPolicy, t *trace.Trace) (outcome, error) {
-	state, err := t.State(r.where(t.Subject))
-	if err != nil {
-		return outcome{}, err
+	for _, g := range e.guards {
+		d.Answers = append(d.Answers, g.answer(rules.Guard, ""))
 	}
-	if len(t.Calls) == 0 {
-		return outcome{skipped: "the trace has no call that takes the value"}, nil
-	}
-	return r.send(ctx, d, questionID, state, question(d, t.Subject.Match))
-}
-
-func (r *run) send(ctx context.Context, d *rules.DecisionPolicy, id string, state json.RawMessage, asked decisions.Question) (outcome, error) {
-	cfg := r.layer.Config
-	if len(state) > cfg.MaxStateChars || len(state)+chars(asked) > cfg.MaxRequestChars {
-		return outcome{skipped: oversized}, nil
-	}
-	answers, usage, err := r.layer.Client.Decide(ctx, state, map[string]decisions.Question{id: asked})
-	r.report.Requests++
-	r.report.Usage = r.report.Usage.Add(usage)
-	if err != nil {
-		return outcome{}, err
-	}
-	return r.judge(d, answers[id]), nil
-}
-
-func (r *run) judge(d *rules.DecisionPolicy, a decisions.Answer) outcome {
-	bar := max(d.MinProbability, r.layer.Config.MinProbability)
-	dismiss, confirm := sum(a, d.Dismiss), sum(a, d.Confirm)
-	return outcome{
-		pass:        slices.Contains(d.Dismiss, a.Choice) && dismiss >= bar,
-		confirmed:   slices.Contains(d.Confirm, a.Choice) && confirm >= bar,
-		choices:     []string{a.Choice},
-		probability: a.Probabilities[a.Choice],
-		dismiss:     dismiss,
-		confirm:     confirm,
-	}
-}
-
-func sum(a decisions.Answer, options []string) float64 {
-	total := 0.0
-	for _, option := range options {
-		total += a.Probabilities[option]
-	}
-	return total
-}
-
-func (r *run) where(s *trace.Subject) string {
-	a := r.state.Skill.Artifact(s.Unit.Path)
-	if a == nil {
-		return ""
-	}
-	line := textutil.LineAt(textutil.LineStarts(a.Content), s.Span.Start)
-	return spot(r.state, a, textutil.Lines(a.Content), line)
-}
-
-func level(probability float64) int {
-	if probability >= certainty {
-		return certain
-	}
-	return confident
-}
-
-func reason(subject rules.Subject, o outcome) string {
-	slices.Sort(o.choices)
-	read := "the trace of the code"
-	if subject == rules.Lines || subject == rules.Places {
-		read = "the lines around the finding"
-	}
-	if o.confirmed {
-		return fmt.Sprintf("The decision model read %s and answered %s, probability of a confirming answer %.2f.", read, strings.Join(o.choices, ", "), o.confirm)
-	}
-	return fmt.Sprintf("The decision model read %s and answered %s, lowest probability of a dismissing answer %.2f.", read, strings.Join(o.choices, ", "), o.dismiss)
+	return d
 }

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/llmcall"
@@ -35,7 +36,7 @@ func (Layer) Name() string {
 }
 
 func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error) {
-	down, fixed := label(s, order(s.Findings))
+	down, fixed := label(s, order(s))
 	if len(down)+len(fixed) == 0 {
 		return pipeline.Report{}, nil
 	}
@@ -61,11 +62,12 @@ func apply(s *pipeline.State, results []outcome) {
 	}
 }
 
-func order(findings []finding.Finding) []int {
+func order(s *pipeline.State) []int {
+	findings := s.Findings
 	best := make(map[string]int)
 	var pending []int
 	for i, f := range findings {
-		if f.Judgement != nil {
+		if f.Judgement != nil || s.Rules.ByID[f.Rule].Layer != config.DiscoveryLayer {
 			continue
 		}
 		pending = append(pending, i)

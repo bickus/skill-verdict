@@ -86,6 +86,10 @@ func TestValidateRejects(t *testing.T) {
 		{"zero compaction threshold", func(c *config.Config) { c.LLM.CompactionAt = 0 }},
 		{"compaction above the context size", func(c *config.Config) { c.LLM.CompactionAt = c.LLM.InputTokens + 1 }},
 		{"negative price", func(c *config.Config) { c.LLM.Price.Output = -1 }},
+		{"confirm probability of zero", func(c *config.Config) { c.Layers.Decision.ConfirmProbability = 0 }},
+		{"dismiss probability above one", func(c *config.Config) { c.Layers.Decision.DismissProbability = 1.1 }},
+		{"guard probability of zero", func(c *config.Config) { c.Layers.Decision.GuardProbability = 0 }},
+		{"confirm probability above the dismiss probability", func(c *config.Config) { c.Layers.Decision.ConfirmProbability = 0.9 }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -121,6 +125,11 @@ func TestValidateAccepts(t *testing.T) {
 		{"responses provider", func(c *config.Config) { c.LLM.Provider = config.OpenAIResponses }},
 		{"compaction at the context size", func(c *config.Config) { c.LLM.CompactionAt = c.LLM.InputTokens }},
 		{"prices set", func(c *config.Config) { c.LLM.Price = config.PriceConfig{Input: 3, CacheRead: 0.3, Output: 15} }},
+		{"decision probabilities at one", func(c *config.Config) {
+			c.Layers.Decision.ConfirmProbability = 1
+			c.Layers.Decision.DismissProbability = 1
+			c.Layers.Decision.GuardProbability = 1
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

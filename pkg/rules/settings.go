@@ -24,13 +24,6 @@ func Settings(s *Set) map[string]map[string]config.RuleSetting {
 			Judge:       &config.JudgeSetting{Downgrade: &downgrade, DowngradeFloor: &floor, Instructions: &instructions},
 			Attribution: r.Attribution,
 		}
-		if d := r.Decision; d != nil {
-			subject, question := string(d.Subject), d.Question
-			setting.Decision = &config.DecisionSetting{Subject: &subject, Question: &question, Options: d.Options, Dismiss: d.Dismiss, Confirm: d.Confirm}
-			if bar := d.MinProbability; bar > 0 {
-				setting.Decision.MinProbability = &bar
-			}
-		}
 		out[r.Layer][id] = setting
 	}
 	return out

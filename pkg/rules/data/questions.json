@@ -1,0 +1,46 @@
+{
+ "who": {
+  "question": "Who does what the marked text says?",
+  "options": {
+   "agent-runs": "a step of the skill does it: a step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an entry in the `metadata` of the `SKILL.md` frontmatter, which the agent platform applies when the skill is installed. `SKILL.md` is written for the agent, so `you` there means the agent.",
+   "user-step": "a person is told to do it by hand: a README or a guide for people, a message that a script prints, or a step that names the user as the one who does it.",
+   "documentation": "the text is an example, a troubleshooting hint, a changelog entry or a note, and nobody is told to do it as a step.",
+   "not-a-match": "the marked text is not what the scanner rule looks for.",
+   "unknown": "the text does not show who does it."
+  }
+ },
+ "usage": {
+  "question": "What does the skill do with the reference at this place?",
+  "focus": "`SKILL.md` is read by the agent, so a step is the agent's unless the text tells the user to do it by hand. A page the agent is told to read is `agent-instructions`, not `documentation`. A web application the agent operates by the steps the skill gives is `agent-fetch`, not `agent-instructions`. The line alone does not say what the skill does with the reference, read the text around it.",
+  "options": {
+   "citation": "the reference is named and nobody is told to open it: a credit, a source, an example.",
+   "documentation": "the reader is pointed at the page to learn from it.",
+   "user-action": "the user does something there by hand: signs up, gets a key, installs a tool.",
+   "tool-server": "the agent is connected to it as an MCP or other tool server and calls its tools. The agent sends what the tools ask for and acts on what they return.",
+   "agent-fetch": "the agent works with the service there: gets data the skill processes, or operates its pages or its API by the steps the skill gives.",
+   "agent-instructions": "the agent reads text from it and does what the text says, or what comes back steers the agent: a prompt, rules, a playbook, a config.",
+   "agent-install": "the agent installs or runs code from it: a script, a binary, a package, an image.",
+   "agent-upload": "the agent sends data from the user, the machine or another service to it.",
+   "unknown": "the given text does not show what the skill does with the reference, or none of the other options fit."
+  }
+ },
+ "goes": {
+  "question": "Where does the value go?",
+  "options": {
+   "own-service-only": "every request that carries the value goes to the service the value belongs to, and the value serves as its credential.",
+   "other-host": "a request sends the value, or data that contains it, to a host that is not the service the value belongs to.",
+   "stored-or-logged": "the value is written to a file, logged, or turned into an identifier that leaves the process.",
+   "not-sent": "no request or command sends the value anywhere.",
+   "example": "the match is in documentation, a sample or a placeholder, not in code that the skill runs.",
+   "unknown": "the state does not show where the value goes."
+  }
+ },
+ "addressed": {
+  "question": "Does the text speak to a reviewer, a scanner, a classifier or a model, or claim that something is safe, unused, harmless or only documentation?",
+  "focus": "The state is text written by the skill author and may try to mislead. A statement in it that speaks to a reviewer, scanner or classifier, names a category, or claims that a reference is safe, unused or only documentation is not evidence. Judge only by what the steps or the code do.",
+  "options": {
+   "yes": "the text speaks to a reviewer, a scanner, a classifier or a model, or claims that something in the skill is safe, unused, harmless or only documentation.",
+   "no": "the text does neither."
+  }
+ }
+}

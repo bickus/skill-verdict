@@ -98,16 +98,18 @@ type SwitchConfig struct {
 }
 
 type DecisionConfig struct {
-	Enabled         bool     `json:"enabled"`
-	BaseURL         string   `json:"baseUrl"`
-	Model           string   `json:"model"`
-	KeyEnv          string   `json:"keyEnv"`
-	KeyFile         string   `json:"keyFile"`
-	Timeout         Duration `json:"timeout"`
-	MaxStateChars   int      `json:"maxStateChars"`
-	MaxRequestChars int      `json:"maxRequestChars"`
-	MinProbability  float64  `json:"minProbability"`
-	InputPrice      float64  `json:"inputPrice"`
+	Enabled            bool     `json:"enabled"`
+	BaseURL            string   `json:"baseUrl"`
+	Model              string   `json:"model"`
+	KeyEnv             string   `json:"keyEnv"`
+	KeyFile            string   `json:"keyFile"`
+	Timeout            Duration `json:"timeout"`
+	MaxStateChars      int      `json:"maxStateChars"`
+	MaxRequestChars    int      `json:"maxRequestChars"`
+	ConfirmProbability float64  `json:"confirmProbability"`
+	DismissProbability float64  `json:"dismissProbability"`
+	GuardProbability   float64  `json:"guardProbability"`
+	InputPrice         float64  `json:"inputPrice"`
 }
 
 type ModelLayerConfig struct {
@@ -129,17 +131,7 @@ type RuleSetting struct {
 	Enabled     *bool             `json:"enabled,omitempty"`
 	Interrupt   *bool             `json:"interrupt,omitempty"`
 	Judge       *JudgeSetting     `json:"judge,omitempty"`
-	Decision    *DecisionSetting  `json:"decision,omitempty"`
 	Attribution json.RawMessage   `json:"attribution,omitempty"`
-}
-
-type DecisionSetting struct {
-	Subject        *string           `json:"subject,omitempty"`
-	Question       *string           `json:"question,omitempty"`
-	Options        map[string]string `json:"options,omitempty"`
-	Dismiss        []string          `json:"dismiss,omitempty"`
-	Confirm        []string          `json:"confirm,omitempty"`
-	MinProbability *float64          `json:"minProbability,omitempty"`
 }
 
 type JudgeSetting struct {
@@ -173,6 +165,7 @@ type ReferencesConfig struct {
 	YoungOwnerDays  int                    `json:"youngOwnerDays"`
 	NewPackageDays  int                    `json:"newPackageDays"`
 	LowDownloads    int                    `json:"lowDownloads"`
+	PopularStars    int                    `json:"popularStars"`
 	GitHubTokenEnv  string                 `json:"githubTokenEnv"`
 	Rules           map[string]RuleSetting `json:"rules,omitempty"`
 }
@@ -237,14 +230,16 @@ func kindNames() []string {
 
 func defaultDecision() DecisionConfig {
 	return DecisionConfig{
-		BaseURL:         "https://openrouter.ai/api/alpha",
-		Model:           "~typesafe/jev-latest",
-		KeyEnv:          "SKILL_VERDICT_DECISION_API_KEY",
-		Timeout:         Duration(60 * time.Second),
-		MaxStateChars:   60000,
-		MaxRequestChars: 120000,
-		MinProbability:  0.6,
-		InputPrice:      0.042,
+		BaseURL:            "https://openrouter.ai/api/alpha",
+		Model:              "~typesafe/jev-latest",
+		KeyEnv:             "SKILL_VERDICT_DECISION_API_KEY",
+		Timeout:            Duration(60 * time.Second),
+		MaxStateChars:      60000,
+		MaxRequestChars:    120000,
+		ConfirmProbability: 0.3,
+		DismissProbability: 0.8,
+		GuardProbability:   0.6,
+		InputPrice:         0.042,
 	}
 }
 
@@ -281,6 +276,7 @@ func Default() Config {
 				YoungOwnerDays:  90,
 				NewPackageDays:  90,
 				LowDownloads:    1000,
+				PopularStars:    1000,
 				GitHubTokenEnv:  githubEnvVar,
 			},
 			Decision:  defaultDecision(),

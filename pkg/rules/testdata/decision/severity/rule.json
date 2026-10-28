@@ -1,0 +1,42 @@
+{
+ "rules": [
+  {
+   "id": "X13",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Severity row at the rule severity",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x13"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "severity": {
+      "high": [
+       {
+        "kind": "fine"
+       }
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

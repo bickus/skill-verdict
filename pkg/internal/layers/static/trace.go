@@ -19,11 +19,12 @@ var traced = inventory.RegisterOrigin("trace", "Paths of the values findings poi
 
 func (src *source) link(r rules.Compiled, match code.Span, line int) {
 	s := src.state
-	if s.Code == nil || r.Decision == nil || (r.Decision.Subject != rules.EnvRead && r.Decision.Subject != rules.Request) {
+	from, ok := r.Decision.TraceFrom()
+	if s.Code == nil || !ok {
 		return
 	}
 	var subjects []*trace.Subject
-	if sub := s.Code.At(src.artifact.Path, match, r.Decision.Subject == rules.Request); sub != nil {
+	if sub := s.Code.At(src.artifact.Path, match, from == rules.FromCall); sub != nil {
 		subjects = append(subjects, sub)
 	}
 	s.Link(r.ID, src.artifact.Path, line, subjects)

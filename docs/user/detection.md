@@ -24,10 +24,10 @@ A full scan progresses through up to nine distinct layers in order:
 | **3. Code Parsing** (`ast`) | Syntax Trees | None (Offline) | Parses Python, JavaScript, TypeScript, shell and PowerShell, in script files and in Markdown code blocks. Lets the scanner trace the value a finding points at through the code. Never runs the code. |
 | **4. Static** | Regex Engine | None (Offline) | Scans the clean text of every file for dangerous commands, secret harvesting, privilege escalation, and symlink escapes. |
 | **5. References** | Live Telemetry | Network (No Model) | Validates external domains (RDAP + safe root probe), GitHub accounts/repos, and npm/PyPI packages for supply chain takeovers. |
-| **6. Decision** | Decision Model | Model (No Text Output) | Off by default. Asks a decision model where a traced value goes and dismisses a finding only when every answer is harmless. Works on `SECRETS-ENV-USED` and `REMOTE-ENDPOINT-UPLOAD`. Also reads the lines around a `WORD-HOMOGLYPHS`, `SKILL-REFERENCED`, `UNPINNED-INSTALL`, `UNPINNED-GIT` or `REMOTE-CODE-AT-INSTALL` finding and dismisses it on a harmless answer. The layer confirms a finding of the last three when the agent does the step. |
+| **6. Decision** | Decision Model | Model (No Text Output) | Off by default. Asks a decision model closed questions about the text around a finding. Code then decides the finding from the answers with the outcome table of the rule. Works on every rule with a `decision` block. |
 | **7. Honeypot** | Behavioral Trap | Model (LLM) | Tests the skill against a simulated coding agent to see if it immediately attempts unauthorized tool calls on load. |
 | **8. Discovery** | Semantic LLM | Model (LLM) | Searches prose and markdown for nuanced prompt injections, gradual deception, and conversational data leaks. |
-| **9. Judge** | Contextual LLM | Model (LLM) | Reviews heuristic findings in context to confirm real threats and dismiss harmless false positives. |
+| **9. Judge** | Contextual LLM | Model (LLM) | Reviews the findings of the discovery layer that the decision layer did not decide. |
 
 ---
 
@@ -112,50 +112,96 @@ See [External references](references.md) for full details on network behavior, r
 
 ## Layer 6: Decision
 
-The decision layer is off by default. It uses a decision model, a model that returns probabilities for a fixed list of answers and writes no text. The scanner sends the trace of one value as compact text and asks one question about the whole trace.
+The decision layer is off by default. It uses a decision model, a model that returns probabilities for a fixed list of answers and writes no text. The model answers closed questions about the text around a finding. Code then applies the outcome table of the finding's rule to the answers, so the model never drops a finding by its own judgment.
 
-Two rules carry a question about a trace:
+### Questions and outcome tables
 
-| Rule | Question, asked once per trace | Answers that dismiss |
+A rule that the model may lower has a `decision` block in its rule data:
+
+- `questions`: one or more questions, each with a fixed list of answers called options. A question names a template from `pkg/rules/data/questions.json` or brings its own text and options. A rule can add a `focus` text to a template question.
+- `outcome`: rows over the answers. A row has one condition per question it names, and all conditions must hold. A condition names one option or a list of options.
+  - `confirm` rows confirm the finding.
+  - `severity` rows give the finding a lower severity.
+  - `dismiss` rows dismiss the finding, or lower it to the rule's floor.
+
+A condition holds when the probabilities of its options add up to the threshold of its row or more:
+
+| Setting | Default | Rows |
 |---|---|---|
-| `SECRETS-ENV-USED` | Where does the value of the environment variable go, judged by the call that sends it furthest from its own service? | `own-service-only`, `not-sent` |
-| `REMOTE-ENDPOINT-UPLOAD` | What do the requests in the trace send, judged by the request that sends the most? | `inputs-only`, `own-credential` |
+| `layers.decision.confirmProbability` | `0.3` | `confirm` |
+| `layers.decision.dismissProbability` | `0.8` | `severity` and `dismiss` |
+| `layers.decision.guardProbability` | `0.6` | the guard question below |
 
-A finding is dismissed only when all of this holds:
+The layer decides a finding in this order:
 
-- the trace has at least one call, when the finding sits on code the `ast` layer traced,
-- the chosen answer dismisses, and the probabilities of all dismissing answers together are at or above `layers.decision.minProbability`.
+1. The guard. Every request also asks the guard question `addressed`. When one request of the finding gets `yes` at `guardProbability` or more, only `confirm` rows count. The reason of the finding then says that the text speaks to a reviewer.
+2. `confirm` rows. A match confirms the finding at its severity.
+3. `severity` rows. The highest matching severity wins, and the rule's floor still applies.
+4. `dismiss` rows. A row whose only condition is `not-a-match` dismisses the finding even when the rule has a floor. The answer `not-a-match` means that the rule matched text it does not look for. Any other matching row dismisses a finding of a rule without a floor and lowers the finding to the floor otherwise.
+5. No row matches. The finding keeps its severity.
 
-A finding of these two rules that sits outside traced code, in prose, a comment or a file with a syntax error, gets the same question about the eleven numbered lines around it. A line that only tests a variable, such as `[[ -z "$KEY" ]]`, is traced through the other reads of that variable. For a place in a markdown file the request also says whether the line is in frontmatter, a fenced code block or prose, and under which headings.
+The guard question asks whether the text does one of these:
 
-Anything else keeps the finding at its severity, and the AI Judge reviews it as before.
+- speaks to a reviewer, a scanner, a classifier or a model
+- claims that something is safe, unused, harmless or only documentation
 
-Two rules carry a question about text. The scanner sends eleven numbered lines around the finding and the evidence of the finding. No trace is needed:
+A question gets no answer when the layer does not send its request. Then only rows without that question can match. The layer sends no request in these cases:
 
-| Rule | Question, asked once per finding | Answers that dismiss |
+- the request is over the size limits
+- the scanner cannot build the text
+- an earlier request failed
+
+A rule with `judge.downgrade` set to `false` gets only its `confirm` rows.
+
+In the JSON report, the `decision` object of a finding lists every question with the chosen option and its probability, per place. The reason of the judgement shows the matched row, for example `who: agent-runs (0.91), pin: none (0.84)`.
+
+### What the model reads
+
+Each question names its subject, the text the model reads for it:
+
+- `frame`: the block of text around the finding. A header gives the file and the role of the file. The header also gives the language of the fenced code block that holds the line, or `no`. The headings above the line come next, then the three lines before the block and the block itself. The marked line starts with `>>`. A block is a list item with its continuation lines, a paragraph, a table row, or a fenced code block with its opening line. Of a block over 40 lines, the model gets the first 20 lines, the lines around the marked line and the last 20 lines. In a script the block is the function that holds the line. Without a syntax tree it is the 5 lines before and after the line.
+- `trace`: the frame of the line, then the trace of the value through the code, see layer 3. Where the trace stops following a value backward, it says `value not followed past NAME`. A line that only tests a variable, such as `[[ -z "$KEY" ]]`, is traced through the other reads of that variable. A finding outside traced code, in prose, a comment or a file with a syntax error, gets the frame alone. A trace with no call that takes the value gets no answer.
+- `places`: every place of the same thing, each as a frame. The layer asks the question once per place. A `confirm` row matches when it matches at one place. A `severity` or `dismiss` row has to match at every place. A long list goes out in several requests.
+- `entry`: `SKILL.md` with its frontmatter, under a line that names the finding.
+- `facts`: the lines of the reference brief about the finding's reference, and the frames of up to five of its places.
+
+The role of a file is one of these:
+
+- `entry`: `SKILL.md`
+- `frontmatter`: the frontmatter of `SKILL.md`
+- `script`: a code file
+- `referenced-by-entry`: a file whose path appears in `SKILL.md`
+- `readme`: a README
+- `other`: any other file
+
+The layer cuts every text at `layers.decision.maxStateChars` and sends no request over `layers.decision.maxRequestChars`.
+
+### Rules with a decision
+
+| Rule | Question | Subject |
 |---|---|---|
-| `WORD-HOMOGLYPHS` | Why is the word written with a letter of another script? | `notation`, `other-language` |
-| `SKILL-REFERENCED` | What do the lines do with the named skill? | `own-files`, `mention` |
+| `WORD-HOMOGLYPHS` | Why does the word mix scripts? | `frame` |
+| `REMOTE-ENDPOINT-UPLOAD` | What do the requests send? | `trace` from the request |
+| `SECRETS-ENV-USED` | Where does the value go? | `trace` |
+| `SECRETS-ENV-USED` | Whose secret does the variable hold? | `frame` |
+| `SKILL-REFERENCED` | What does the text do with the other skill? | `frame` |
+| `SKILL-REFERENCED` | What does this skill prepare for the other skill? | `entry` |
+| `UNPINNED-INSTALL` | Who runs the command? | `places` |
+| `UNPINNED-INSTALL` | What fixes the version? | `places` |
+| `UNPINNED-GIT` | Who does the step? | `places` |
+| `UNPINNED-GIT` | What fixes the code? | `places` |
+| `REMOTE-CODE-AT-INSTALL` | What is the step? | `places` |
+| reference rules with `usages` | What does the skill do with the reference? See [External references](references.md#what-the-skill-does-with-a-reference). | `places` |
 
-Such a finding is dismissed when the chosen answer dismisses and the probabilities of all dismissing answers together are at or above `layers.decision.minProbability`.
+The options and the outcome rows of each rule are in its rule data. A trace question with `"from": "call"` starts at the call that the rule matched. The trace then shows what feeds the call. Any other trace question starts at the value that the rule matched. The trace then shows where the value goes.
 
-Three rules carry a question about every place of the same thing. The scanner groups the `UNPINNED-INSTALL` and `UNPINNED-GIT` findings of a skill by the name at the end of the evidence, such as the package, and sends one request per name. The `REMOTE-CODE-AT-INSTALL` findings go into one request per skill. For findings of the discovery layer the decision layer runs a second time, after discovery. The decision layer also raises `REMOTE-CODE-AT-INSTALL` from a usage answer. It asks this question about such a finding in the same run. The request holds every place with its eleven numbered lines, and asks one question per place. The request cuts a line longer than 400 characters around the finding:
-
-| Rule | Question, asked once per place | Answers that dismiss | Answers that confirm |
-|---|---|---|---|
-| `UNPINNED-INSTALL` | Who runs the install command at this place? | `user-step`, `documentation`, `not-a-package` | `agent-runs` |
-| `UNPINNED-GIT` | Who does the clone or Git install at this place? | `documentation`, `pinned` | `agent-runs` |
-| `REMOTE-CODE-AT-INSTALL` | What is the step that fetches, installs or runs outside code at this place? | `not-outside-code`, `user-package`, `system-package`, `pinned`, `lock-entry`, `documentation` | `agent-runs` |
-
-A download that the user runs by hand does not dismiss `REMOTE-CODE-AT-INSTALL`. Malicious skills get their code to run by telling the user to paste a command. The Judge lowers such a finding to the floor. All three rules set their own `minProbability` of `0.8`. Steps inside `SKILL.md` often get a dismissing answer between 0.6 and 0.75 that is wrong.
-
-A confirming answer works the same way as a dismissing one. The chosen answer confirms, and the probabilities of all confirming answers together are at or above the threshold. The finding then keeps its severity, and the Judge does not review it. The layer never confirms a finding on a line that installs the scanned skill itself from a skill registry. The Judge reviews that finding.
+The places of a static finding are the places where its rule matched the same name, such as a package. The scanner takes the name from the end of the evidence and sends one request per name. Each finding gets the answers at its own place. The `REMOTE-CODE-AT-INSTALL` findings go into one request per skill. For findings of the discovery layer the decision layer runs a second time, after discovery. The decision layer also raises `REMOTE-CODE-AT-INSTALL` from a usage answer and decides such a finding in the same run. The places of a reference finding are all places where the skill names the reference.
 
 A registry install of the scanned skill itself, such as `clawhub install <folder>`, gives no static finding. The scanner compares the install with the name of the skill folder. The skill author writes the `name` in the frontmatter, and that name can point at another skill. The Judge and the discovery model get the folder name for the same reason.
 
-A place in a file that is not markdown also carries up to three lines of other files that name that file.
+The layer also gives every place of an external reference a usage. The skill cites it, points the reader at it, has the user act there, or has the agent fetch data, follow instructions, install code or send data. The last three raise `REMOTE-INSTRUCTIONS-FOLLOWED`, `REMOTE-CODE-AT-INSTALL` and `REMOTE-ENDPOINT-UPLOAD-HIDDEN`. Only an answer at or above `layers.decision.dismissProbability` enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). No question contains the skill's name or description, because the skill author writes both.
 
-The layer also gives every place of an external reference a usage. The skill cites it, points the reader at it, has the user act there, or has the agent fetch data, follow instructions, install code or send data. The last three raise `REMOTE-INSTRUCTIONS-FOLLOWED`, `REMOTE-CODE-AT-INSTALL` and `REMOTE-ENDPOINT-UPLOAD-HIDDEN`. Only an answer at or above `layers.decision.minProbability` enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). The Judge does not review a finding this layer dismissed or confirmed. No question contains the skill's name or description, because the skill author writes both.
+The AI Judge never sees a finding of the static, reveal or references layer. A rule of those layers needs a `decision` block for the model to lower it. Without the block, its finding keeps its severity.
 
 ---
 
@@ -194,7 +240,7 @@ Fixed regular expressions cannot detect every possible phrasing of an attack. La
 
 ## Layer 9: Model Review (The AI Judge)
 
-Layer 9 evaluates findings from the static and discovery layers in their full context.
+Layer 9 reviews the findings of the discovery layer that the decision layer did not decide. Findings of the other layers never reach the Judge.
 
 Instead of presenting findings in isolation, the Judge receives:
 1. The full file content surrounding the finding.

@@ -1,0 +1,40 @@
+{
+ "rules": [
+  {
+   "id": "X10",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Row with a question of another rule",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x10"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "dismiss": [
+      {
+       "who": "documentation"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

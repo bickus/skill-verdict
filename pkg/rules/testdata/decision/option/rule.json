@@ -1,0 +1,35 @@
+{
+ "rules": [
+  {
+   "id": "X9",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Row with an unknown option",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x9"
+   ],
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who"
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "who": "robot"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

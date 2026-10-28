@@ -69,9 +69,11 @@ func verdict(id, value string, confidence int) string {
 
 func testRules() *rules.Set {
 	return &rules.Set{ByID: map[string]rules.Rule{
-		"KEEP":  {ID: "KEEP", Category: "exfiltration", Severity: finding.High, Kind: finding.KindHeuristic},
-		"DROP":  {ID: "DROP", Category: "exfiltration", Severity: finding.High, Kind: finding.KindHeuristic, Judge: rules.JudgePolicy{Downgrade: true}},
-		"FLOOR": {ID: "FLOOR", Category: "exfiltration", Severity: finding.High, Kind: finding.KindHeuristic, Judge: rules.JudgePolicy{Downgrade: true, DowngradeFloor: finding.Medium}},
+		"KEEP":  {ID: "KEEP", Category: "exfiltration", Severity: finding.High, Kind: finding.KindLLM, Layer: config.DiscoveryLayer},
+		"DROP":  {ID: "DROP", Category: "exfiltration", Severity: finding.High, Kind: finding.KindLLM, Layer: config.DiscoveryLayer, Judge: rules.JudgePolicy{Downgrade: true}},
+		"FLOOR": {ID: "FLOOR", Category: "exfiltration", Severity: finding.High, Kind: finding.KindLLM, Layer: config.DiscoveryLayer, Judge: rules.JudgePolicy{Downgrade: true, DowngradeFloor: finding.Medium}},
+		"TEXT":  {ID: "TEXT", Category: "exfiltration", Severity: finding.High, Kind: finding.KindHeuristic, Layer: config.StaticLayer, Judge: rules.JudgePolicy{Downgrade: true}},
+		"FACT":  {ID: "FACT", Category: "reference", Severity: finding.High, Kind: finding.KindFact, Layer: config.ReferencesLayer, Judge: rules.JudgePolicy{Downgrade: true}},
 	}}
 }
 
@@ -190,6 +192,32 @@ func TestRunSkipsTheModelWithoutFindings(t *testing.T) {
 	}
 	if !reflect.DeepEqual(s.Layers, []pipeline.LayerStatus{{Layer: "walk", Status: "done"}, {Layer: "judge", Status: "done"}}) {
 		t.Errorf("layers %+v; want a done layer", s.Layers)
+	}
+}
+
+func TestRunJudgesOnlyFindingsOfDiscoveryRules(t *testing.T) {
+	text, fact := found("TEXT", "SKILL.md", 3, finding.High), found("FACT", "SKILL.md", 4, finding.High)
+	cases := []struct {
+		name     string
+		findings []finding.Finding
+		calls    int
+		want     []finding.Finding
+	}{
+		{"static and reference findings alone reach no model", []finding.Finding{text, fact}, 0, []finding.Finding{text, fact}},
+		{"the discovery finding is D1 and the others stay untouched", []finding.Finding{text, fact, found("DROP", "SKILL.md", 5, finding.High)}, 1, []finding.Finding{text, fact, {
+			Rule: "DROP", Severity: finding.High, Location: finding.Location{File: "SKILL.md", Line: 5}, Evidence: "evidence",
+			Judgement: &finding.Judgement{State: finding.Dismissed, From: finding.High, Confidence: 4, Reason: "because"},
+		}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newState(t, tc.findings...)
+			provider := &fake{replies: []llm.Message{submit(verdict("D1", "dismiss", 4))}}
+			run(s, provider, 10)
+			if provider.calls != tc.calls || !reflect.DeepEqual(s.Findings, tc.want) {
+				t.Errorf("model requests %d, findings %+v; want %d, %+v", provider.calls, s.Findings, tc.calls, tc.want)
+			}
+		})
 	}
 }
 

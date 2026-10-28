@@ -1,0 +1,45 @@
+{
+ "rules": [
+  {
+   "id": "X12",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Not-a-match row with a second question",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x12"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     },
+     "who": {
+      "subject": "frame",
+      "template": "who"
+     }
+    },
+    "outcome": {
+     "dismiss": [
+      {
+       "kind": "not-a-match",
+       "who": "documentation"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

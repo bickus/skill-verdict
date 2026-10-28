@@ -1,0 +1,48 @@
+{
+ "rules": [
+  {
+   "id": "X11",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Confirm and dismiss rows that share an answer",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x11"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "kind": [
+        "bad",
+        "fine"
+       ]
+      }
+     ],
+     "dismiss": [
+      {
+       "kind": "fine"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

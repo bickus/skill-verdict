@@ -42,6 +42,12 @@ func Categorized(rep refs.Report) bool {
 	return !rep.Ref.Derived && rep.Ref.Kind != refs.Package
 }
 
+func Section(skill *inventory.Skill, rep refs.Report) string {
+	var b strings.Builder
+	describe(&b, skill, rep)
+	return strings.TrimSpace(b.String())
+}
+
 func describe(b *strings.Builder, skill *inventory.Skill, rep refs.Report) {
 	fmt.Fprintf(b, "\n### %s %s\n", rep.ID, rep.Ref.Value)
 	fmt.Fprintf(b, "- status: %s\n", rep.Status)

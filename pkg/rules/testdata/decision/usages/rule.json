@@ -1,0 +1,40 @@
+{
+ "rules": [
+  {
+   "id": "X14",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "fact",
+   "layer": "references",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Usages next to a decision",
+   "description": "A rule carries usages or a decision.",
+   "usages": [
+    "agent-install"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "kind": "bad"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

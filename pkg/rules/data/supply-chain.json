@@ -62,20 +62,29 @@
     "(?i)\\b(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?)|gem|cargo)\\s+(?:install|binstall)\\b.*\\s(?:-v|--version)(?:[\\s=]|$)",
     "(?i)\\bbrew\\s+(?:tap|install)\\s+(?:--?[\\w-]+\\s+)*homebrew/"
    ],
-   "judge": {"downgrade": true, "instructions": "Judge only whether the passage does what the description says: a command the agent runs, or an install entry in the frontmatter metadata, naming a package without a version. A command written for a person to run by hand, words after the command that are not a package, and a registry install of the skill's own folder name are false positives. The `name` in the frontmatter does not count as the skill's own. Do not weigh how likely or how bad a supply chain attack is."},
+   "judge": {"downgrade": true},
    "decision": {
-    "subject": "places",
-    "question": "The state lists every place where the skill names one package in an install or run command, or in an install entry of its metadata. The package is shown as the subject. Who does the text at this place expect to run the command?",
-    "options": {
-     "agent-runs": "the command installs or runs the package shown as the subject, and it is part of the skill's instructions: a setup, install or usage step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an install entry in the `metadata` of the `SKILL.md` frontmatter, which the agent platform runs when the skill is installed. `SKILL.md` is written for the agent, so `you` there means the agent.",
-     "user-step": "the place is written for a person and not for the agent: a README or a guide for people who install the skill, a message that a script prints to tell the user what to install, or a step that names the user as the one who does it.",
-     "documentation": "the command is shown as an example, a troubleshooting hint, a changelog entry or a note, and no one is told to run it as a step.",
-     "not-a-package": "the words after the command are not a package the command installs: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name.",
-     "unknown": "the lines do not show who runs the command."
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one package named in an install or run command, or in an install entry of the skill's metadata. The package is shown as the subject. Words after the command that are not a package the command installs are `not-a-match`: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name."
+     },
+     "pin": {
+      "subject": "places",
+      "question": "What fixes the version of the package at this place?",
+      "options": {
+       "none": "nothing names a version: the package stands alone or with `@latest`.",
+       "tag-or-range": "a tag, a branch, a caret, a tilde, a floor or a range names the version, so a later release can still be installed.",
+       "exact": "an exact version or a hash fixes what is installed.",
+       "not-applicable": "the place names no package whose version could be fixed."
+      }
+     }
     },
-    "dismiss": ["user-step", "documentation", "not-a-package"],
-    "confirm": ["agent-runs"],
-    "minProbability": 0.8
+    "outcome": {
+     "confirm": [{"who": "agent-runs", "pin": ["none", "tag-or-range"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}, {"pin": "exact"}]
+    }
    },
    "enabled": true
   },

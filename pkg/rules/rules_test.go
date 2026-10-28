@@ -138,6 +138,15 @@ func TestLoadErrors(t *testing.T) {
 		{"llm rule with patterns", "testdata/mismatch-llm", defaults(), "X4"},
 		{"rule without a layer", "testdata/nolayer", defaults(), "X5"},
 		{"missing directory", "testdata/none", defaults(), "none"},
+		{"question without a subject", "testdata/decision/subject", defaults(), "rule X7: decision.questions.who.subject"},
+		{"question with one option", "testdata/decision/options", defaults(), "rule X8: decision.questions.kind.options"},
+		{"row with an unknown option", "testdata/decision/option", defaults(), "rule X9: decision.outcome.confirm: who: unknown option"},
+		{"row with a question the rule does not ask", "testdata/decision/question", defaults(), "rule X10: decision.outcome.dismiss: unknown question"},
+		{"confirm and dismiss rows that share an answer", "testdata/decision/overlap", defaults(), "rule X11: decision.outcome: a confirm row and a dismiss row"},
+		{"not-a-match row with a second question", "testdata/decision/not-a-match", defaults(), "rule X12: decision.outcome.dismiss: kind"},
+		{"severity row not below the rule severity", "testdata/decision/severity", defaults(), "rule X13: decision.outcome.severity.high"},
+		{"usages next to a decision", "testdata/decision/usages", defaults(), "rule X14: usages and decision"},
+		{"unknown question template", "testdata/decision/template", defaults(), "rule X15: decision.questions.who.template"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -147,6 +156,31 @@ func TestLoadErrors(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error %q does not mention %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestUsagesExpandToTheUsageQuestion(t *testing.T) {
+	set, err := rules.Load("testdata/usages", defaults())
+	if err != nil {
+		t.Fatal(err)
+	}
+	confirm := []rules.Row{{"usage": {"agent-install"}}}
+	dismiss := []rules.Row{{"usage": {"citation", "documentation"}}}
+	cases := []struct {
+		name string
+		id   string
+		want rules.Outcome
+	}{
+		{"a rule above medium lowers a user action to medium", "X16", rules.Outcome{Confirm: confirm, Severity: map[finding.Severity][]rules.Row{finding.Medium: {{"usage": {"user-action"}}}}, Dismiss: dismiss}},
+		{"a medium rule keeps a user action at its severity", "X17", rules.Outcome{Confirm: confirm, Dismiss: dismiss}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := set.ByID[tc.id].Decision
+			if d == nil || d.Questions["usage"].Subject != rules.Places || !reflect.DeepEqual(d.Outcome, tc.want) {
+				t.Fatalf("%s decision %+v, want the usage question at every place and outcome %+v", tc.id, d, tc.want)
 			}
 		})
 	}

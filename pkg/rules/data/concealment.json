@@ -21,17 +21,25 @@
    "kind": "heuristic",
    "layer": "reveal",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "judge": {"downgrade": true},
    "decision": {
-    "subject": "lines",
-    "question": "The marked line holds a word that mixes Latin letters with letters of another script that print like Latin letters. The subject shows the word with those letters as code points, then the word as it reads. Why is the word written this way?",
-    "options": {
-     "notation": "the other letter is a symbol with its own meaning: a mathematical or physical quantity, a unit, a phonetic sign or a variable name.",
-     "other-language": "the lines are text in a language that uses the other script, or text damaged by a wrong encoding, and the Latin letters next to it are an escape sequence, markup, a product name or a unit.",
-     "disguised-word": "the word reads as an ordinary English word, command, file name or host name, and nothing in the lines explains a letter of another script inside it.",
-     "unknown": "the lines do not show why the word is written this way."
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "The marked line holds a word that mixes Latin letters with letters of another script that print like Latin letters. The subject shows the word with those letters as code points, then the word as it reads. Why is the word written this way?",
+      "options": {
+       "notation": "the other letter is a symbol with its own meaning: a mathematical or physical quantity, a unit, a phonetic sign or a variable name.",
+       "other-language": "the lines are text in a language that uses the other script, or text damaged by a wrong encoding, and the Latin letters next to it are an escape sequence, markup, a product name or a unit.",
+       "test-fixture": "the file is test data for text that mixes scripts.",
+       "disguised-word": "the word reads as an ordinary English word, command, file name or host name, and nothing in the lines explains a letter of another script inside it.",
+       "unknown": "the lines do not show why the word is written this way."
+      }
+     }
     },
-    "dismiss": ["notation", "other-language"]
+    "outcome": {
+     "confirm": [{"kind": "disguised-word"}],
+     "dismiss": [{"kind": "notation"}, {"kind": "other-language"}, {"kind": "test-fixture"}]
+    }
    },
    "enabled": true
   },

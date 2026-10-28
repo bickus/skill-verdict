@@ -175,7 +175,9 @@ The decision layer has its own model settings, separate from `llm`, because a de
       "timeout": "1m0s",
       "maxStateChars": 60000,
       "maxRequestChars": 120000,
-      "minProbability": 0.6,
+      "confirmProbability": 0.3,
+      "dismissProbability": 0.8,
+      "guardProbability": 0.6,
       "inputPrice": 0.042
     }
   }
@@ -186,30 +188,23 @@ The decision layer has its own model settings, separate from `llm`, because a de
 |---|---|
 | `baseUrl`, `model` | The scanner posts to `<baseUrl>/decisions`. |
 | `keyEnv`, `keyFile` | Where the API key comes from. The configuration never holds the key. |
-| `maxStateChars` | Largest trace the layer sends. A larger trace keeps its finding without a request. |
-| `maxRequestChars` | Largest request, trace and question together. A larger request keeps its finding without being sent. |
-| `minProbability` | Lowest probability that dismisses. The chosen answer must be a dismissing one, and the probabilities of all dismissing answers are added up. Below it the finding stays. Default `0.6`. |
+| `maxStateChars` | Largest text the layer sends. The layer cuts a longer text at this size. |
+| `maxRequestChars` | Largest request, text and questions together. The layer does not send a larger request, and its questions get no answer. |
+| `confirmProbability` | Lowest summed probability of the options a `confirm` row names. Default `0.3`. |
+| `dismissProbability` | Lowest summed probability of the options a `severity` or `dismiss` row names. The reference brief takes a usage answer only at this probability or above. Default `0.8`. |
+| `guardProbability` | Lowest probability of `yes` to the guard question. Above it only `confirm` rows count for the finding. Default `0.6`. |
 | `inputPrice` | USD per million input tokens, used for the cost in the report. |
 
-A rule takes part when its settings have a `decision` object with these fields:
+Each probability is above `0` and at most `1`, and `confirmProbability` is at most `dismissProbability`.
 
-- `subject`:
-  - `env-read` or `request` for a traced value
-  - `lines` for the lines around the finding
-  - `places` for one request with every finding of the rule whose evidence ends in the same name, or with every finding of the rule when the discovery layer raises it
-- `question` and `options`, the question to the model and its answers.
-- `dismiss`, the options that dismiss the finding.
-- `confirm`, optional, the options that confirm the finding. The Judge then leaves the finding alone.
-- `minProbability`, optional.
-
-No option may be in both `dismiss` and `confirm`. The higher of the rule's `minProbability` and `layers.decision.minProbability` applies to the rule. An empty `dismiss` list switches the decision off for that rule:
+A rule takes part when its rule data has a `decision` block with questions and an outcome table. See [Detection](detection.md#layer-6-decision) for the format. The block is rule data, so the configuration cannot change it. To change a table, copy the rule into a file in your rules directory and edit it there. Set `judge.downgrade` to `false` and the model no longer lowers the findings of the rule. The layer then only confirms them:
 
 ```json
 {
   "layers": {
     "static": {
       "rules": {
-        "REMOTE-ENDPOINT-UPLOAD": {"decision": {"dismiss": []}}
+        "REMOTE-ENDPOINT-UPLOAD": {"judge": {"downgrade": false}}
       }
     }
   }
@@ -299,12 +294,15 @@ Rule configurations live under the layer that executes them: `layers.<layer>.rul
 ```
 
 #### 4. Add custom instructions for the AI Judge:
+
+The Judge reviews only findings of the discovery layer, so it reads the instructions of discovery rules only.
+
 ```json
 {
   "layers": {
-    "static": {
+    "discovery": {
       "rules": {
-        "REMOTE-ENDPOINT-UPLOAD": {
+        "REMOTE-ENDPOINT-UPLOAD-HIDDEN": {
           "judge": {
             "instructions": "Allow telemetry endpoints pointing to our internal domain: telemetry.internal.corp"
           }
@@ -387,4 +385,6 @@ Block skills shipping legacy or risky file types (e.g. `.bat`, `.cmd`, `.vbs`):
 | `exclude` | No | RE2 patterns that suppress a match if present on the same line. |
 | `judge.downgrade` | No | Boolean: whether AI Judge can lower this finding. Default `true`. |
 | `judge.downgradeFloor`| No | Lowest severity the AI Judge may assign. `""` allows total dismissal. |
+| `decision` | No | Closed questions for the decision model and the outcome table over the answers. See [Detection](detection.md#layer-6-decision). |
+| `usages` | No | A reference rule only, instead of `decision`. Lists the usages of a reference that confirm the finding. The scanner turns it into the usage question. A user action lowers the finding to `medium`, a citation or documentation dismisses it. |
 | `interrupt` | No | Boolean: if `true`, the first finding from this rule halts the scan immediately. |

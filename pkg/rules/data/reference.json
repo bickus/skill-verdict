@@ -57,8 +57,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": "Age is a fact. Do not lower because the name looks familiar or the site looks finished. Lower only when nothing is fetched, installed or run from it."},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -70,7 +70,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -82,8 +83,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -95,8 +96,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -108,8 +109,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -121,8 +122,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -134,8 +135,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -147,8 +148,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -160,8 +161,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -173,8 +174,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": "Age is a fact. Do not lower because the name looks familiar or the site looks finished. Lower only when nothing is fetched, installed or run from it."},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -186,8 +187,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -199,8 +200,8 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "usages": ["user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {

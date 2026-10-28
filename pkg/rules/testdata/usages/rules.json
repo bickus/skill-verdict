@@ -1,0 +1,36 @@
+{
+ "rules": [
+  {
+   "id": "X16",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "fact",
+   "layer": "references",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "High fact with usages",
+   "description": "Expands to the usage question.",
+   "usages": [
+    "agent-install"
+   ]
+  },
+  {
+   "id": "X17",
+   "category": "tool-misuse",
+   "severity": "medium",
+   "kind": "fact",
+   "layer": "references",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Medium fact with usages",
+   "description": "Expands to the usage question.",
+   "usages": [
+    "agent-install"
+   ]
+  }
+ ]
+}

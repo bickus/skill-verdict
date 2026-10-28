@@ -1,0 +1,35 @@
+{
+ "rules": [
+  {
+   "id": "X15",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Question with an unknown template",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x15"
+   ],
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "whom"
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "who": "agent-runs"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

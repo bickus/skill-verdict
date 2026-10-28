@@ -78,6 +78,7 @@ func (c Config) validatePositive() error {
 		{"layers.references.youngOwnerDays", int64(refs.YoungOwnerDays)},
 		{"layers.references.newPackageDays", int64(refs.NewPackageDays)},
 		{"layers.references.lowDownloads", int64(refs.LowDownloads)},
+		{"layers.references.popularStars", int64(refs.PopularStars)},
 		{"layers.decision.timeout", int64(c.Layers.Decision.Timeout)},
 		{"layers.decision.maxStateChars", int64(c.Layers.Decision.MaxStateChars)},
 		{"layers.decision.maxRequestChars", int64(c.Layers.Decision.MaxRequestChars)},
@@ -189,9 +190,18 @@ func (c Config) validateProvider() error {
 
 func (c Config) validateDecision() error {
 	d := c.Layers.Decision
+	for _, s := range []setting[float64]{
+		{"confirmProbability", d.ConfirmProbability},
+		{"dismissProbability", d.DismissProbability},
+		{"guardProbability", d.GuardProbability},
+	} {
+		if s.value <= 0 || s.value > 1 {
+			return fmt.Errorf("layers.%s.%s: must be above 0 and at most 1", DecisionLayer, s.name)
+		}
+	}
 	switch {
-	case d.MinProbability <= 0 || d.MinProbability > 1:
-		return fmt.Errorf("layers.%s.minProbability: must be above 0 and at most 1", DecisionLayer)
+	case d.ConfirmProbability > d.DismissProbability:
+		return fmt.Errorf("layers.%s.confirmProbability: must not exceed layers.%s.dismissProbability", DecisionLayer, DecisionLayer)
 	case d.InputPrice < 0:
 		return fmt.Errorf("layers.%s.inputPrice: must not be negative", DecisionLayer)
 	case d.MaxStateChars > d.MaxRequestChars:

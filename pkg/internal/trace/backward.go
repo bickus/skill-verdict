@@ -50,10 +50,13 @@ func (t *tracer) sources(param string, e code.Expr, at *code.Stmt, depth int) []
 }
 
 func (t *tracer) origin(param, name string, at *code.Stmt, depth int) *Source {
-	if at.Unit.Imports[name] || len(t.prog.funcs[name]) > 0 || depth > maxDepth || !t.spend() {
+	if at.Unit.Imports[name] || len(t.prog.funcs[name]) > 0 {
 		return nil
 	}
 	s := &Source{Param: param, Name: name}
+	if depth > maxDepth || !t.spend() {
+		return s
+	}
 	if def := t.prog.definition(name, at); def != nil {
 		s.Code = t.text(def.Unit, def.Span)
 		s.FedBy = t.sources("", def.Value, def, depth+1)

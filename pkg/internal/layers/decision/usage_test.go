@@ -23,10 +23,10 @@ import (
 	"github.com/bickus/skill-verdict/pkg/rules"
 )
 
-func toolServerModel(t *testing.T) *decisions.Client {
+func model(t *testing.T, answers string) *decisions.Client {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if _, err := io.WriteString(w, `{"answers":{"R1.1":{"choice":"tool-server","probabilities":{"tool-server":0.97}}}}`); err != nil {
+		if _, err := io.WriteString(w, `{"answers":`+answers+`}`); err != nil {
 			t.Error(err)
 		}
 	}))
@@ -72,7 +72,8 @@ func TestToolServerUntrustedCountsFactsAboveLow(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := referenceState(t, tc.ref, tc.rule)
-			pipeline.Run(context.Background(), s, []pipeline.Layer{decision.Layer{Client: toolServerModel(t), Config: config.Default().Layers.Decision}})
+			client := model(t, `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.97}}}`)
+			pipeline.Run(context.Background(), s, []pipeline.Layer{decision.Layer{Client: client, Config: config.Default().Layers.Decision}})
 			if s.Layers[1].Status != pipeline.Done || !reflect.DeepEqual(s.Refs[0].Usages, []string{"tool-server"}) {
 				t.Fatalf("decision layer %+v, usages %v", s.Layers[1], s.Refs[0].Usages)
 			}

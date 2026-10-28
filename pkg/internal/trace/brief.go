@@ -5,7 +5,6 @@ package trace
 
 import (
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -23,11 +22,11 @@ type writer struct {
 	seen map[string]bool
 }
 
-func (t *Trace) State(where string) (json.RawMessage, error) {
-	if where != "" {
-		where += "\n"
+func (t *Trace) State(frame string) string {
+	if frame != "" {
+		frame += "\n"
 	}
-	return json.Marshal(strings.TrimSpace(stateNote) + "\n" + where + t.Text())
+	return strings.TrimSpace(stateNote) + "\n" + frame + t.Text()
 }
 
 func Brief(traces []*Trace, omitted int) string {
@@ -86,7 +85,11 @@ func (w *writer) nodes(nodes []*Node, depth int) {
 func (w *writer) sources(sources []*Source, depth int) {
 	for _, s := range sources {
 		known := w.seen[s.Code]
-		w.line(depth, strings.TrimSpace(fmt.Sprintf("fed by %s %s", s.Param, s.Name)), s.Code)
+		label := strings.TrimSpace(fmt.Sprintf("fed by %s %s", s.Param, s.Name))
+		if s.Code == "" && len(s.FedBy) == 0 && s.Name != "" {
+			label = strings.TrimSpace("fed by "+s.Param) + ": value not followed past " + s.Name
+		}
+		w.line(depth, label, s.Code)
 		if !known {
 			w.sources(s.FedBy, depth+1)
 		}

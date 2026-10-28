@@ -32,17 +32,25 @@
     "(?i)localhost",
     "(?i)127\\.0\\.0\\.1"
    ],
-   "judge": {"downgrade": true, "instructions": "Lower or dismiss only when the request goes to the service the skill is for and carries only what that service needs, its own API key included. Data from other files or services keeps it."},
+   "judge": {"downgrade": true},
    "decision": {
-    "subject": "request",
-    "question": "Look at every request in the state. What do the requests send? When requests differ, answer for the request that sends the most.",
-    "options": {
-     "inputs-only": "every request sends only literal values, values the user passes to the program, or results of earlier requests to the same service.",
-     "own-credential": "besides such values a request sends a credential read from an environment variable, and that request goes to the service the credential belongs to.",
-     "local-data": "at least one request sends content of files, environment variables that belong to another service, or other data taken from the machine or the agent.",
-     "unknown": "the state does not show what a request sends."
+    "questions": {
+     "sends": {
+      "subject": "trace",
+      "from": "call",
+      "question": "Look at every request in the state. What do the requests send? When requests differ, answer for the request that sends the most.",
+      "options": {
+       "inputs-only": "every request sends only literal values, values the user passes to the program, or results of earlier requests to the same service.",
+       "own-credential": "besides such values a request sends a credential read from an environment variable, and that request goes to the service the credential belongs to.",
+       "local-data": "at least one request sends content of files, environment variables that belong to another service, or other data taken from the machine or the agent.",
+       "unknown": "the state does not show what a request sends."
+      }
+     }
     },
-    "dismiss": ["inputs-only", "own-credential"]
+    "outcome": {
+     "confirm": [{"sends": "local-data"}],
+     "dismiss": [{"sends": "inputs-only"}, {"sends": "own-credential"}]
+    }
    },
    "enabled": true
   },
@@ -95,17 +103,28 @@
     "\\$(?:\\{|env:)?(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b",
     "printenv\\s+(?:[A-Z0-9_]*(?:_TOKEN|ACCESSTOKEN|_SECRET|_API_KEY|_ACCESS_KEY|_STORAGE_KEY|_PRIVATE_KEY|_PASSWORD|_PASSWD|_CREDENTIALS?|_CONNECTION_STRING|_CONN_STR)[A-Z0-9_]*|(?:[A-Z0-9_]*_)?PAT(?:_[A-Z0-9_]*)?|DATABASE_URL|SSH_AUTH_SOCK|SQLCONNSTR_[A-Z0-9_]+)\\b"
    ],
-   "judge": {"downgrade": true, "instructions": "Dismiss when the variable is the skill's own configuration, declared in its frontmatter or README, and the value only reaches the service that variable is for. Dismiss when the match is documentation, a sample or a placeholder. Keep when the skill reads a variable that belongs to another product, the agent or the platform, or one its stated purpose does not need. Follow the value: a read that ends in a request, a file the skill writes, a log line or a derived identifier keeps the severity."},
+   "judge": {"downgrade": true},
    "decision": {
-    "subject": "env-read",
-    "question": "Look at every call in the state that takes the value of the environment variable. Where does the value go? When calls differ, answer for the call that sends the value furthest from the service it belongs to.",
-    "options": {
-     "own-service-only": "every request that carries the value goes to the service the variable belongs to, and the value serves as its credential.",
-     "other-host": "at least one request sends the value, or data that contains it, to a host that is not the service the variable belongs to.",
-     "not-sent": "no request or command in the state sends the value anywhere.",
-     "unknown": "the state does not show where a request that carries the value goes."
+    "questions": {
+     "goes": {
+      "subject": "trace",
+      "template": "goes",
+      "focus": "The value is the value of the environment variable. Look at every call in the state that takes it. When calls differ, answer for the call that sends the value furthest from the service it belongs to."
+     },
+     "whose": {
+      "subject": "frame",
+      "question": "Whose secret does the environment variable hold?",
+      "options": {
+       "skill-own": "the frontmatter or the README declares the variable as configuration of the skill, or the variable holds the key of the service the skill is for.",
+       "other-product": "the variable holds a token of the agent or of the agent platform, a token of another product, or a cloud key that the purpose of the skill does not need.",
+       "unknown": "the text does not show whose secret the variable holds."
+      }
+     }
     },
-    "dismiss": ["own-service-only", "not-sent"]
+    "outcome": {
+     "confirm": [{"goes": "other-host"}, {"goes": "stored-or-logged"}, {"whose": "other-product"}],
+     "dismiss": [{"goes": ["own-service-only", "not-sent"], "whose": "skill-own"}, {"goes": "example"}]
+    }
    },
    "enabled": true
   },

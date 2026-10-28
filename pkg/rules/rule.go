@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
@@ -29,62 +28,6 @@ type JudgePolicy struct {
 	Instructions   string           `json:"instructions"`
 }
 
-var Usages = []string{"citation", "documentation", "user-action", "tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"}
-
-type Subject string
-
-const (
-	EnvRead Subject = "env-read"
-	Request Subject = "request"
-	Lines   Subject = "lines"
-	Places  Subject = "places"
-)
-
-type DecisionPolicy struct {
-	Subject        Subject           `json:"subject"`
-	Question       string            `json:"question"`
-	Options        map[string]string `json:"options"`
-	Dismiss        []string          `json:"dismiss"`
-	Confirm        []string          `json:"confirm,omitempty"`
-	MinProbability float64           `json:"minProbability,omitempty"`
-}
-
-func (d *DecisionPolicy) validate() error {
-	if d == nil {
-		return nil
-	}
-	if d.Subject != EnvRead && d.Subject != Request && d.Subject != Lines && d.Subject != Places {
-		return fmt.Errorf("decision.subject: unknown subject %q", d.Subject)
-	}
-	if d.Question == "" || len(d.Options) < 2 {
-		return errors.New("decision.options: a decision needs a question and two options")
-	}
-	if d.MinProbability < 0 || d.MinProbability > 1 {
-		return errors.New("decision.minProbability: must be between 0 and 1")
-	}
-	if err := d.known("dismiss", d.Dismiss); err != nil {
-		return err
-	}
-	if err := d.known("confirm", d.Confirm); err != nil {
-		return err
-	}
-	for _, option := range d.Confirm {
-		if slices.Contains(d.Dismiss, option) {
-			return fmt.Errorf("decision.confirm: option %q is also in dismiss", option)
-		}
-	}
-	return nil
-}
-
-func (d *DecisionPolicy) known(field string, options []string) error {
-	for _, option := range options {
-		if _, ok := d.Options[option]; !ok {
-			return fmt.Errorf("decision.%s: unknown option %q", field, option)
-		}
-	}
-	return nil
-}
-
 type Rule struct {
 	ID          string           `json:"id"`
 	Category    string           `json:"category"`
@@ -99,7 +42,7 @@ type Rule struct {
 	Exclude     []string         `json:"exclude,omitempty"`
 	Judge       JudgePolicy      `json:"judge"`
 	Usages      []string         `json:"usages,omitempty"`
-	Decision    *DecisionPolicy  `json:"decision,omitempty"`
+	Decision    *Decision        `json:"decision,omitempty"`
 	Enabled     bool             `json:"enabled"`
 	Interrupt   bool             `json:"interrupt"`
 	Attribution json.RawMessage  `json:"-"`
@@ -140,13 +83,8 @@ func (r Rule) validate() error {
 	if err := config.ValidGlobs("files", r.Files); err != nil {
 		return err
 	}
-	if err := r.Decision.validate(); err != nil {
+	if err := r.Decision.validate(r.Severity); err != nil {
 		return err
-	}
-	for _, u := range r.Usages {
-		if !slices.Contains(Usages, u) {
-			return fmt.Errorf("usages: unknown usage %q", u)
-		}
 	}
 	return r.validateKind()
 }
@@ -178,7 +116,7 @@ type Compiled struct {
 }
 
 func compile(r Rule) (Compiled, error) {
-	if err := r.validate(); err != nil {
+	if err := r.prepare(); err != nil {
 		return Compiled{}, err
 	}
 	if r.Scope == "" {
@@ -200,6 +138,15 @@ func compile(r Rule) (Compiled, error) {
 		c.Exclude = append(c.Exclude, re)
 	}
 	return c, nil
+}
+
+func (r *Rule) prepare() error {
+	decision, err := r.decision()
+	if err != nil {
+		return err
+	}
+	r.Decision = decision
+	return r.validate()
 }
 
 type Set struct {

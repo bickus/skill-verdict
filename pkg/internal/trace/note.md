@@ -1,1 +1,1 @@
-comments are removed from the code, a line from another file starts with the path of that file
+the block of text around the marked line comes first, then the trace of the value through the skill's code: comments are removed from the trace, a trace line from another file starts with the path of that file

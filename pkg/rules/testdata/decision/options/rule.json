@@ -1,0 +1,38 @@
+{
+ "rules": [
+  {
+   "id": "X8",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Question with one option",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x8"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "kind": "bad"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

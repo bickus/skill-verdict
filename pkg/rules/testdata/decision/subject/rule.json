@@ -1,0 +1,34 @@
+{
+ "rules": [
+  {
+   "id": "X7",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Question without a subject",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x7"
+   ],
+   "decision": {
+    "questions": {
+     "who": {
+      "template": "who"
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "who": "agent-runs"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}
