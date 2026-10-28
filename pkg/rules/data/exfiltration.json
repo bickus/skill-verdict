@@ -282,7 +282,7 @@
       "from": "call",
       "question": "Where does the bucket that the marked upload writes to come from?",
       "options": {
-       "user-configured": "the bucket comes from the configuration or the arguments of the user.",
+       "user-configured": "the bucket comes from the user: an environment variable or a setting the user fills in, an argument, or the user's own account.",
        "skill-named": "the bucket is named in the files of the skill.",
        "unknown": "the state does not show where the bucket comes from."
       }
