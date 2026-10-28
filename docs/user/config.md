@@ -367,4 +367,5 @@ Block skills shipping legacy or risky file types (e.g. `.bat`, `.cmd`, `.vbs`):
 | `judge.downgradeFloor`| No | Lowest severity a model may assign. `""` allows total dismissal. |
 | `decision` | No | Closed questions for the decision model and the outcome table over the answers. See [Detection](detection.md#layer-6-decision). |
 | `usages` | No | A reference rule only, instead of `decision`. Lists the usages of a reference that confirm the finding. The scanner turns it into the usage question. A user action lowers the finding to `medium`, a citation or documentation dismisses it. |
+| `fields` | No | A discovery rule only. Closed questions that the discovery model answers for every finding it reports. Each field has a `question`, its `options` with one sentence each, and `accept`, the options the rule takes. The scanner refuses a finding with an answer outside `accept`. See [Detection](detection.md#layer-8-model-discovery). |
 | `interrupt` | No | Boolean: if `true`, the first finding from this rule halts the scan immediately. |

@@ -124,6 +124,17 @@
      "misfire": [{"step": "not-a-match"}]
     }
    },
+   "fields": {
+    "who": {
+     "question": "Who does what the passage describes?",
+     "options": {
+      "agent": "the agent: a step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an entry the agent platform applies. `SKILL.md` is written for the agent, so `you` there means the agent.",
+      "user": "a person is told to do it by hand: a step in a README or a guide written for people, a message that a script prints for the user, or a step that the agent asks the user to do.",
+      "documentation": "nobody is told to do it: an example, a note, a troubleshooting hint, a changelog entry, or a thing that was removed."
+     },
+     "accept": ["agent", "user"]
+    }
+   },
    "enabled": true
   },
   {
@@ -136,6 +147,17 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true},
+   "fields": {
+    "source": {
+     "question": "Where does the text that the agent acts on come from?",
+     "options": {
+      "page-the-skill-names": "a URL or a host that the files of the skill name.",
+      "data-the-skill-processes-by-design": "the content the task works on: a page, a file or a response that the skill reads as its data, such as a site it summarizes or an issue it sorts.",
+      "user-provided": "a URL, a file or a text that the user gives for the task."
+     },
+     "accept": ["page-the-skill-names"]
+    }
+   },
    "enabled": true
   },
   {
@@ -148,6 +170,18 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true},
+   "fields": {
+    "recipient": {
+     "question": "Who receives the instructions that the agent passes on?",
+     "options": {
+      "own-subagent": "a subagent that the agent starts for a step of this task.",
+      "other-agent-or-session": "another agent, another session or a later conversation that this task does not start, or the agent of another user.",
+      "other-skill": "another skill, or a file or setting that another skill reads.",
+      "user": "the person the agent works for."
+     },
+     "accept": ["other-agent-or-session", "other-skill"]
+    }
+   },
    "enabled": true
   }
  ]

@@ -33,7 +33,7 @@ func (Layer) Name() string {
 }
 
 func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error) {
-	st := &store{skill: s.Skill, allowed: s.Rules.ForLayer(name)}
+	st := &store{skill: s.Skill, byID: s.Rules.ByID, allowed: s.Rules.ForLayer(name)}
 	entry := llmcall.Entry(s.Skill)
 	rep, err := l.Runner.Run(ctx, llmcall.Session{
 		System: llmcall.System(files, "system.md", map[string]string{"rules": ruleList(s.Rules)}),
@@ -55,9 +55,25 @@ func ruleList(set *rules.Set) string {
 	var b strings.Builder
 	for _, id := range slices.Sorted(maps.Keys(set.ForLayer(name))) {
 		r := set.ByID[id]
-		fmt.Fprintf(&b, "rule_id: %s\ntitle: %s\ndescription: %s\n\n", id, r.Title, r.Description)
+		fmt.Fprintf(&b, "rule_id: %s\ntitle: %s\ndescription: %s\n", id, r.Title, r.Description)
+		fieldList(&b, r.Fields)
+		b.WriteString("\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func fieldList(b *strings.Builder, fields map[string]rules.Field) {
+	if len(fields) == 0 {
+		return
+	}
+	b.WriteString("fields:\n")
+	for _, n := range slices.Sorted(maps.Keys(fields)) {
+		f := fields[n]
+		fmt.Fprintf(b, "  %s: %s\n", n, f.Question)
+		for _, option := range slices.Sorted(maps.Keys(f.Options)) {
+			fmt.Fprintf(b, "    - %s: %s\n", option, f.Options[option])
+		}
+	}
 }
 
 func convert(s *pipeline.State, allowed map[string]bool, items []item) []finding.Finding {

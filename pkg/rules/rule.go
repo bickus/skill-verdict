@@ -49,6 +49,7 @@ type Rule struct {
 	Judge       JudgePolicy      `json:"judge"`
 	Usages      []string         `json:"usages,omitempty"`
 	Decision    *Decision        `json:"decision,omitempty"`
+	Fields      map[string]Field `json:"fields,omitempty"`
 	Enabled     bool             `json:"enabled"`
 	Interrupt   bool             `json:"interrupt"`
 	Attribution json.RawMessage  `json:"-"`
@@ -90,6 +91,9 @@ func (r Rule) validate() error {
 		return err
 	}
 	if err := r.Decision.validate(r.Severity); err != nil {
+		return err
+	}
+	if err := r.validateFields(); err != nil {
 		return err
 	}
 	return r.validateKind()

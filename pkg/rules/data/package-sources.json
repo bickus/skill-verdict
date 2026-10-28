@@ -193,6 +193,17 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "fields": {
+    "who": {
+     "question": "Who does what the passage describes?",
+     "options": {
+      "agent": "the agent: a step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an entry the agent platform applies. `SKILL.md` is written for the agent, so `you` there means the agent.",
+      "user": "a person is told to do it by hand: a step in a README or a guide written for people, a message that a script prints for the user, or a step that the agent asks the user to do.",
+      "documentation": "nobody is told to do it: an example, a note, a troubleshooting hint, a changelog entry, or a thing that was removed."
+     },
+     "accept": ["agent", "user"]
+    }
+   },
    "enabled": true
   },
   {
@@ -205,6 +216,17 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "fields": {
+    "who": {
+     "question": "Who does what the passage describes?",
+     "options": {
+      "agent": "the agent: a step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an entry the agent platform applies. `SKILL.md` is written for the agent, so `you` there means the agent.",
+      "user": "a person is told to do it by hand: a step in a README or a guide written for people, a message that a script prints for the user, or a step that the agent asks the user to do.",
+      "documentation": "nobody is told to do it: an example, a note, a troubleshooting hint, a changelog entry, or a thing that was removed."
+     },
+     "accept": ["agent", "user"]
+    }
+   },
    "enabled": true
   }
  ]

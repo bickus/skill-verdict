@@ -21,7 +21,7 @@
   `src/skillspector/nodes/analyzers/static_patterns_ssrf.py`.
 - `pkg/rules/data/tool-misuse.json`: TM3 and TM4 patterns from
   `src/skillspector/nodes/analyzers/static_patterns_tool_misuse.py`.
-- `pkg/rules/data/semantic.json`: SSD-1 to SSD-4 titles and definitions from
+- `pkg/rules/data/semantic.json`: SSD-1 to SSD-3 titles and definitions from
   `src/skillspector/nodes/analyzers/semantic_security_discovery.py`.
 - `pkg/internal/refcheck/data/popular-packages.json`: `_POPULAR_PYPI` and `_POPULAR_NPM` from
   `src/skillspector/nodes/analyzers/static_patterns_supply_chain.py`.

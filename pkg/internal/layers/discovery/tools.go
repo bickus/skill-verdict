@@ -8,11 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/llmcall"
 	"github.com/bickus/skill-verdict/pkg/llm"
+	"github.com/bickus/skill-verdict/pkg/rules"
 )
 
 const (
@@ -21,13 +24,14 @@ const (
 )
 
 type item struct {
-	Action     string `json:"action"`
-	File       string `json:"file"`
-	RuleID     string `json:"rule_id"`
-	Message    string `json:"message"`
-	StartLine  int    `json:"start_line"`
-	EndLine    int    `json:"end_line"`
-	Confidence int    `json:"confidence"`
+	Action     string            `json:"action"`
+	File       string            `json:"file"`
+	RuleID     string            `json:"rule_id"`
+	Message    string            `json:"message"`
+	StartLine  int               `json:"start_line"`
+	EndLine    int               `json:"end_line"`
+	Confidence int               `json:"confidence"`
+	Fields     map[string]string `json:"fields"`
 }
 
 type list struct {
@@ -36,6 +40,7 @@ type list struct {
 
 type store struct {
 	skill   *inventory.Skill
+	byID    map[string]rules.Rule
 	allowed map[string]bool
 	items   []item
 }
@@ -125,6 +130,17 @@ func (s *store) check(it item) error {
 		return errors.New("end_line is before start_line")
 	case it.Confidence < 1 || it.Confidence > 4:
 		return errors.New("confidence must be 1 to 4")
+	}
+	return s.answered(it)
+}
+
+func (s *store) answered(it item) error {
+	fields := s.byID[it.RuleID].Fields
+	for _, name := range slices.Sorted(maps.Keys(fields)) {
+		accept := fields[name].Accept
+		if !slices.Contains(accept, it.Fields[name]) {
+			return fmt.Errorf("fields.%s is %q; rule %s takes only %s", name, it.Fields[name], it.RuleID, strings.Join(accept, ", "))
+		}
 	}
 	return nil
 }

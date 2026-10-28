@@ -10,7 +10,7 @@
     "downgrade": true
    },
    "enabled": true,
-   "title": "Not-a-match row with a second question",
+   "title": "Confirm and misfire rows that share an answer",
    "description": "A decision the loader rejects.",
    "patterns": [
     "(?i)x12"
@@ -25,17 +25,20 @@
        "fine": "a fine thing.",
        "not-a-match": "not what the rule looks for."
       }
-     },
-     "who": {
-      "subject": "frame",
-      "template": "who"
      }
     },
     "outcome": {
-     "dismiss": [
+     "confirm": [
       {
-       "kind": "not-a-match",
-       "who": "documentation"
+       "kind": [
+        "bad",
+        "not-a-match"
+       ]
+      }
+     ],
+     "misfire": [
+      {
+       "kind": "not-a-match"
       }
      ]
     }

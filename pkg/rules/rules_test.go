@@ -148,6 +148,8 @@ func TestLoadErrors(t *testing.T) {
 		{"severity row not below the rule severity", "testdata/decision/severity", defaults(), "rule X13: decision.outcome.severity.high"},
 		{"usages next to a decision", "testdata/decision/usages", defaults(), "rule X14: usages and decision"},
 		{"unknown question template", "testdata/decision/template", defaults(), "rule X15: decision.questions.who.template"},
+		{"field that accepts an option it does not offer", "testdata/fields/accept", defaults(), "rule X20: fields.who.accept: unknown option"},
+		{"fields on a rule outside the discovery layer", "testdata/fields/layer", defaults(), "rule X21: fields: only a rule of the discovery layer"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

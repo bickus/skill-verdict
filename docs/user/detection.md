@@ -265,10 +265,22 @@ Because the model has already proven susceptible to prompt injection from this s
 
 Fixed regular expressions cannot detect every possible phrasing of an attack. Layer 8 asks a model to inspect prose and instructions for higher-level semantic threats:
 
-- **Gradual Deception (`DECEPTION-GRADUAL`)**: Multi-step instructions that establish trust before escalating permissions.
-- **Conversational Exfiltration (`EXFILTRATION-IN-PROSE`)**: Directing the agent to quietly collect user inputs, summarize chat history, or echo credentials back in responses.
+- **Conversational Exfiltration (`EXFILTRATION-IN-PROSE`)**: Directing the agent to send user inputs, chat history or credentials to an outside service, or to a file that another agent or session reads.
 - **Subtle Prompt Attacks (`PROMPT-INJECTION-SEMANTIC`)**: Clever role-playing or hypothetical framing designed to override system guardrails.
 - **Staged Skill Loading (`SKILL-REFERENCED-HIDDEN`)**: Sending the agent to another skill for its procedures after relaxing safety rules or granting tools that skill can use.
+
+Most discovery rules have fields. A field is a closed question that the model answers for every finding it reports, with a fixed set of options. The rule data lists the options a rule takes. The scanner refuses a finding with an answer the rule does not take, and the refusal names the field and the options the rule takes. A refused finding does not reach the report.
+
+| Rule | Field | The rule takes |
+|---|---|---|
+| `INSTRUCTIONS-FORWARDED` | `recipient` | `other-agent-or-session`, `other-skill` |
+| `EXFILTRATION-IN-PROSE` | `destination` | `outside-endpoint`, `file-another-agent-reads` |
+| `REMOTE-INSTRUCTIONS-FOLLOWED` | `source` | `page-the-skill-names` |
+| `REMOTE-CODE-AT-INSTALL`, `PACKAGE-SOURCE-ADDED-HIDDEN`, `PACKAGE-PROTECTION-OFF-HIDDEN`, `ROOT-PASSWORDLESS-HIDDEN`, `ARCHIVE-PASSWORD-GIVEN` | `who` | `agent`, `user` |
+| `REMOTE-ENDPOINT-UPLOAD-HIDDEN` | `data` and `destination` | `user-or-machine-data` together with `other-host` |
+| `SKILL-REFERENCED-HIDDEN` | `prepares` | `relaxes-rules`, `grants-tools`, `writes-config` |
+
+The two prompt injection rules have no fields and are off by default.
 
 ---
 
@@ -281,4 +293,4 @@ Instead of presenting findings in isolation, the Judge receives:
 2. The specific evidence that triggered the rule.
 3. The Reference Brief (telemetry from domain, GitHub, and package checks).
 
-The Judge determines whether the finding represents a real vulnerability or harmless context, and can uphold, downgrade, or dismiss findings according to your configured downgrade policies. See [Verdicts](verdicts.md#the-ai-judge-eliminating-noise-with-guardrails).
+The Judge reads the passage of each finding and decides whether the passage does what the rule's description says. A finding that matches keeps its severity. A finding that does not match is dismissed, or lowered to the rule's floor when the rule has one. What the passage says about itself and what the skill says about its purpose decide nothing. See [Verdicts](verdicts.md#the-ai-judge-eliminating-noise-with-guardrails).

@@ -28,9 +28,13 @@ type fake struct {
 	replies []llm.Message
 	err     error
 	calls   int
+	outputs []string
 }
 
-func (f *fake) Complete(context.Context, llm.Request) (llm.Message, error) {
+func (f *fake) Complete(_ context.Context, req llm.Request) (llm.Message, error) {
+	for _, r := range req.Messages[len(req.Messages)-1].Results {
+		f.outputs = append(f.outputs, r.Output)
+	}
 	i := f.calls
 	f.calls++
 	if f.err != nil {
@@ -58,9 +62,11 @@ func read(path string) llm.Message {
 	return turn(llmcall.ReadTool, `{"path":"`+path+`"}`)
 }
 
-func item(file, rule string, line, confidence int) string {
+const outside = `{"destination":"outside-endpoint"}`
+
+func item(file, rule, fields string, line, confidence int) string {
 	return `{"file":"` + file + `","rule_id":"` + rule + `","message":"leaks input","start_line":` + strconv.Itoa(line) +
-		`,"end_line":` + strconv.Itoa(line+1) + `,"confidence":` + strconv.Itoa(confidence) + `}`
+		`,"end_line":` + strconv.Itoa(line+1) + `,"confidence":` + strconv.Itoa(confidence) + `,"fields":` + fields + `}`
 }
 
 func newState(t *testing.T, settings map[string]config.RuleSetting) *pipeline.State {
@@ -103,15 +109,16 @@ func TestRunKeepsOnlyEnabledConfidentRules(t *testing.T) {
 		replies  []llm.Message
 		want     []string
 	}{
-		{"enabled rule becomes a finding", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 4))}, []string{"EXFILTRATION-IN-PROSE"}},
-		{"disabled rule dropped", nil, []llm.Message{add(item("SKILL.md", "PROMPT-INJECTION-SEMANTIC", 4, 4))}, nil},
-		{"rule kept once enabled", map[string]config.RuleSetting{"PROMPT-INJECTION-SEMANTIC": {Enabled: &on}}, []llm.Message{add(item("SKILL.md", "PROMPT-INJECTION-SEMANTIC", 4, 4))}, []string{"PROMPT-INJECTION-SEMANTIC"}},
-		{"below threshold dropped", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 2))}, nil},
-		{"static rule id dropped", nil, []llm.Message{add(item("SKILL.md", "REMOTE-ENDPOINT-UPLOAD", 4, 4))}, nil},
-		{"unknown file rejected", nil, []llm.Message{add(item("NOTES.md", "EXFILTRATION-IN-PROSE", 4, 4))}, nil},
-		{"removed finding dropped", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 4)), add(`{"action":"remove","file":"SKILL.md","rule_id":"EXFILTRATION-IN-PROSE","start_line":4}`)}, nil},
-		{"submitted with the last findings", nil, []llm.Message{submit(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 4), item("README.md", "DECEPTION-GRADUAL", 1, 3))}, []string{"EXFILTRATION-IN-PROSE", "DECEPTION-GRADUAL"}},
-		{"rejected submit keeps the loop going", nil, []llm.Message{submit(item("NOTES.md", "EXFILTRATION-IN-PROSE", 4, 4)), add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 4))}, []string{"EXFILTRATION-IN-PROSE"}},
+		{"enabled rule becomes a finding", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4))}, []string{"EXFILTRATION-IN-PROSE"}},
+		{"disabled rule dropped", nil, []llm.Message{add(item("SKILL.md", "PROMPT-INJECTION-SEMANTIC", `{}`, 4, 4))}, nil},
+		{"rule kept once enabled", map[string]config.RuleSetting{"PROMPT-INJECTION-SEMANTIC": {Enabled: &on}}, []llm.Message{add(item("SKILL.md", "PROMPT-INJECTION-SEMANTIC", `{}`, 4, 4))}, []string{"PROMPT-INJECTION-SEMANTIC"}},
+		{"below threshold dropped", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 2))}, nil},
+		{"static rule id dropped", nil, []llm.Message{add(item("SKILL.md", "REMOTE-ENDPOINT-UPLOAD", `{}`, 4, 4))}, nil},
+		{"deleted DECEPTION-GRADUAL dropped", nil, []llm.Message{add(item("SKILL.md", "DECEPTION-GRADUAL", `{}`, 4, 4))}, nil},
+		{"unknown file rejected", nil, []llm.Message{add(item("NOTES.md", "EXFILTRATION-IN-PROSE", outside, 4, 4))}, nil},
+		{"removed finding dropped", nil, []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4)), add(`{"action":"remove","file":"SKILL.md","rule_id":"EXFILTRATION-IN-PROSE","start_line":4}`)}, nil},
+		{"submitted with the last findings", nil, []llm.Message{submit(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4), item("README.md", "INSTRUCTIONS-FORWARDED", `{"recipient":"other-skill"}`, 1, 3))}, []string{"EXFILTRATION-IN-PROSE", "INSTRUCTIONS-FORWARDED"}},
+		{"rejected submit keeps the loop going", nil, []llm.Message{submit(item("NOTES.md", "EXFILTRATION-IN-PROSE", outside, 4, 4)), add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4))}, []string{"EXFILTRATION-IN-PROSE"}},
 		{"nothing recorded", nil, nil, nil},
 	}
 	for _, tc := range cases {
@@ -128,9 +135,42 @@ func TestRunKeepsOnlyEnabledConfidentRules(t *testing.T) {
 	}
 }
 
+func TestRunRecordsOnlyAnswersTheRuleTakes(t *testing.T) {
+	cases := []struct {
+		name    string
+		replies []llm.Message
+		want    []string
+		reply   string
+	}{
+		{"accepted answer is recorded", []llm.Message{add(item("SKILL.md", "INSTRUCTIONS-FORWARDED", `{"recipient":"other-skill"}`, 4, 4))}, []string{"INSTRUCTIONS-FORWARDED"}, "recorded, 1 on record"},
+		{"answer outside the rule is refused", []llm.Message{add(item("SKILL.md", "INSTRUCTIONS-FORWARDED", `{"recipient":"user"}`, 4, 4))}, nil,
+			`error: not recorded: fields.recipient is "user"; rule INSTRUCTIONS-FORWARDED takes only other-agent-or-session, other-skill`},
+		{"missing answer is refused", []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", `{}`, 4, 4))}, nil,
+			`error: not recorded: fields.destination is ""; rule EXFILTRATION-IN-PROSE takes only outside-endpoint, file-another-agent-reads`},
+		{"two accepted answers are recorded", []llm.Message{add(item("SKILL.md", "REMOTE-ENDPOINT-UPLOAD-HIDDEN", `{"data":"user-or-machine-data","destination":"other-host"}`, 4, 4))}, []string{"REMOTE-ENDPOINT-UPLOAD-HIDDEN"}, "recorded, 1 on record"},
+		{"one refused answer of two refuses the item", []llm.Message{add(item("SKILL.md", "REMOTE-ENDPOINT-UPLOAD-HIDDEN", `{"data":"user-or-machine-data","destination":"skills-own-service"}`, 4, 4))}, nil,
+			`error: not recorded: fields.destination is "skills-own-service"; rule REMOTE-ENDPOINT-UPLOAD-HIDDEN takes only other-host`},
+		{"submit with a refused answer records nothing", []llm.Message{submit(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4), item("SKILL.md", "INSTRUCTIONS-FORWARDED", `{"recipient":"own-subagent"}`, 5, 4))}, nil,
+			`error: findings[1] rejected, nothing submitted: fields.recipient is "own-subagent"; rule INSTRUCTIONS-FORWARDED takes only other-agent-or-session, other-skill`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newState(t, nil)
+			provider := &fake{replies: tc.replies}
+			pipeline.Run(context.Background(), s, []pipeline.Layer{layer(provider, 10)})
+			if got := ruleIDs(s.Findings); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("findings %v, want %v", got, tc.want)
+			}
+			if !reflect.DeepEqual(provider.outputs, []string{tc.reply}) {
+				t.Errorf("tool replies %q, want %q", provider.outputs, tc.reply)
+			}
+		})
+	}
+}
+
 func TestRunServesFilesToTheModel(t *testing.T) {
 	s := newState(t, nil)
-	pipeline.Run(context.Background(), s, []pipeline.Layer{layer(&fake{replies: []llm.Message{read("SKILL.md"), add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 3))}}, 10)})
+	pipeline.Run(context.Background(), s, []pipeline.Layer{layer(&fake{replies: []llm.Message{read("SKILL.md"), add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 3))}}, 10)})
 	if len(s.Findings) != 1 {
 		t.Fatalf("findings %+v, want one", s.Findings)
 	}
@@ -151,7 +191,7 @@ func TestRunFailsTheLayer(t *testing.T) {
 	}{
 		{"provider error", &fake{err: errors.New("boom")}, 10, "boom", nil},
 		{"budget exhausted", &fake{replies: []llm.Message{read("SKILL.md"), read("README.md")}}, 1, "llm: request budget exhausted", nil},
-		{"budget exhausted keeps what was recorded", &fake{replies: []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", 4, 4)), read("README.md")}}, 2, "llm: request budget exhausted", []string{"EXFILTRATION-IN-PROSE"}},
+		{"budget exhausted keeps what was recorded", &fake{replies: []llm.Message{add(item("SKILL.md", "EXFILTRATION-IN-PROSE", outside, 4, 4)), read("README.md")}}, 2, "llm: request budget exhausted", []string{"EXFILTRATION-IN-PROSE"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

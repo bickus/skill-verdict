@@ -60,6 +60,18 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true},
+   "fields": {
+    "prepares": {
+     "question": "What does this skill prepare that the other skill can use?",
+     "options": {
+      "relaxes-rules": "this skill relaxes safety rules or earlier instructions.",
+      "grants-tools": "this skill grants tools or permissions that its task does not need.",
+      "writes-config": "this skill writes files or settings that the other skill reads.",
+      "nothing": "this skill prepares none of these."
+     },
+     "accept": ["relaxes-rules", "grants-tools", "writes-config"]
+    }
+   },
    "enabled": true
   }
  ]

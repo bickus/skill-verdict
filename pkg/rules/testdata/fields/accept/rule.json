@@ -1,0 +1,25 @@
+{
+ "rules": [
+  {
+   "id": "X20",
+   "category": "tool-misuse",
+   "severity": "high",
+   "title": "Field that accepts an option it does not offer",
+   "description": "Fields the loader rejects.",
+   "kind": "llm",
+   "layer": "discovery",
+   "judge": {"downgrade": true},
+   "fields": {
+    "who": {
+     "question": "Who does it?",
+     "options": {
+      "agent": "the agent.",
+      "user": "the user."
+     },
+     "accept": ["agent", "nobody"]
+    }
+   },
+   "enabled": true
+  }
+ ]
+}

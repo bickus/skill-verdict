@@ -64,6 +64,24 @@
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true},
+   "fields": {
+    "data": {
+     "question": "What does the agent send to the host?",
+     "options": {
+      "user-or-machine-data": "files, settings, credentials, history or other data from the user's machine or from another service.",
+      "only-what-the-service-needs": "only the input that the task gives the service and the service's own credential."
+     },
+     "accept": ["user-or-machine-data"]
+    },
+    "destination": {
+     "question": "Whose host receives the data?",
+     "options": {
+      "skills-own-service": "the service the skill is for, the one whose site or API the skill works with.",
+      "other-host": "a host that is not the service the skill is for."
+     },
+     "accept": ["other-host"]
+    }
+   },
    "enabled": true
   },
   {

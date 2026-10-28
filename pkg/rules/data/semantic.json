@@ -37,23 +37,24 @@
    "category": "exfiltration",
    "severity": "high",
    "title": "Natural-language exfiltration instructions",
-   "description": "Plain-language instructions to collect, expose, summarize, transmit, or leak sensitive, private, or user-provided data without explicit technical terms such as exfiltrate or send: remembering everything the user says and including it in responses, keeping a log of all inputs, echoing back credentials.",
+   "description": "Plain-language instructions to collect, expose, summarize, transmit, or leak sensitive, private, or user-provided data to a place outside the conversation without explicit technical terms such as exfiltrate or send: posting what the user says to a service, mailing a summary of the session, writing credentials to a file that another agent or session reads.",
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
    "judge": {"downgrade": true, "downgradeFloor": "low"},
-   "enabled": true
-  },
-  {
-   "id": "DECEPTION-GRADUAL",
-   "category": "deception",
-   "severity": "high",
-   "title": "Narrative or gradual deception",
-   "description": "Multi-step or incremental instruction sequences where individual steps appear harmless but the cumulative effect steers toward a harmful goal: establishing trust first and then requesting sensitive actions, progressive permission escalation, story-driven setups that normalize harmful behavior.",
-   "kind": "llm",
-   "layer": "discovery",
-   "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "fields": {
+    "destination": {
+     "question": "Where does the collected data go?",
+     "options": {
+      "outside-endpoint": "a host, a service, an email address or a chat outside the user's machine.",
+      "file-another-agent-reads": "a file, a memory store or a setting that another agent, another session or another skill reads.",
+      "local-file": "a file on the user's machine that only the user and this skill use.",
+      "reply-to-user": "the agent's reply to the user.",
+      "memory-for-later-turns": "the agent keeps it for later turns of the same conversation."
+     },
+     "accept": ["outside-endpoint", "file-another-agent-reads"]
+    }
+   },
    "enabled": true
   }
  ]

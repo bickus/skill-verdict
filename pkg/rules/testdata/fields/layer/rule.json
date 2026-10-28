@@ -1,0 +1,26 @@
+{
+ "rules": [
+  {
+   "id": "X21",
+   "category": "tool-misuse",
+   "severity": "high",
+   "title": "Fields on a static rule",
+   "description": "Fields the loader rejects.",
+   "kind": "heuristic",
+   "layer": "static",
+   "patterns": ["(?i)x21"],
+   "judge": {"downgrade": true},
+   "fields": {
+    "who": {
+     "question": "Who does it?",
+     "options": {
+      "agent": "the agent.",
+      "user": "the user."
+     },
+     "accept": ["agent"]
+    }
+   },
+   "enabled": true
+  }
+ ]
+}

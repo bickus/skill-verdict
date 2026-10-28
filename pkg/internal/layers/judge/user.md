@@ -6,7 +6,7 @@ The skill sits in a folder named `{{folder}}`. A skill registry such as ClawHub 
 {{artifacts}}
 
 ## Rules
-Every rule below raised at least one of the findings. A line reads `[id] - title - severity - floor`, and the indented line under it says what the rule reports and how to weigh it. The severity is what the rule gives its findings. The floor is the lowest severity a finding of that rule can end at after your verdict.
+Every rule below raised at least one of the findings. A line reads `[id] - title - severity - floor`, and the indented line under it is the rule's description, what the rule reports. The severity is what the rule gives its findings. The floor is the lowest severity a finding of that rule can end at after your verdict.
 {{rulesdowngradeable}}
 {{rulesnondowngradeable}}
 ## Analysis Findings
