@@ -57,7 +57,7 @@ var githubExtractCases = []extractCase{
 	{"deep path", "SKILL.md", "https://github.com/acme/tool/blob/main/README.md\n", []refs.Ref{refURL(refs.GitHub, "acme/tool", "https://github.com/acme/tool/blob/main/README.md", 1)}},
 	{"git suffix", "SKILL.md", "https://github.com/acme/tool.git\n", []refs.Ref{refURL(refs.GitHub, "acme/tool", "https://github.com/acme/tool.git", 1)}},
 	{"owner only", "SKILL.md", "https://github.com/acme\n", []refs.Ref{refURL(refs.GitHub, "acme", "https://github.com/acme", 1)}},
-	{"site section skipped", "SKILL.md", "https://github.com/settings/tokens https://github.com/orgs/x\n", nil},
+	{"site section skipped", "SKILL.md", "https://github.com/settings/tokens https://github.com/orgs/x https://github.com/advisories/GHSA-1234-abcd-5678\n", nil},
 	{"invalid owner skipped", "SKILL.md", "https://github.com/-bad/repo\n", nil},
 	{"invalid repo skipped", "SKILL.md", "https://github.com/acme/bad%20name\n", nil},
 	{"ssh clone", "SKILL.md", "git clone git@github.com:acme/tool.git\n", []refs.Ref{ref(refs.GitHub, "acme/tool")}},

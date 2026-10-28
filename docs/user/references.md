@@ -30,7 +30,7 @@ The checks below say what a reference is. They do not say what the skill does wi
 | `citation` | Named in text, nobody is told to open it. | none |
 | `documentation` | The reader is pointed at the page to learn from it. | none |
 | `user-action` | The user does something there by hand: signs up, gets a key, installs a tool. | none |
-| `tool-server` | The agent is connected to it as an MCP or other tool server and calls its tools. | `TOOL-SERVER-UNTRUSTED`, only when the reference also has a fact finding |
+| `tool-server` | The agent uses it as an MCP or other tool server and calls its tools. | `TOOL-SERVER-UNTRUSTED`, only when the reference also has a fact finding above `low` |
 | `agent-fetch` | The agent works with the service there: gets data the skill processes, or operates its pages or its API by the steps the skill gives. | none |
 | `agent-instructions` | The agent reads text from it and does what the text says, or what comes back steers the agent. | `REMOTE-INSTRUCTIONS-FOLLOWED` |
 | `agent-install` | The agent installs or runs code from it. | `REMOTE-CODE-AT-INSTALL` |
@@ -38,7 +38,21 @@ The checks below say what a reference is. They do not say what the skill does wi
 
 Packages and references reached through a redirect get no usage. A place with no clear answer, or with an answer below `layers.decision.minProbability`, gets no usage in the reference brief. The discovery model then reads the place itself. The `decision` layer must be enabled, no other layer gives usages. The judge sees every usage in the reference brief. A reference gets one finding per rule, at the first place whose top answer has that usage, however many places have it and whatever the probability of the answer. A `REMOTE-CODE-AT-INSTALL` finding raised this way gets the rule's own question about who does the step, see [Detection](detection.md#layer-6-decision). The other findings go to the judge like any other finding. The discovery model may report the same three rules on its own. Such a finding is left out, with no message to the model, when its lines overlap the lines around a place whose usage raised the same rule. A usage that raises no rule removes no discovery finding.
 
-Some fact rules name the usages they apply to: `user-action`, `tool-server`, `agent-fetch`, `agent-instructions`, `agent-install` and `agent-upload`. These rules are `DOMAIN-NEW`, `DOMAIN-EXPIRING`, `DOMAIN-UNREGISTERED`, `DOMAIN-HTTP-ERROR`, `DOMAIN-UNREACHABLE`, `GITHUB-OWNER-NEW`, `GITHUB-OWNER-MISSING`, `GITHUB-OWNER-RENAMED` and `GITHUB-REPO-MISSING`. Their finding drops to the rule's floor with no judge call when all of this holds:
+Some fact rules name the usages they apply to: `user-action`, `tool-server`, `agent-fetch`, `agent-instructions`, `agent-install` and `agent-upload`. The rules are:
+
+- `DOMAIN-NEW`
+- `DOMAIN-EXPIRING`
+- `DOMAIN-UNREGISTERED`
+- `DOMAIN-HTTP-ERROR`
+- `DOMAIN-UNREACHABLE`
+- `GITHUB-OWNER-NEW`
+- `GITHUB-OWNER-MISSING`
+- `GITHUB-REPO-MOVED`
+- `GITHUB-OWNER-REPLACED`
+- `GITHUB-REPO-MISSING`
+- `PLATFORM-SITE-MISSING`
+
+Their finding drops to the rule's floor with no judge call when all of this holds:
 
 - every place of the reference has a usage,
 - every answer has a probability at or above `layers.decision.minProbability`,
@@ -46,9 +60,7 @@ Some fact rules name the usages they apply to: `user-action`, `tool-server`, `ag
 
 A rule with no floor is dismissed. Anything else leaves the finding to the judge.
 
-A tool server gets what the agent sends and steers the agent with its tool descriptions and replies. A reference with a `tool-server` place and at least one finding of the `references` layer raises `TOOL-SERVER-UNTRUSTED` at the first such place. The evidence names the fact rules. The fact findings stay as they are.
-
-An API host often answers with an error at its root. When a host does, the scanner also requests the root of its registered domain and records `parent_http_status`. For `TOOL-SERVER-UNTRUSTED` the root error does not count when the registered domain serves a page. A host on a hosting platform such as `vercel.app` has no registered domain of its own, so its root error counts.
+A tool server gets what the agent sends and steers the agent with its tool descriptions and replies. A reference with a `tool-server` place raises `TOOL-SERVER-UNTRUSTED` at the first such place. The reference needs at least one finding of the `references` layer whose rule severity is above `low`. The shipped `low` rules report facts that only the owner of the name can change, such as an error status at the host root. The evidence names the fact rules. The fact findings stay as they are.
 
 ---
 
@@ -65,12 +77,22 @@ When a domain is detected, `skill-verdict` evaluates whether the domain is legit
    - The scanner sends a safe `GET` request to the **root** of the domain (e.g. `https://example.com/`).
    - **Crucial Security Rule**: The scanner **never** requests the specific subpath mentioned in the skill (e.g. `https://example.com/api/v1/trigger?token=xyz`). Requesting subpaths could trigger webhooks, delete resources, or alert an attacker.
    - The root request uses standard browser headers (Chrome on Windows) to verify that the server is alive and to track redirects.
+   - **Error at the Root (`DOMAIN-HTTP-ERROR`)**: The root answers with a 4xx or 5xx status. API hosts, content networks and hosts that serve only paths answer this way. Only the owner of the name can change that answer, so the finding is `low`.
+   - **No Connection (`DOMAIN-UNREACHABLE`)**: The name does not resolve, or the host refuses the connection. The owner of a registered domain controls both, so the finding is `low`.
 3. **Suspicious Host Identification**:
    - **URL Shorteners (`DOMAIN-SHORTENER`)**: Detects `bit.ly`, `tinyurl.com`, `t.co`, etc. Legitimate skills should never hide destinations behind link shorteners.
    - **Paste & Snippet Sites (`DOMAIN-PASTE`)**: Detects `pastebin.com`, `gist.github.com`, etc. Code behind paste sites can be modified at any time without version control or review.
    - **File Sharing Services (`DOMAIN-FILEHOST`)**: Detects anonymous file lockers and temporary file hosts (`mega.nz`, `dropbox.com`, `mediafire.com`).
 4. **Cross-Domain Redirects (`DOMAIN-NEW-REDIRECT`)**:
    - If a newly registered domain redirects to a different registered domain, it is flagged as a high-risk obfuscation tactic.
+5. **Unclaimed Platform Sites (`PLATFORM-SITE-MISSING`)**:
+   - A host on a hosting platform answers that no site, app or bucket exists under its name. Anyone with an account on the platform can create one and serve content under the URL the skill trusts.
+   - The scanner takes this only from the platform's own answer to the root request. The answer is the platform's page for a missing site. A plain error status raises `DOMAIN-HTTP-ERROR` instead.
+   - The scanner knows the answers of these platforms:
+     - Amazon S3 (`s3.amazonaws.com`)
+     - Surge (`surge.sh`)
+   - The scanner leaves out GitHub Pages, Netlify, Heroku and Firebase. Each of them gives the same answer for a name that nobody else can take. Their hosts get only the `low` findings above.
+   - Azure App Service, Fly.io and Cloudflare Pages stay out as well. They answer an unclaimed name with no DNS record. The scanner cannot tell a name with no address from a name that does not exist. The check would flag existing sites.
 
 ---
 
@@ -80,11 +102,13 @@ Referencing a GitHub repository without pinning a commit hash exposes you to rep
 
 1. **Missing Owners (`GITHUB-OWNER-MISSING`)**:
    - If the GitHub account that originally owned the repository has been deleted, **anyone can register that exact username** on GitHub and recreate the repository with malicious code. This is an immediate critical risk.
-2. **Renamed Owners (`GITHUB-OWNER-RENAMED`)**:
-   - If an account renamed itself, GitHub automatically redirects traffic to the new name. However, the old username is now free to be claimed by anyone.
-3. **Missing Repositories (`GITHUB-REPO-MISSING`)**:
-   - If the account exists but the repository was deleted, the owner could recreate it with arbitrary code at any time.
-4. **New Owner Accounts (`GITHUB-OWNER-NEW`)**:
+2. **Moved Repositories (`GITHUB-REPO-MOVED`)**:
+   - The repository is now under another owner, and GitHub redirects the old address there. The old owner can end the redirect with a new repository under the old name. The skill already trusts that owner, so the finding is `low`. A renamed owner whose old name is still free shows up as `GITHUB-OWNER-MISSING`. The old name answers nothing.
+3. **Owner Names That Changed Hands (`GITHUB-OWNER-REPLACED`)**:
+   - The repository redirects to another owner, and the account that holds the referenced name is younger than the repository and than that owner. The original owner renamed itself and someone else registered the old name. Whoever holds the old name can create a repository under it. The old address then serves their code. The scanner does not catch a squatter who renamed an older account to the freed name.
+4. **Missing Repositories (`GITHUB-REPO-MISSING`)**:
+   - The account exists, but the repository does not. The owner may have deleted it, or a stranger may hold a name whose original account was deleted. The scanner cannot tell which, so the finding is `medium`. A young account next to a missing repository points at the second case.
+5. **New Owner Accounts (`GITHUB-OWNER-NEW`)**:
    - Flags accounts created within the last 90 days.
 
 ---

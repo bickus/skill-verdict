@@ -28,7 +28,11 @@ var githubSections = map[string]bool{
 	"orgs": true, "topics": true, "search": true, "features": true, "settings": true,
 	"marketplace": true, "sponsors": true, "login": true, "apps": true, "about": true,
 	"pricing": true, "explore": true, "site": true, "security": true, "enterprise": true,
-	"events": true, "trending": true, "new": true, "notifications": true,
+	"events": true, "trending": true, "new": true, "notifications": true, "advisories": true,
+	"collections": true, "discussions": true, "issues": true, "pulls": true, "codespaces": true,
+	"copilot": true, "customer-stories": true, "readme": true, "sessions": true, "account": true,
+	"organizations": true, "users": true, "stars": true, "dashboard": true, "join": true,
+	"contact": true, "mobile": true, "team": true, "watching": true, "blog": true,
 }
 
 func eachLine(a *inventory.Artifact, fn func(line int, text string)) {

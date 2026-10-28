@@ -4,6 +4,7 @@
 package refcheck
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	_ "embed"
@@ -27,10 +28,17 @@ import (
 var hostsJSON []byte
 
 type hostData struct {
-	Platforms  []string `json:"platforms"`
-	Shorteners []string `json:"shorteners"`
-	Pastes     []string `json:"pastes"`
-	FileHosts  []string `json:"filehosts"`
+	Platforms  []string    `json:"platforms"`
+	Shorteners []string    `json:"shorteners"`
+	Pastes     []string    `json:"pastes"`
+	FileHosts  []string    `json:"filehosts"`
+	Unclaimed  []unclaimed `json:"unclaimed"`
+}
+
+type unclaimed struct {
+	Suffix string `json:"suffix"`
+	Status int    `json:"status"`
+	Body   string `json:"body"`
 }
 
 var hosts = sync.OnceValue(func() hostData {
@@ -57,13 +65,26 @@ var chromeHeaders = http.Header{
 	"Priority":                  {"u=0, i"},
 }
 
+func under(host, suffix string) bool {
+	return host == suffix || strings.HasSuffix(host, "."+suffix)
+}
+
 func suffixOf(host string, suffixes []string) (string, bool) {
 	for _, s := range suffixes {
-		if host == s || strings.HasSuffix(host, "."+s) {
+		if under(host, s) {
 			return s, true
 		}
 	}
 	return "", false
+}
+
+func unclaimedAt(host string) (unclaimed, bool) {
+	for _, u := range hosts().Unclaimed {
+		if under(host, u.Suffix) {
+			return u, true
+		}
+	}
+	return unclaimed{}, false
 }
 
 func tld(host string) string {
@@ -182,17 +203,20 @@ func (d *DomainCollector) follow(ctx context.Context, host, registrable string, 
 	if err != nil {
 		return false, err
 	}
-	if err = resp.Body.Close(); err != nil {
+	gone, err := d.unclaimedPage(host, resp)
+	if err != nil {
 		return false, err
 	}
 	if state == nil {
 		state = resp.TLS
 	}
 	certFacts(state, rep)
-	if resp.StatusCode >= http.StatusBadRequest {
+	switch {
+	case gone:
+		siteMissing(rep)
+	case resp.StatusCode >= http.StatusBadRequest:
 		addFact(rep, "http_status", strconv.Itoa(resp.StatusCode))
 		addFinding(rep, "DOMAIN-HTTP-ERROR")
-		d.parent(ctx, host, registrable, rep)
 	}
 	final := strings.ToLower(resp.Request.URL.Hostname())
 	if final == registrable || strings.HasSuffix(final, "."+registrable) {
@@ -206,26 +230,21 @@ func (d *DomainCollector) follow(ctx context.Context, host, registrable string, 
 	return true, nil
 }
 
-const ParentStatus = "parent_http_status"
+func (d *DomainCollector) unclaimedPage(host string, resp *http.Response) (bool, error) {
+	sig, ok := unclaimedAt(host)
+	if !ok || resp.StatusCode != sig.Status || !under(strings.ToLower(resp.Request.URL.Hostname()), sig.Suffix) {
+		return false, resp.Body.Close()
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, d.cfg.MaxBodyBytes+1))
+	if err = errors.Join(err, resp.Body.Close()); err != nil {
+		return false, err
+	}
+	return int64(len(body)) <= d.cfg.MaxBodyBytes && bytes.Contains(body, []byte(sig.Body)), nil
+}
 
-func (d *DomainCollector) parent(ctx context.Context, host, registrable string, rep *refs.Report) {
-	if registrable == host {
-		return
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+registrable+"/", nil)
-	if err != nil {
-		return
-	}
-	req.Header = chromeHeaders.Clone()
-	resp, err := (&http.Client{Transport: d.transport}).Do(req)
-	if err != nil {
-		addFact(rep, ParentStatus, "unreachable")
-		return
-	}
-	if err = resp.Body.Close(); err != nil {
-		return
-	}
-	addFact(rep, ParentStatus, strconv.Itoa(resp.StatusCode))
+func siteMissing(rep *refs.Report) {
+	addFact(rep, "site", "missing")
+	addFinding(rep, "PLATFORM-SITE-MISSING")
 }
 
 var dropped = []error{syscall.ECONNREFUSED, syscall.ECONNRESET, io.EOF, io.ErrUnexpectedEOF}

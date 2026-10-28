@@ -1,6 +1,6 @@
 # Built-in Rules Reference
 
-`skill-verdict` includes 75 specialized security checks designed specifically for agent skills, instructions, and MCP tool configurations.
+`skill-verdict` has 79 security checks for agent skills, their instructions and MCP tool configurations.
 
 Rather than sorting rules alphabetically, this reference groups every rule by the **real-world threat** it defends against.
 
@@ -26,8 +26,9 @@ Attackers can easily compromise unpinned software by:
 | `UNPINNED-DOWNLOAD` | `critical`, floor `medium` | static | No | Downloading content from moving targets (e.g. raw, blob or archive URLs on `main` at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, release downloads, or gists) where content can be replaced at the same address. Fixed commit hashes do not match. When a person does the download by hand, the Judge lowers the finding to the floor. |
 | `UNPINNED-GIT` | `high`, floor `medium` | static | No | Cloning a Git repository (`git clone`, `gh repo clone`, `go install ...@branch`, `openclaw skills install git:...`) without a pinned commit hash. Every run pulls whatever the branch currently contains. The decision layer may dismiss a place that is only documentation or that checks out a commit hash. The decision layer confirms a place where the agent does the step. When a person does the clone by hand, the Judge lowers the finding to the floor. |
 | `GITHUB-OWNER-MISSING` | `critical`, floor `medium` | references | No | The referenced GitHub owner account does not exist. Anyone can register the username and ship malware under the URL the skill trusts. |
-| `GITHUB-OWNER-RENAMED` | `critical`, floor `medium` | references | No | The referenced repository redirects to a new account, leaving the original owner name available for anyone to claim. |
-| `GITHUB-REPO-MISSING` | `high`, floor `medium` | references | No | The GitHub owner exists, but the repository has been deleted. The owner can recreate it with arbitrary code at any time. |
+| `GITHUB-REPO-MOVED` | `low`, dismissable | references | No | The repository is now under another owner and GitHub redirects the old address there. Only the old owner can take the old address back, and the skill already trusts that owner. |
+| `GITHUB-OWNER-REPLACED` | `critical`, floor `medium` | references | No | The account that holds the referenced owner name is younger than the repository and than the account the repository moved to. Someone registered the old name after a rename, and GitHub still redirects the old address. |
+| `GITHUB-REPO-MISSING` | `medium`, dismissable | references | No | The GitHub owner has no repository under that name. A deleted repository and an owner name registered again by a stranger look the same to the scanner. |
 | `GITHUB-OWNER-NEW` | `medium`, dismissable | references | No | The referenced GitHub owner account was created within the last 90 days. New accounts have no reputation history. |
 | `PACKAGE-MISSING` | `critical`, floor `medium` | references | No | The referenced npm or PyPI package is not published. Anyone can register the package name and immediately achieve code execution (dependency confusion). |
 | `PACKAGE-TYPOSQUAT` | `high`, floor `low` | references | No | Package name is 1 or 2 typos away from a popular library on the same registry (e.g. `reqeusts` or `cross-env-colors`). |
@@ -48,15 +49,16 @@ Skills often provide documentation links or API endpoints. If an attacker purcha
 |---|---|:---:|:---:|---|
 | `DOMAIN-UNREGISTERED` | `high`, floor `medium` | references | No | A referenced domain name is not registered. Anyone can purchase it right now and serve arbitrary content under the URL the skill trusts. |
 | `DOMAIN-EXPIRING` | `high`, floor `medium` | references | No | A referenced domain expires within days. Once it lapses, domain drop-catchers or attackers can seize it. |
+| `PLATFORM-SITE-MISSING` | `critical`, floor `medium` | references | No | A host on a hosting platform answers that no site, app or bucket exists under its name. Anyone with an account on the platform can create one and serve content under the URL the skill trusts. The scanner trusts only the platform's own answer: its page for a missing site, or a missing DNS record. The scanner knows the answers of `s3.amazonaws.com`, `surge.sh`, `azurewebsites.net`, `fly.dev`, `pages.dev` and `workers.dev`. |
 | `DOMAIN-SHORTENER` | `critical`, floor `medium` | references | No | The URL uses a link shortener (`bit.ly`, `tinyurl.com`, `t.co`). The actual destination is concealed and can be redirected at will. |
 | `DOMAIN-PASTE` | `critical`, floor `medium` | references | No | The URL points to a paste or snippet service (`pastebin.com`, `gist.github.com`). Paste content can be edited at any time without version control. |
 | `DOMAIN-FILEHOST` | `critical`, floor `medium` | references | No | The URL points to an anonymous file-sharing service (`mega.nz`, `dropbox.com`, `mediafire.com`). Uploaded files can be replaced by anyone without accountability. |
 | `DOMAIN-NEW` | `medium`, dismissable | references | No | A referenced domain was registered within the configured threshold (default: 365 days). New domains have no established reputation. |
 | `DOMAIN-NEW-REDIRECT` | `critical`, floor `medium` | references | No | A newly registered domain immediately redirects to a different host. Common pattern for delayed malware deployment. |
-| `DOMAIN-UNREACHABLE` | `high`, dismissable | references | No | Domain cannot be reached (DNS failure, invalid TLS certificate, or connection refused). Could indicate deliberate concealment from scanners. |
-| `DOMAIN-HTTP-ERROR` | `high`, dismissable | references | No | The domain root responds with an HTTP 4xx or 5xx status. |
+| `DOMAIN-UNREACHABLE` | `low`, dismissable | references | No | The scanner cannot connect to the domain. The owner of the domain controls its DNS, its TLS and its server. |
+| `DOMAIN-HTTP-ERROR` | `low`, dismissable | references | No | The domain root responds with an HTTP 4xx or 5xx status. API hosts, content networks and hosts that serve only paths answer this way. Only the owner of the domain can change the answer. |
 | `IP-ADDRESS-PUBLIC` | `critical`, floor `medium` | references | No | A URL, connection command, or script targets a raw public IP address instead of a registered domain name. |
-| `TOOL-SERVER-UNTRUSTED` | `critical`, floor `high` | references | No | The skill connects the agent to an MCP or other tool server, and the host has at least one reference fact finding. Raised by the `decision` layer from the usage of the reference. |
+| `TOOL-SERVER-UNTRUSTED` | `critical`, floor `high` | references | No | The skill connects the agent to an MCP or other tool server, and the host has at least one reference fact finding above `low`. Raised by the `decision` layer from the usage of the reference. |
 | `REFERENCES-TOO-MANY` | `high`, no downgrade | references | **Yes** | Skill contains more than 100 external references. Often used to overwhelm scanners or obscure malicious needles in haystacks. |
 
 ---

@@ -9,3 +9,5 @@ Deferred work. An entry says what it would do, what it needs and why it waits.
 | [0003](0003-table-cell-compaction.md) | Letter-spacing compaction joins six or more single-letter Markdown table cells into one word. |
 | [0004](0004-forge-owner-facts.md) | Owner and repository facts for GitLab, SourceHut, Codeberg and Bitbucket, so the judge does not read the host domain as the subject. |
 | [0005](0005-usage-aware-reference-rules.md) | Reference fact rules apply the usage classification themselves, so a fact on a cited reference drops to the floor with no judge call. |
+| [0006](0006-dangling-alias-takeover.md) | A host whose DNS alias points at an unclaimed platform name gets the platform site check through a CNAME lookup. |
+| [0007](0007-young-owner-missing-repository.md) | A missing repository under a young owner account becomes one fact at or above the gate. |

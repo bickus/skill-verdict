@@ -207,5 +207,9 @@
   "disk.yandex.com",
   "disk.yandex.ru",
   "cloud.mail.ru"
+ ],
+ "unclaimed": [
+  {"suffix": "s3.amazonaws.com", "status": 404, "body": "<Code>NoSuchBucket</Code>"},
+  {"suffix": "surge.sh", "status": 404, "body": "<title>project not found</title>"}
  ]
 }

@@ -197,3 +197,25 @@ func TestDomainUnreachable(t *testing.T) {
 		})
 	}
 }
+
+func TestDomainPlatformSiteMissing(t *testing.T) {
+	cases := []struct {
+		name   string
+		host   string
+		client *http.Client
+		want   expect
+	}{
+		{"platform page saying the project does not exist", "gone.surge.sh",
+			newNet(t, map[string]route{"gone.surge.sh/": {status: http.StatusNotFound, body: "<html><head><title>project not found</title></head></html>"}}).Client,
+			expect{status: refs.Checked, findings: []string{"PLATFORM-SITE-MISSING"}, facts: map[string]string{"site": "missing"}}},
+		{"platform page with the same status and another text", "gone.surge.sh",
+			newNet(t, map[string]route{"gone.surge.sh/": {status: http.StatusNotFound, body: "<html><head><title>page not found</title></head></html>"}}).Client,
+			expect{status: refs.Checked, findings: []string{"DOMAIN-HTTP-ERROR"}, facts: map[string]string{"http_status": "404"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rep := refcheck.NewDomain(tc.client, testConfig()).Collect(context.Background(), refs.Ref{Kind: refs.Domain, Value: tc.host})
+			verify(t, rep, tc.want)
+		})
+	}
+}

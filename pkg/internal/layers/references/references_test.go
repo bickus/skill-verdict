@@ -81,7 +81,7 @@ func TestRunTurnsFactsIntoFindings(t *testing.T) {
 		settings map[string]config.RuleSetting
 		want     []finding.Finding
 	}{
-		{"enabled fact rule becomes a finding", nil, []finding.Finding{{Rule: "GITHUB-REPO-MISSING", Severity: finding.High,
+		{"enabled fact rule becomes a finding", nil, []finding.Finding{{Rule: "GITHUB-REPO-MISSING", Severity: finding.Medium,
 			Location: finding.Location{File: "SKILL.md", Line: 3}, Evidence: "acme/gone", Reference: "acme/gone"}}},
 		{"disabled fact rule is skipped", map[string]config.RuleSetting{"GITHUB-REPO-MISSING": {Enabled: &off}}, nil},
 	}

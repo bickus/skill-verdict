@@ -7,9 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/config"
@@ -25,7 +23,6 @@ const (
 	unknown    = "unknown"
 	toolServer = "tool-server"
 	untrusted  = "TOOL-SERVER-UNTRUSTED"
-	rootError  = "DOMAIN-HTTP-ERROR"
 )
 
 var usageRules = map[string]string{
@@ -163,12 +160,11 @@ func (c *classifier) server(rep *refs.Report, answers []placed) []finding.Findin
 	}
 	var facts []string
 	for _, f := range s.Findings {
-		if f.Reference != rep.Ref.Value || s.Rules.ByID[f.Rule].Layer != config.ReferencesLayer || slices.Contains(facts, f.Rule) {
+		fact := s.Rules.ByID[f.Rule]
+		if f.Reference != rep.Ref.Value || fact.Layer != config.ReferencesLayer || fact.Severity.Rank() <= finding.Low.Rank() || slices.Contains(facts, f.Rule) {
 			continue
 		}
-		if f.Rule != rootError || !parentServes(rep) {
-			facts = append(facts, f.Rule)
-		}
+		facts = append(facts, f.Rule)
 	}
 	if len(facts) == 0 {
 		return nil
@@ -176,16 +172,6 @@ func (c *classifier) server(rep *refs.Report, answers []placed) []finding.Findin
 	f := rule.Finding(rep.Ref.Locations[at], textutil.Clip(rep.Ref.Value+": "+strings.Join(facts, ", ")))
 	f.Reference = rep.Ref.Value
 	return []finding.Finding{f}
-}
-
-func parentServes(rep *refs.Report) bool {
-	for _, f := range rep.Facts {
-		if f.Key == refcheck.ParentStatus {
-			code, err := strconv.Atoi(f.Value)
-			return err == nil && code < http.StatusBadRequest
-		}
-	}
-	return false
 }
 
 func (c *classifier) floor(rep *refs.Report, answers []placed) {

@@ -59,8 +59,9 @@ A version pinned to a hash stays the same after your review (which you should do
 - Commands that download and execute code.
 - Text concealment through invisible characters or altered spelling.
 - Unregistered domains or domains approaching expiry.
-- GitHub accounts that no longer exist or have changed names.
-- GitHub repositories that no longer exist.
+- Names on hosting platforms with no site behind them.
+- GitHub accounts that no longer exist or whose name changed hands.
+- GitHub repositories that no longer exist or moved to another account.
 - Missing packages or package names that resemble popular ones.
 - Certain download and instruction links whose owners can replace the content at the same address.
 - Compiled programs and installers.

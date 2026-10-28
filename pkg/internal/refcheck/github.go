@@ -90,8 +90,33 @@ func (g *GitHubCollector) Collect(ctx context.Context, ref refs.Ref) refs.Report
 		addFinding(&rep, "GITHUB-REPO-MISSING")
 		return rep
 	}
-	repoFacts(&rep, owner, r)
+	repoFacts(&rep, r)
+	if r.Owner.Login == "" || strings.EqualFold(r.Owner.Login, owner) {
+		return rep
+	}
+	if err = g.moved(ctx, &rep, user, r); err != nil {
+		fail(&rep, err)
+	}
 	return rep
+}
+
+func (g *GitHubCollector) moved(ctx context.Context, rep *refs.Report, holder githubUser, r githubRepo) error {
+	addFact(rep, "repo_owner", r.Owner.Login)
+	var target githubUser
+	found, err := g.get(ctx, "users/"+r.Owner.Login, &target)
+	if err != nil {
+		return err
+	}
+	if found && !target.CreatedAt.IsZero() {
+		addFact(rep, "repo_owner_created", target.CreatedAt.Format(time.DateOnly))
+	}
+	dated := found && !r.CreatedAt.IsZero() && !target.CreatedAt.IsZero()
+	if dated && holder.CreatedAt.After(r.CreatedAt) && holder.CreatedAt.After(target.CreatedAt) {
+		addFinding(rep, "GITHUB-OWNER-REPLACED")
+		return nil
+	}
+	addFinding(rep, "GITHUB-REPO-MOVED")
+	return nil
 }
 
 func ownerFacts(rep *refs.Report, user githubUser, youngDays int) {
@@ -108,7 +133,7 @@ func ownerFacts(rep *refs.Report, user githubUser, youngDays int) {
 	}
 }
 
-func repoFacts(rep *refs.Report, owner string, r githubRepo) {
+func repoFacts(rep *refs.Report, r githubRepo) {
 	addFact(rep, "stars", strconv.Itoa(r.Stars))
 	addFact(rep, "fork", strconv.FormatBool(r.Fork))
 	addFact(rep, "archived", strconv.FormatBool(r.Archived))
@@ -117,9 +142,5 @@ func repoFacts(rep *refs.Report, owner string, r githubRepo) {
 	}
 	if !r.PushedAt.IsZero() {
 		addFact(rep, "pushed", r.PushedAt.Format(time.DateOnly))
-	}
-	if r.Owner.Login != "" && !strings.EqualFold(r.Owner.Login, owner) {
-		addFact(rep, "owner_login", r.Owner.Login)
-		addFinding(rep, "GITHUB-OWNER-RENAMED")
 	}
 }
