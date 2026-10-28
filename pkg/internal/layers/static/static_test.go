@@ -208,6 +208,7 @@ func TestSecretEnvNameMatchesWholeTokens(t *testing.T) {
 		{"bare PAT", 3, true},
 		{"_PATH is not a token", 4, false},
 		{"PATCH is not a token", 5, false},
+		{"_SECRET_PATH names a file", 6, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

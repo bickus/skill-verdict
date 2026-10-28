@@ -111,8 +111,8 @@
    "layer": "static",
    "scope": "any",
    "patterns": [
-    "(?im)(?:curl|wget)\\s+(?:[^|\\n]|\\\\\\n)*\\|\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
-    "(?im)(?:curl|wget)\\s+(?:[^|\\n]|\\\\\\n)*\\|\\s*(?:sudo\\s+)?(?:python[23]?|node|ruby|perl)(?:\\s+-(?:\\s|$)|[ \\t]*(?:$|[;&|)`'\"]))",
+    "(?im)(?:curl|wget)\\s+[^|\\s][^|\\n]*(?:\\\\\\n[^|\\n]*)*\\|\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
+    "(?im)(?:curl|wget)\\s+[^|\\s][^|\\n]*(?:\\\\\\n[^|\\n]*)*\\|\\s*(?:sudo\\s+)?(?:python[23]?|node|ruby|perl)(?:\\s+-(?:\\s|$)|[ \\t]*(?:$|[;&|)`'\"]))",
     "(?im)curl\\s+(?:[^&\\n]|\\\\\\n)*-o\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
     "(?im)wget\\s+(?:[^&\\n]|\\\\\\n)*-O\\s+\\S+\\s*&&\\s*(?:sudo\\s+)?(?:ba|z)?sh\\b",
     "(?i)\\b(?:ba|z)?sh\\s+-c\\s+\\\\?[\"']?\\$\\(\\s*(?:curl|wget)\\b",

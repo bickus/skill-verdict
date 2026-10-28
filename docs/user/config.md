@@ -175,7 +175,7 @@ The decision layer has its own model settings, separate from `llm`, because a de
       "timeout": "1m0s",
       "maxStateChars": 60000,
       "maxRequestChars": 120000,
-      "confirmProbability": 0.3,
+      "confirmProbability": 0.5,
       "dismissProbability": 0.8,
       "inputPrice": 0.042
     }
@@ -189,7 +189,7 @@ The decision layer has its own model settings, separate from `llm`, because a de
 | `keyEnv`, `keyFile` | Where the API key comes from. The configuration never holds the key. |
 | `maxStateChars` | Largest text the layer sends. The layer cuts a longer text at this size. |
 | `maxRequestChars` | Largest request, text and questions together. The layer does not send a larger request, and its questions get no answer. |
-| `confirmProbability` | Lowest summed probability of the options a `confirm` row names. Default `0.3`. |
+| `confirmProbability` | Lowest summed probability of the options a `confirm` row names. Default `0.5`. |
 | `dismissProbability` | Lowest summed probability of the options a `severity`, `dismiss` or `misfire` row names. A usage answer raises a rule and enters the reference brief only at this probability or above. Default `0.8`. |
 | `inputPrice` | USD per million input tokens, used for the cost in the report. |
 

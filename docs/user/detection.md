@@ -129,7 +129,7 @@ A condition holds when the probabilities of its options add up to the threshold 
 
 | Setting | Default | Rows |
 |---|---|---|
-| `layers.decision.confirmProbability` | `0.3` | `confirm` |
+| `layers.decision.confirmProbability` | `0.5` | `confirm` |
 | `layers.decision.dismissProbability` | `0.8` | `severity`, `dismiss` and `misfire` |
 
 The layer decides a finding in this order:

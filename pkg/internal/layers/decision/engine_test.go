@@ -94,8 +94,8 @@ func TestDecisionAppliesTheOutcomeTable(t *testing.T) {
 		state    finding.State
 		severity finding.Severity
 	}{
-		{"a confirming answer at 0.3 confirms", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.7,"bad":0.3}}}`, finding.Confirmed, finding.High},
-		{"a confirming answer below 0.3 decides nothing", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.75,"bad":0.25}}}`, "", finding.High},
+		{"a confirming answer at 0.5 confirms", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.5,"bad":0.5}}}`, finding.Confirmed, finding.High},
+		{"a confirming answer below 0.5 decides nothing", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.55,"bad":0.45}}}`, "", finding.High},
 		{"a dismissing answer at 0.8 dismisses", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.8,"unknown":0.2}}}`, finding.Dismissed, finding.High},
 		{"a dismissing answer below 0.8 decides nothing", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.79,"unknown":0.21}}}`, "", finding.High},
 		{"a misfire dismisses through the floor", marked("FLOORED"), `{"kind":{"choice":"not-a-match","probabilities":{"not-a-match":0.9,"unknown":0.1}}}`, finding.Dismissed, finding.High},
@@ -105,7 +105,7 @@ func TestDecisionAppliesTheOutcomeTable(t *testing.T) {
 		{"a conjunction confirms when both answers hold", marked("PAIR"), `{"who":{"choice":"agent","probabilities":{"agent":0.9,"user":0.1}},"pin":{"choice":"none","probabilities":{"none":0.6,"exact":0.4}}}`, finding.Confirmed, finding.High},
 		{"a conjunction decides nothing when one answer fails", marked("PAIR"), `{"who":{"choice":"agent","probabilities":{"agent":0.9,"user":0.1}},"pin":{"choice":"exact","probabilities":{"exact":0.8,"none":0.2}}}`, "", finding.High},
 		{"a question without an answer keeps the severity", marked("PLAIN"), `{}`, "", finding.High},
-		{"a confirming answer at one place confirms", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.6,"agent-install":0.4}}}`, finding.Confirmed, finding.High},
+		{"a confirming answer at one place confirms", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.5,"agent-install":0.5}}}`, finding.Confirmed, finding.High},
 		{"a dismissing answer at every place dismisses", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.85,"unknown":0.15}}}`, finding.Dismissed, finding.High},
 		{"a dismissing answer at one place of two decides nothing", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.7,"unknown":0.3}}}`, "", finding.High},
 		{"a lowered place outweighs a dismissed place", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"user-action","probabilities":{"user-action":0.9,"unknown":0.1}}}`, finding.Downgraded, finding.Medium},

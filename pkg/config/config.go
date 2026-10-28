@@ -233,7 +233,7 @@ func defaultDecision() DecisionConfig {
 		Timeout:            Duration(60 * time.Second),
 		MaxStateChars:      60000,
 		MaxRequestChars:    120000,
-		ConfirmProbability: 0.3,
+		ConfirmProbability: 0.5,
 		DismissProbability: 0.8,
 		InputPrice:         0.042,
 	}
