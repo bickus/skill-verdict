@@ -18,7 +18,7 @@
     "^(date|pwd|whoami|uname|hostname)( -[A-Za-z]+)*$",
     "^git (status|branch|log|diff|rev-parse)( [A-Za-z0-9_./]+)*$",
     "^(ls|cat|head|tail)( -[A-Za-z0-9]+)*( [A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*)*$",
-    "^(bash|sh|zsh|python3?|node|ruby|perl) \"?\\$\\{?CLAUDE_SKILL_DIR\\}?/[A-Za-z0-9_./-]+\"?( \"?[^\\s\"]*\"?)*$"
+    "^(bash|sh|zsh|python3?|node|ruby|perl) \"?\\$\\{?CLAUDE_SKILL_DIR\\}?(/[A-Za-z0-9_][A-Za-z0-9_.-]*)+\"?( \"?[^\\s\"]*\"?)*$"
    ],
    "judge": {"downgrade": false},
    "enabled": true

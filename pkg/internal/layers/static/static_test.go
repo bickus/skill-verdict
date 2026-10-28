@@ -242,9 +242,10 @@ func TestCommandOnLoadSeverity(t *testing.T) {
 		{"a command outside the read-only list is high", "SKILL.md", 8, finding.High},
 		{"a read-only command with a pipe is high", "SKILL.md", 9, finding.High},
 		{"a script shipped in the skill folder is medium", "SKILL.md", 10, finding.Medium},
-		{"a fenced block of read-only commands is medium", "SKILL.md", 12, finding.Medium},
-		{"a fenced block that runs a shipped script is medium", "SKILL.md", 16, finding.Medium},
-		{"a fenced block that fetches is high", "SKILL.md", 20, finding.High},
+		{"a path that leaves the skill folder is high", "SKILL.md", 11, finding.High},
+		{"a fenced block of read-only commands is medium", "SKILL.md", 13, finding.Medium},
+		{"a fenced block that runs a shipped script is medium", "SKILL.md", 17, finding.Medium},
+		{"a fenced block that fetches is high", "SKILL.md", 21, finding.High},
 		{"a command file in a nested commands folder runs too", "commands/git/log.md", 1, finding.Medium},
 		{"a file the agent does not load gives no finding", "notes.md", 1, ""},
 	}
