@@ -22,6 +22,7 @@
     "(?i)requests\\s*\\.\\s*(?:post|put)\\s*\\([^)]*json\\s*=",
     "(?i)httpx\\s*\\.\\s*(?:post|put)\\s*\\(\\s*['\"]https?://",
     "(?i)urllib\\s*\\.\\s*request\\s*\\.\\s*urlopen\\s*\\([^)]*data\\s*=",
+    "(?i)urllib\\s*\\.\\s*request\\s*\\.\\s*Request\\s*\\(.*(?:\\bdata\\s*=|method\\s*=\\s*['\"](?:POST|PUT)['\"])",
     "(?i)fetch\\s*\\(\\s*['\"]https?://[^'\"]+['\"][^)]*method\\s*:\\s*['\"]POST['\"]",
     "(?i)curl\\s+[^|]*(?:-d|--data|--data-raw|--data-binary)\\s+",
     "(?i)wget\\s+[^|]*--post-(?:data|file)",
@@ -100,7 +101,10 @@
     "(?i)\\{\\s*\\*\\*\\s*os\\s*\\.\\s*environ\\s*\\}",
     "(?i)(?:API_KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)\\s+in\\s+(?:key|name|var)",
     "(?i)Object\\.keys\\s*\\(\\s*process\\.env\\s*\\)",
-    "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)"
+    "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)",
+    "(?i)\\[\\s*['\"](?:ba|z)?sh['\"]\\s*,\\s*['\"]-c['\"]\\s*,\\s*['\"](?:env|set|printenv|export\\s+-p)['\"]",
+    "(?i)(?:run|check_output|Popen|call)\\s*\\(\\s*\\[?\\s*['\"](?:env|printenv)['\"]\\s*[\\]),]",
+    "\\$\\(\\s*(?:env|printenv|set)\\s*\\)"
    ],
    "judge": {"downgrade": true, "downgradeFloor": "low"},
    "decision": {
