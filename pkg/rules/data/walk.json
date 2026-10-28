@@ -9,7 +9,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -22,7 +22,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -35,7 +35,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -48,7 +48,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -61,7 +61,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -75,7 +75,7 @@
    "layer": "walk",
    "scope": "any",
    "files": ["*.pdf"],
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   }

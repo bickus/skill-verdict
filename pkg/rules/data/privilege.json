@@ -5,7 +5,7 @@
    "category": "privilege-escalation",
    "severity": "critical",
    "title": "Passwordless root or administrator access",
-   "description": "Skills are usually needed for repeated work, and granting passwordless sudo or admin privileges is almost never a valid thing to be done from the skill. Unless this is a false-positive it should not be trusted.",
+   "description": "The skill grants root or administrator rights that need no password. A NOPASSWD sudoers rule removes the password check for the commands it names, `ALL` names every command, and an admin grant does the same for a user.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -26,7 +26,26 @@
     "(?i)\\brunas\\b[^\\n]*/savecred\\b",
     "(?i)\\b(?:ms-settings|mscfile)[\\\\/]+shell[\\\\/]+open[\\\\/]+command\\b"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "A stated reason does not justify passwordless rights. Lower only when the match is not a grant: a removal, a check, or an example of what not to do."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What does the marked text do with root or administrator rights that need no password?",
+      "options": {
+       "grant": "it adds or writes a rule that grants passwordless sudo or administrator rights.",
+       "removal-or-check": "it removes such a rule, or checks whether one exists.",
+       "example-not-to-do": "it shows such a rule as an example of what not to do.",
+       "not-a-match": "the marked text is not about root or administrator rights that need no password."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"kind": "grant"}],
+     "dismiss": [{"kind": "removal-or-check"}, {"kind": "example-not-to-do"}],
+     "misfire": [{"kind": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -38,7 +57,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   }
  ]

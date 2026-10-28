@@ -23,7 +23,7 @@
       "subject": "frame",
       "question": "The marked line names a path or URL of an agent skill, shown as the subject. What do the lines do with that skill?",
       "options": {
-       "own-files": "the path belongs to the skill this file is part of: the folder it is installed or copied to, its own SKILL.md, its own scripts or its own folder layout.",
+       "own-files": "the path is inside the folder of this skill, the folder that holds its SKILL.md, and not in a sibling skill of the same skills folder.",
        "mention": "another skill or a skills folder is named as information: a list of related skills, an example, a comparison, a place where skills live. The agent is not told to install, read, run or change it.",
        "agent-loads": "the agent is told to install, read, load, run or follow another skill or its SKILL.md.",
        "agent-writes": "the agent or a script creates, copies, edits or deletes files of another skill, or files in a skills folder that are not this skill's own.",
@@ -43,11 +43,8 @@
      }
     },
     "outcome": {
-     "confirm": [{"does": ["agent-loads", "agent-writes"], "prepares": ["relaxes-rules", "grants-tools", "writes-for-other"]}],
-     "severity": {
-      "low": [{"does": "agent-loads", "prepares": "nothing"}],
-      "medium": [{"does": "agent-writes", "prepares": "nothing"}]
-     },
+     "confirm": [{"does": "agent-writes"}, {"does": "agent-loads", "prepares": ["relaxes-rules", "grants-tools", "writes-for-other"]}],
+     "severity": {"low": [{"does": "agent-loads", "prepares": "nothing"}]},
      "dismiss": [{"does": ["own-files", "mention"]}]
     }
    },
@@ -62,7 +59,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Referencing another skill is normal. Dismiss unless this skill also prepares something the referenced skill can use: it relaxes safety rules or earlier instructions, grants tools or permissions its task does not need, or writes files or settings the other skill would read. Judge what this skill sets up, not what the unseen file might contain."},
+   "judge": {"downgrade": true},
    "enabled": true
   }
  ]

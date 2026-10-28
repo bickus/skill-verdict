@@ -9,7 +9,26 @@
    "kind": "heuristic",
    "layer": "reveal",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower when the file is in a language that uses that script or is a test fixture for such text. One altered word in English prose keeps the severity."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "The marked line holds a word with characters that do not print. The subject shows the word with those characters as code points. Why is the word written this way?",
+      "options": {
+       "notation": "the characters are a symbol or a mark of a notation: a Greek letter in a formula, a joiner in an emoji sequence, a soft hyphen, a direction mark.",
+       "other-language": "the file is written in a language whose script uses these characters.",
+       "test-fixture": "the file is test data for text with such characters.",
+       "disguised-word": "a Latin word has foreign or invisible characters inside it, in instructions or in code.",
+       "unknown": "the lines do not show why the word is written this way."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"kind": "disguised-word"}],
+     "dismiss": [{"kind": "notation"}, {"kind": "other-language"}, {"kind": "test-fixture"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -28,10 +47,10 @@
       "subject": "frame",
       "question": "The marked line holds a word that mixes Latin letters with letters of another script that print like Latin letters. The subject shows the word with those letters as code points, then the word as it reads. Why is the word written this way?",
       "options": {
-       "notation": "the other letter is a symbol with its own meaning: a mathematical or physical quantity, a unit, a phonetic sign or a variable name.",
-       "other-language": "the lines are text in a language that uses the other script, or text damaged by a wrong encoding, and the Latin letters next to it are an escape sequence, markup, a product name or a unit.",
-       "test-fixture": "the file is test data for text that mixes scripts.",
-       "disguised-word": "the word reads as an ordinary English word, command, file name or host name, and nothing in the lines explains a letter of another script inside it.",
+       "notation": "the characters are a symbol or a mark of a notation: a Greek letter in a formula, a joiner in an emoji sequence, a soft hyphen, a direction mark.",
+       "other-language": "the file is written in a language whose script uses these characters.",
+       "test-fixture": "the file is test data for text with such characters.",
+       "disguised-word": "a Latin word has foreign or invisible characters inside it, in instructions or in code.",
        "unknown": "the lines do not show why the word is written this way."
       }
      }
@@ -56,7 +75,25 @@
    "patterns": [
     "(?s)<!--(?:[^-]|-[^-]|--[^>])*?https?://[^\\s<>\"')]+"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Lower when the comment is a note for the author, a credit or a license, and no step sends the agent to the URL."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "purpose": {
+      "subject": "frame",
+      "question": "The marked line holds a URL inside an HTML comment, which a rendered page hides. What is the comment for?",
+      "options": {
+       "author-note": "a note for the author, a credit, a license or a source.",
+       "hidden-instruction": "the comment tells the agent or the reader to open, fetch, run or follow the URL.",
+       "hidden-content": "the comment holds text or commands meant for the agent.",
+       "unknown": "the lines do not show what the comment is for."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"purpose": "hidden-instruction"}, {"purpose": "hidden-content"}],
+     "dismiss": [{"purpose": "author-note"}]
+    }
+   },
    "enabled": true
   }
  ]

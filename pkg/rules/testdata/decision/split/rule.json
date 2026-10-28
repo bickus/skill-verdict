@@ -1,0 +1,54 @@
+{
+ "rules": [
+  {
+   "id": "X19",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true,
+    "downgradeFloor": "medium"
+   },
+   "enabled": true,
+   "title": "Dismiss row that lists the misfire option",
+   "description": "A decision the loader accepts.",
+   "patterns": [
+    "(?i)x19"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [
+      {
+       "kind": "bad"
+      }
+     ],
+     "dismiss": [
+      {
+       "kind": [
+        "fine",
+        "not-a-match"
+       ]
+      }
+     ],
+     "misfire": [
+      {
+       "kind": "not-a-match"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

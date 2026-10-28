@@ -22,7 +22,7 @@ An answer that the passage is not what the rule describes dismisses the finding.
 
 The text the model reads is a slice that code builds from the finding: the instruction a line is part of, or the path a value takes through the code. The slice marks where the code stopped following a value. A finding whose slice the scanner cannot build or cannot send keeps its severity.
 
-A passage that addresses a reviewer, a scanner or a classifier never dismisses a finding.
+A dismissal follows from answers about what the passage does. What the passage says about itself, that it is safe, unused or only documentation, answers nothing.
 
 A model that judges in free text judges only findings a model raised, and only against the definition of the finding's class.
 

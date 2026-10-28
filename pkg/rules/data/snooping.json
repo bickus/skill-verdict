@@ -28,7 +28,34 @@
     "(?i)\\.(?:openclaw|clawdbot|moltbot)/(?:[\\w.-]+/)*(?:(?:openclaw|clawdbot|moltbot)\\.json|\\.env)\\b",
     "(?i)[\"']\\.(?:openclaw|clawdbot|moltbot)[\"']\\s*[,/]\\s*[\"'](?:(?:openclaw|clawdbot|moltbot)\\.json|\\.env)[\"']"
    ],
-   "judge": {"downgrade": true, "instructions": "A skill that manages agent settings may read them. Lower only when what is read stays on the machine. A read followed by any send or log keeps it."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "read": {
+      "subject": "trace",
+      "question": "Where does what the marked code reads from the configuration of the agent go?",
+      "options": {
+       "stays-local": "it is parsed, shown or edited on the machine and goes nowhere else.",
+       "sent-or-logged": "it is sent to a host or written to a log.",
+       "not-a-match": "the text reads no configuration file: a prose mention of MCP tools or a list of tool names.",
+       "unknown": "the state does not show where what is read goes."
+      }
+     },
+     "purpose": {
+      "subject": "entry",
+      "question": "The about line names a place where the skill reads the configuration of the agent or of its MCP servers. What is the purpose of this skill?",
+      "options": {
+       "manages-settings": "the purpose of the skill is managing the settings of the agent or of its MCP servers.",
+       "other": "the skill has another purpose."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"read": "sent-or-logged"}, {"purpose": "other", "read": ["stays-local", "unknown"]}],
+     "dismiss": [{"read": "stays-local", "purpose": "manages-settings"}],
+     "misfire": [{"read": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -49,7 +76,34 @@
     "(?i)(?:list|enumerate|discover)\\s+(?:all\\s+)?(?:available\\s+)?mcp\\s+(?:servers?|tools?|services?)",
     "(?i)mcp(?:_config)?\\.json.*?(?:api_?key|token|secret|url|endpoint)"
    ],
-   "judge": {"downgrade": true, "instructions": "A skill that manages agent settings may read them. Lower only when what is read stays on the machine. A read followed by any send or log keeps it."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "read": {
+      "subject": "trace",
+      "question": "Where does what the marked text reads from the MCP configuration go?",
+      "options": {
+       "stays-local": "it is parsed, shown or edited on the machine and goes nowhere else.",
+       "sent-or-logged": "it is sent to a host or written to a log.",
+       "not-a-match": "the text reads no configuration file: a prose mention of MCP tools or a list of tool names.",
+       "unknown": "the state does not show where what is read goes."
+      }
+     },
+     "purpose": {
+      "subject": "entry",
+      "question": "The about line names a place where the skill reads the configuration of the agent or of its MCP servers. What is the purpose of this skill?",
+      "options": {
+       "manages-settings": "the purpose of the skill is managing the settings of the agent or of its MCP servers.",
+       "other": "the skill has another purpose."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"read": "sent-or-logged"}, {"purpose": "other", "read": ["stays-local", "unknown"]}],
+     "dismiss": [{"read": "stays-local", "purpose": "manages-settings"}],
+     "misfire": [{"read": "not-a-match"}]
+    }
+   },
    "enabled": true
   }
  ]

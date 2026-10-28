@@ -9,7 +9,7 @@
    "kind": "fact",
    "layer": "honeypot",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true,
    "interrupt": true
   }

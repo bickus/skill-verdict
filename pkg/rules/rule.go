@@ -25,7 +25,11 @@ const (
 type JudgePolicy struct {
 	Downgrade      bool             `json:"downgrade"`
 	DowngradeFloor finding.Severity `json:"downgradeFloor,omitempty"`
-	Instructions   string           `json:"instructions"`
+}
+
+type Installer struct {
+	Files    []string `json:"files"`
+	Patterns []string `json:"patterns"`
 }
 
 type Rule struct {
@@ -40,6 +44,8 @@ type Rule struct {
 	Files       []string         `json:"files,omitempty"`
 	Patterns    []string         `json:"patterns,omitempty"`
 	Exclude     []string         `json:"exclude,omitempty"`
+	ReadOnly    []string         `json:"readOnly,omitempty"`
+	Installers  []Installer      `json:"installers,omitempty"`
 	Judge       JudgePolicy      `json:"judge"`
 	Usages      []string         `json:"usages,omitempty"`
 	Decision    *Decision        `json:"decision,omitempty"`
@@ -80,13 +86,25 @@ func (r Rule) validate() error {
 	default:
 		return fmt.Errorf("unknown scope %q", r.Scope)
 	}
-	if err := config.ValidGlobs("files", r.Files); err != nil {
+	if err := r.validateGlobs(); err != nil {
 		return err
 	}
 	if err := r.Decision.validate(r.Severity); err != nil {
 		return err
 	}
 	return r.validateKind()
+}
+
+func (r Rule) validateGlobs() error {
+	if err := config.ValidGlobs("files", r.Files); err != nil {
+		return err
+	}
+	for _, in := range r.Installers {
+		if err := config.ValidGlobs("installers.files", in.Files); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r Rule) validateKind() error {
@@ -111,8 +129,15 @@ func (r Rule) validateKind() error {
 
 type Compiled struct {
 	Rule
+	Patterns   []*regexp.Regexp
+	Exclude    []*regexp.Regexp
+	ReadOnly   []*regexp.Regexp
+	Installers []CompiledInstaller
+}
+
+type CompiledInstaller struct {
+	Files    []string
 	Patterns []*regexp.Regexp
-	Exclude  []*regexp.Regexp
 }
 
 func compile(r Rule) (Compiled, error) {
@@ -123,21 +148,36 @@ func compile(r Rule) (Compiled, error) {
 		r.Scope = Any
 	}
 	c := Compiled{Rule: r}
-	for _, p := range r.Patterns {
-		re, err := regexp.Compile(p)
-		if err != nil {
-			return Compiled{}, fmt.Errorf("pattern %q: %w", p, err)
-		}
-		c.Patterns = append(c.Patterns, re)
+	var err error
+	if c.Patterns, err = expressions("pattern", r.Patterns, "%s"); err != nil {
+		return Compiled{}, err
 	}
-	for _, p := range r.Exclude {
-		re, err := regexp.Compile(p)
+	if c.Exclude, err = expressions("exclude", r.Exclude, "%s"); err != nil {
+		return Compiled{}, err
+	}
+	if c.ReadOnly, err = expressions("readOnly", r.ReadOnly, "^(?:%s)$"); err != nil {
+		return Compiled{}, err
+	}
+	for _, in := range r.Installers {
+		patterns, err := expressions("installers", in.Patterns, "%s")
 		if err != nil {
-			return Compiled{}, fmt.Errorf("exclude %q: %w", p, err)
+			return Compiled{}, err
 		}
-		c.Exclude = append(c.Exclude, re)
+		c.Installers = append(c.Installers, CompiledInstaller{Files: in.Files, Patterns: patterns})
 	}
 	return c, nil
+}
+
+func expressions(field string, sources []string, form string) ([]*regexp.Regexp, error) {
+	var out []*regexp.Regexp
+	for _, p := range sources {
+		re, err := regexp.Compile(fmt.Sprintf(form, p))
+		if err != nil {
+			return nil, fmt.Errorf("%s %q: %w", field, p, err)
+		}
+		out = append(out, re)
+	}
+	return out, nil
 }
 
 func (r *Rule) prepare() error {

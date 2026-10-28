@@ -10,7 +10,7 @@
    "layer": "walk",
    "scope": "any",
    "files": ["*.jar", "*.war", "*.apk", "*.aab"],
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -24,7 +24,7 @@
    "layer": "walk",
    "scope": "any",
    "files": ["*.msi", "*.msp", "*.msm", "*.msix", "*.msixbundle", "*.appx", "*.appxbundle", "*.ipa", "*.dmg", "*.pkg.tar.zst", "*.pkg.tar.xz"],
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   }

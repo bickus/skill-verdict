@@ -177,7 +177,6 @@ The decision layer has its own model settings, separate from `llm`, because a de
       "maxRequestChars": 120000,
       "confirmProbability": 0.3,
       "dismissProbability": 0.8,
-      "guardProbability": 0.6,
       "inputPrice": 0.042
     }
   }
@@ -191,8 +190,7 @@ The decision layer has its own model settings, separate from `llm`, because a de
 | `maxStateChars` | Largest text the layer sends. The layer cuts a longer text at this size. |
 | `maxRequestChars` | Largest request, text and questions together. The layer does not send a larger request, and its questions get no answer. |
 | `confirmProbability` | Lowest summed probability of the options a `confirm` row names. Default `0.3`. |
-| `dismissProbability` | Lowest summed probability of the options a `severity` or `dismiss` row names. The reference brief takes a usage answer only at this probability or above. Default `0.8`. |
-| `guardProbability` | Lowest probability of `yes` to the guard question. Above it only `confirm` rows count for the finding. Default `0.6`. |
+| `dismissProbability` | Lowest summed probability of the options a `severity`, `dismiss` or `misfire` row names. A usage answer raises a rule and enters the reference brief only at this probability or above. Default `0.8`. |
 | `inputPrice` | USD per million input tokens, used for the cost in the report. |
 
 Each probability is above `0` and at most `1`, and `confirmProbability` is at most `dismissProbability`.
@@ -263,7 +261,7 @@ Rule configurations live under the layer that executes them: `layers.<layer>.rul
 }
 ```
 
-#### 2. Prevent AI Judge from downgrading piped scripts:
+#### 2. Keep piped scripts at their severity:
 ```json
 {
   "layers": {
@@ -286,26 +284,6 @@ Rule configurations live under the layer that executes them: `layers.<layer>.rul
       "rules": {
         "UNPINNED-DEPENDENCY": {
           "severity": "low"
-        }
-      }
-    }
-  }
-}
-```
-
-#### 4. Add custom instructions for the AI Judge:
-
-The Judge reviews only findings of the discovery layer, so it reads the instructions of discovery rules only.
-
-```json
-{
-  "layers": {
-    "discovery": {
-      "rules": {
-        "REMOTE-ENDPOINT-UPLOAD-HIDDEN": {
-          "judge": {
-            "instructions": "Allow telemetry endpoints pointing to our internal domain: telemetry.internal.corp"
-          }
         }
       }
     }
@@ -340,7 +318,7 @@ Detect hardcoded API keys or company-internal secret formats:
       "files": ["*.md", "*.sh", "*.py", "*.json"],
       "patterns": ["corp_live_[0-9a-zA-Z]{32}"],
       "exclude": ["corp_live_EXAMPLE[0-9a-zA-Z]+"],
-      "judge": {"downgrade": true, "downgradeFloor": "high"},
+      "judge": {"downgrade": false},
       "enabled": true
     }
   ]
@@ -380,11 +358,13 @@ Block skills shipping legacy or risky file types (e.g. `.bat`, `.cmd`, `.vbs`):
 | `severity` | Yes | `low`, `medium`, `high`, or `critical`. |
 | `category` | Yes | Security category name (e.g. `supply-chain`, `exfiltration`, `tool-misuse`). |
 | `scope` | Yes (static) | `code` (fenced blocks/scripts), `prose` (markdown prose), `any`, or `link` (symlink targets). |
-| `files` | No | File patterns to match (e.g. `["*.py", "*.sh"]`). Empty matches all files. Case-insensitive. |
+| `files` | No | File patterns to match (e.g. `["*.py", "*.sh"]`). Empty matches all files. Case-insensitive. A pattern with a `/` matches the last folders and the file name of the path, so `commands/*.md` matches `plugins/p/commands/run.md`. |
 | `patterns` | Yes (static) | Array of RE2 regular expressions. Use `(?i)` for case-insensitive matching. |
 | `exclude` | No | RE2 patterns that suppress a match if present on the same line. |
-| `judge.downgrade` | No | Boolean: whether AI Judge can lower this finding. Default `true`. |
-| `judge.downgradeFloor`| No | Lowest severity the AI Judge may assign. `""` allows total dismissal. |
+| `readOnly` | No | RE2 patterns of commands that only read. A load-time command that matches one of them in full gets severity `medium`. Only `COMMAND-ON-LOAD` uses it. |
+| `installers` | No | Groups of install commands, one group per package ecosystem. A group lists the manifests it installs in `files` and RE2 patterns of the commands in `patterns`. A finding in a manifest stays only when another file of the skill names the manifest or matches a pattern of the manifest's group. Only `UNPINNED-DEPENDENCY` uses it. |
+| `judge.downgrade` | No | Boolean: whether a model may lower this finding. The decision layer lowers a rule with a `decision` block, the AI Judge lowers a discovery rule. Default `false`. |
+| `judge.downgradeFloor`| No | Lowest severity a model may assign. `""` allows total dismissal. |
 | `decision` | No | Closed questions for the decision model and the outcome table over the answers. See [Detection](detection.md#layer-6-decision). |
 | `usages` | No | A reference rule only, instead of `decision`. Lists the usages of a reference that confirm the finding. The scanner turns it into the usage question. A user action lowers the finding to `medium`, a citation or documentation dismisses it. |
 | `interrupt` | No | Boolean: if `true`, the first finding from this rule halts the scan immediately. |

@@ -64,7 +64,7 @@ func (r *run) findings(ctx context.Context) {
 
 func (r *run) limits() limits {
 	c := r.layer.Config
-	return limits{confirm: c.ConfirmProbability, dismiss: c.DismissProbability, guard: c.GuardProbability}
+	return limits{confirm: c.ConfirmProbability, dismiss: c.DismissProbability}
 }
 
 func (r *run) evidence(ctx context.Context, rule rules.Rule, f finding.Finding) evidence {
@@ -89,9 +89,7 @@ func (r *run) single(ctx context.Context, subject rules.Subject, state, skipped,
 		e.add(subject, instance{replies: skip(questions, skipped)})
 		return
 	}
-	replies, guard := r.ask(ctx, state, queries(questions, about, ""))
-	e.add(subject, instance{replies: replies})
-	e.guards = append(e.guards, guard)
+	e.add(subject, instance{replies: r.ask(ctx, state, queries(questions, about, ""))})
 }
 
 func (r *run) traced(ctx context.Context, f finding.Finding, questions []named, e *evidence) {
@@ -144,9 +142,6 @@ func (e evidence) record() *finding.Decision {
 				d.Answers = append(d.Answers, in.replies[q].answer(q, in.label))
 			}
 		}
-	}
-	for _, g := range e.guards {
-		d.Answers = append(d.Answers, g.answer(rules.Guard, ""))
 	}
 	return d
 }

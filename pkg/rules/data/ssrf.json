@@ -24,7 +24,26 @@
     "(?i)fd00:ec2::254",
     "(?i)(?:read|fetch|get|query)\\s+(?:the\\s+)?(?:instance\\s+)?metadata\\s+(?:service|endpoint|server)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "use": {
+      "subject": "frame",
+      "question": "The marked line addresses a cloud instance metadata endpoint. What does the text read from it?",
+      "options": {
+       "credential-fetch": "it reads the security-credentials path or a service account token path, and uses or sends the result.",
+       "instance-info": "it reads only the region, the zone, the instance id or similar details of the instance, with or without the session token that IMDSv2 asks for first.",
+       "example": "the address is in a file written for people, not in a script and not in `SKILL.md`.",
+       "not-a-match": "the marked text reads nothing from a metadata endpoint."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"use": "credential-fetch"}],
+     "dismiss": [{"use": "instance-info"}, {"use": "example"}],
+     "misfire": [{"use": "not-a-match"}]
+    }
+   },
    "enabled": true
   }
  ]

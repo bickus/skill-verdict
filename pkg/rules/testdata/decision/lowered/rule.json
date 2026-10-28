@@ -1,0 +1,50 @@
+{
+ "rules": [
+  {
+   "id": "X18",
+   "category": "tool-misuse",
+   "severity": "high",
+   "kind": "heuristic",
+   "layer": "static",
+   "judge": {
+    "downgrade": true
+   },
+   "enabled": true,
+   "title": "Severity and misfire rows that share an answer",
+   "description": "A decision the loader rejects.",
+   "patterns": [
+    "(?i)x18"
+   ],
+   "decision": {
+    "questions": {
+     "kind": {
+      "subject": "frame",
+      "question": "What is it?",
+      "options": {
+       "bad": "a bad thing.",
+       "fine": "a fine thing.",
+       "not-a-match": "not what the rule looks for."
+      }
+     }
+    },
+    "outcome": {
+     "severity": {
+      "medium": [
+       {
+        "kind": [
+         "fine",
+         "not-a-match"
+        ]
+       }
+      ]
+     },
+     "misfire": [
+      {
+       "kind": "not-a-match"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

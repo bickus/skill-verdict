@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/finding"
+	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/llmcall"
 	"github.com/bickus/skill-verdict/pkg/internal/refcheck"
 	"github.com/bickus/skill-verdict/pkg/internal/textutil"
@@ -65,29 +66,60 @@ func traceLabel(i int) string {
 }
 
 func (r *run) entry(f finding.Finding) (string, string) {
-	a := llmcall.Entry(r.state.Skill)
+	skill := r.state.Skill
+	a := llmcall.Entry(skill)
 	if a == nil {
 		return "", noEntry
 	}
-	lines := textutil.Lines(strings.TrimSuffix(a.Content, "\n"))
+	docs := []*inventory.Artifact{a}
+	if readme := readme(skill); readme != nil {
+		docs = append(docs, readme)
+	}
 	limit := r.layer.Config.MaxStateChars - entryReserve
 	var b strings.Builder
-	shown := 0
-	for i, line := range lines {
-		next := fmt.Sprintf("L%d: %s\n", i+1, line)
-		if b.Len()+len(next) > limit {
-			break
+	cut := 0
+	for _, doc := range docs {
+		lines := textutil.Lines(strings.TrimSuffix(doc.Content, "\n"))
+		shown := 0
+		if cut == 0 {
+			shown = write(&b, doc.Path, lines, limit)
 		}
-		b.WriteString(next)
-		shown++
+		cut += len(lines) - shown
 	}
-	if shown < len(lines) {
-		fmt.Fprintf(&b, "[cut: %d more lines]\n", len(lines)-shown)
+	if cut > 0 {
+		fmt.Fprintf(&b, "[cut: %d more lines]\n", cut)
 	}
 	return llmcall.Render(files, "entry.md", map[string]string{
 		"about":   fmt.Sprintf("%s:%d %s", f.Location.File, f.Location.Line, f.Evidence),
 		"content": strings.TrimSuffix(b.String(), "\n"),
 	}), ""
+}
+
+func readme(skill *inventory.Skill) *inventory.Artifact {
+	for i := range skill.Artifacts {
+		a := &skill.Artifacts[i]
+		named := !strings.Contains(a.Path, "/") && strings.HasPrefix(strings.ToLower(a.Path), "readme")
+		if named && a.Kind == inventory.Content && (a.ContentType == inventory.Markdown || a.ContentType == inventory.Text) {
+			return a
+		}
+	}
+	return nil
+}
+
+func write(b *strings.Builder, file string, lines []string, limit int) int {
+	header := "file: " + file + "\n"
+	if b.Len()+len(header) > limit {
+		return 0
+	}
+	b.WriteString(header)
+	for i, line := range lines {
+		next := fmt.Sprintf("L%d: %s\n", i+1, line)
+		if b.Len()+len(next) > limit {
+			return i
+		}
+		b.WriteString(next)
+	}
+	return len(lines)
 }
 
 func (r *run) facts(f finding.Finding) (string, string) {

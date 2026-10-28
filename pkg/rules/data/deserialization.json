@@ -21,7 +21,28 @@
    "patterns": [
     "(?i)\\bunserialize\\s*\\("
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "input": {
+      "subject": "trace",
+      "from": "call",
+      "question": "The marked call turns serialized data into objects. Where does the data that the call reads come from?",
+      "options": {
+       "untrusted-input": "the data comes from the network, from a file the user did not write, or from an argument or an environment variable set outside the skill.",
+       "own-data": "the data is something the skill wrote itself, a file bundled with the skill, or a constant.",
+       "safe-method": "the call is a safe variant that builds only plain values or the classes it lists.",
+       "not-a-match": "the marked text is not a call that turns serialized data into objects.",
+       "unknown": "the state does not show where the data comes from."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"input": "untrusted-input"}],
+     "dismiss": [{"input": "own-data"}, {"input": "safe-method"}],
+     "misfire": [{"input": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -37,7 +58,28 @@
    "patterns": [
     "(?i)\\bMarshal\\s*\\.\\s*(?:load|restore)\\b"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "input": {
+      "subject": "trace",
+      "from": "call",
+      "question": "The marked call turns serialized data into objects. Where does the data that the call reads come from?",
+      "options": {
+       "untrusted-input": "the data comes from the network, from a file the user did not write, or from an argument or an environment variable set outside the skill.",
+       "own-data": "the data is something the skill wrote itself, a file bundled with the skill, or a constant.",
+       "safe-method": "the call is a safe variant that builds only plain values or the classes it lists.",
+       "not-a-match": "the marked text is not a call that turns serialized data into objects.",
+       "unknown": "the state does not show where the data comes from."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"input": "untrusted-input"}],
+     "dismiss": [{"input": "own-data"}, {"input": "safe-method"}],
+     "misfire": [{"input": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -54,7 +96,28 @@
     "(?i)\\b(?:YAML|Psych)\\s*\\.\\s*load\\s*\\(",
     "(?i)\\bOj\\s*\\.\\s*load\\s*\\("
    ],
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "input": {
+      "subject": "trace",
+      "from": "call",
+      "question": "The marked call turns serialized data into objects. Where does the data that the call reads come from?",
+      "options": {
+       "untrusted-input": "the data comes from the network, from a file the user did not write, or from an argument or an environment variable set outside the skill.",
+       "own-data": "the data is something the skill wrote itself, a file bundled with the skill, or a constant.",
+       "safe-method": "the call is a safe variant that builds only plain values or the classes it lists.",
+       "not-a-match": "the marked text is not a call that turns serialized data into objects.",
+       "unknown": "the state does not show where the data comes from."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"input": "untrusted-input"}],
+     "dismiss": [{"input": "own-data"}, {"input": "safe-method"}],
+     "misfire": [{"input": "not-a-match"}]
+    }
+   },
    "enabled": true
   }
  ]

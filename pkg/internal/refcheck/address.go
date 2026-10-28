@@ -24,14 +24,19 @@ var bareAddressPatterns = []*regexp.Regexp{
 }
 
 //go:embed data/reserved-ranges.json
-var reservedRangesJSON []byte
+var reservedJSON []byte
 
-var reservedRanges = sync.OnceValue(func() []netip.Prefix {
-	var ranges []netip.Prefix
-	if err := json.Unmarshal(reservedRangesJSON, &ranges); err != nil {
+type reservedAddresses struct {
+	Ranges    []netip.Prefix `json:"ranges"`
+	Resolvers []netip.Addr   `json:"resolvers"`
+}
+
+var reserved = sync.OnceValue(func() reservedAddresses {
+	var r reservedAddresses
+	if err := json.Unmarshal(reservedJSON, &r); err != nil {
 		panic(err)
 	}
-	return ranges
+	return r
 })
 
 type AddressCollector struct{}
@@ -93,7 +98,7 @@ func (AddressCollector) Collect(_ context.Context, ref refs.Ref) refs.Report {
 	}
 	isPublic := public(addr)
 	addFact(&rep, "public", strconv.FormatBool(isPublic))
-	if isPublic {
+	if isPublic && !slices.Contains(reserved().Resolvers, addr.Unmap().WithZone("")) {
 		addFinding(&rep, "IP-ADDRESS-PUBLIC")
 	}
 	return rep
@@ -104,5 +109,5 @@ func public(addr netip.Addr) bool {
 	if !addr.IsGlobalUnicast() || addr.IsPrivate() {
 		return false
 	}
-	return !slices.ContainsFunc(reservedRanges(), func(p netip.Prefix) bool { return p.Contains(addr) })
+	return !slices.ContainsFunc(reserved().Ranges, func(p netip.Prefix) bool { return p.Contains(addr) })
 }

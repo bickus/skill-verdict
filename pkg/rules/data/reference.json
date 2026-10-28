@@ -9,7 +9,8 @@
    "kind": "heuristic",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Lower when the address is a documentation range, an example, or a public DNS resolver used for a connectivity check. Anything fetched or run from it keeps it."},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -21,7 +22,8 @@
    "kind": "heuristic",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -33,7 +35,8 @@
    "kind": "heuristic",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -45,7 +48,8 @@
    "kind": "heuristic",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "usages": ["tool-server", "agent-fetch", "agent-instructions", "agent-install", "agent-upload"],
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -213,7 +217,21 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The subject is a package name that the scanner checked on its registry. A placeholder such as `your-package` is `not-a-match`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -225,7 +243,22 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The subject is a package name that the scanner checked on its registry. A placeholder such as `your-package` is `not-a-match`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "severity": {"medium": [{"who": "user-step"}]},
+     "dismiss": [{"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -237,7 +270,21 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Age is a fact. Do not lower because the name looks familiar or the site looks finished. Lower only when nothing is fetched, installed or run from it."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The subject is a package name that the scanner checked on its registry. A placeholder such as `your-package` is `not-a-match`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -249,7 +296,22 @@
    "kind": "heuristic",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower or dismiss only on a false positive: the named package is its own project with its own purpose, and the popular package it resembles is unrelated. Nothing else lowers it."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The subject is a package name that the scanner checked on its registry. A placeholder such as `your-package` is `not-a-match`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "severity": {"medium": [{"who": "user-step"}]},
+     "dismiss": [{"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -261,7 +323,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "high", "instructions": "Lower only on a false positive: the agent is not connected to this host as a tool server. A host that is the skill's own service does not lower it."},
+   "judge": {"downgrade": false},
    "enabled": true
   },
   {
@@ -273,7 +335,7 @@
    "kind": "fact",
    "layer": "references",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   }

@@ -108,7 +108,6 @@ type DecisionConfig struct {
 	MaxRequestChars    int      `json:"maxRequestChars"`
 	ConfirmProbability float64  `json:"confirmProbability"`
 	DismissProbability float64  `json:"dismissProbability"`
-	GuardProbability   float64  `json:"guardProbability"`
 	InputPrice         float64  `json:"inputPrice"`
 }
 
@@ -137,7 +136,6 @@ type RuleSetting struct {
 type JudgeSetting struct {
 	Downgrade      *bool             `json:"downgrade,omitempty"`
 	DowngradeFloor *finding.Severity `json:"downgradeFloor,omitempty"`
-	Instructions   *string           `json:"instructions,omitempty"`
 }
 
 type WalkConfig struct {
@@ -165,7 +163,6 @@ type ReferencesConfig struct {
 	YoungOwnerDays  int                    `json:"youngOwnerDays"`
 	NewPackageDays  int                    `json:"newPackageDays"`
 	LowDownloads    int                    `json:"lowDownloads"`
-	PopularStars    int                    `json:"popularStars"`
 	GitHubTokenEnv  string                 `json:"githubTokenEnv"`
 	Rules           map[string]RuleSetting `json:"rules,omitempty"`
 }
@@ -238,7 +235,6 @@ func defaultDecision() DecisionConfig {
 		MaxRequestChars:    120000,
 		ConfirmProbability: 0.3,
 		DismissProbability: 0.8,
-		GuardProbability:   0.6,
 		InputPrice:         0.042,
 	}
 }
@@ -276,7 +272,6 @@ func Default() Config {
 				YoungOwnerDays:  90,
 				NewPackageDays:  90,
 				LowDownloads:    1000,
-				PopularStars:    1000,
 				GitHubTokenEnv:  githubEnvVar,
 			},
 			Decision:  defaultDecision(),

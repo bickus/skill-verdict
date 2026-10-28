@@ -63,7 +63,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Dismiss when the host is the service the skill is for and only that service's data goes there, or if a false positive."},
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -84,7 +84,26 @@
     "(?i)Object\\.keys\\s*\\(\\s*process\\.env\\s*\\)",
     "(?i)env\\s*\\|\\s*grep\\s+(?:-i\\s+)?(?:key|secret|token|password)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "A bulk read of the environment is never justified. Lower or dismiss only on a false positive: the code reads named variables and never copies, lists or searches the whole environment."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "scope": {
+      "subject": "frame",
+      "question": "The marked line touches the whole environment of the process. What does the code do with it?",
+      "options": {
+       "whole-environment": "the code lists, iterates, searches, prints or sends all variables, or writes them to a file.",
+       "passed-to-child": "the only use of the whole environment is handing it to a child process, with or without a copy and with or without added variables.",
+       "named-variables": "the code reads only specific named variables.",
+       "not-a-match": "the marked text does not read the environment."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"scope": "whole-environment"}],
+     "severity": {"medium": [{"scope": "passed-to-child"}]},
+     "misfire": [{"scope": "named-variables"}, {"scope": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -112,8 +131,8 @@
       "focus": "The value is the value of the environment variable. Look at every call in the state that takes it. When calls differ, answer for the call that sends the value furthest from the service it belongs to."
      },
      "whose": {
-      "subject": "frame",
-      "question": "Whose secret does the environment variable hold?",
+      "subject": "entry",
+      "question": "The about line names a place where the skill reads an environment variable that holds a secret. Whose secret does the variable hold?",
       "options": {
        "skill-own": "the frontmatter or the README declares the variable as configuration of the skill, or the variable holds the key of the service the skill is for.",
        "other-product": "the variable holds a token of the agent or of the agent platform, a token of another product, or a cloud key that the purpose of the skill does not need.",
@@ -122,8 +141,9 @@
      }
     },
     "outcome": {
-     "confirm": [{"goes": "other-host"}, {"goes": "stored-or-logged"}, {"whose": "other-product"}],
-     "dismiss": [{"goes": ["own-service-only", "not-sent"], "whose": "skill-own"}, {"goes": "example"}]
+     "confirm": [{"goes": "other-host"}, {"goes": "stored-or-logged"}],
+     "dismiss": [{"goes": ["own-service-only", "not-sent"], "whose": "skill-own"}],
+     "misfire": [{"goes": "example"}]
     }
    },
    "enabled": true
@@ -150,7 +170,27 @@
     "Get-(?:Item|ChildItem)\\s+(?:-Path\\s+)?['\"]?env:\\$",
     "\\(\\s*Get-Item\\s+env:\\s*\\)\\s*\\.\\s*\\$"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Work out which variable is read. Keep when it is a secret, token, key or credential, or when nothing in the code explains why the name was encoded. Lower only when the variable is harmless and the code has a plain reason to build the name, such as a prefix plus a user-supplied suffix. Dismiss only on a false positive: the name is a literal or a plain variable that the pattern misread."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "variable": {
+      "subject": "trace",
+      "from": "call",
+      "question": "The marked code reads an environment variable whose name it builds at run time. Which variable does the built name stand for?",
+      "options": {
+       "secret-name": "the built name is or contains the name of a token, a key, a password or a credential.",
+       "harmless-with-reason": "the built name is harmless and the code shows a plain reason to build it, such as a prefix plus a suffix the user gives or a loop over a fixed list of names.",
+       "cannot-tell": "the code does not show which variable the built name stands for.",
+       "not-a-match": "the name is not built at run time: it is a literal or a plain variable that the rule misread."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"variable": "secret-name"}, {"variable": "cannot-tell"}],
+     "dismiss": [{"variable": "harmless-with-reason"}],
+     "misfire": [{"variable": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -175,7 +215,26 @@
     "(?i)(?:recursively|recursive)\\s+(?:scan|search|find|list)\\s+(?:all\\s+)?files?",
     "(?i)walk\\s+(?:through\\s+)?(?:the\\s+)?(?:entire\\s+)?(?:file\\s*system|directory|home)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the listed directory is the skill's own or a path the user gave. A search under the home or a credential directory keeps the severity."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "where": {
+      "subject": "frame",
+      "question": "The marked line lists or searches files. Which directory does it list or search?",
+      "options": {
+       "home-or-credential-dir": "the home directory, the whole file system, or a directory that holds credentials, such as `.ssh`, `.aws` or `.config`.",
+       "skill-own-or-user-path": "the folder of the skill itself, or a path the user gives.",
+       "not-a-match": "the marked text lists or searches no files.",
+       "unknown": "the lines do not show which directory is listed or searched."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"where": "home-or-credential-dir"}],
+     "dismiss": [{"where": "skill-own-or-user-path"}],
+     "misfire": [{"where": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -197,7 +256,36 @@
     "(?i)\\baz\\s+storage\\s+blob\\s+upload\\b",
     "(?i)\\.upload_blob\\s*\\("
    ],
-   "judge": {"downgrade": true, "instructions": "Decide from what is uploaded. Lower when the skill's purpose is that upload and the bucket is the user's own. A bucket named in the skill keeps it."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "bucket": {
+      "subject": "trace",
+      "from": "call",
+      "question": "Where does the bucket that the marked upload writes to come from?",
+      "options": {
+       "user-configured": "the bucket comes from the configuration or the arguments of the user.",
+       "skill-named": "the bucket is named in the files of the skill.",
+       "unknown": "the state does not show where the bucket comes from."
+      }
+     },
+     "data": {
+      "subject": "trace",
+      "from": "call",
+      "question": "What does the marked upload send?",
+      "options": {
+       "task-output": "what the skill produces for the user.",
+       "user-chosen-files": "files or folders that the user names or configures.",
+       "other-data": "files or data from the machine or from other services that the user did not choose.",
+       "unknown": "the state does not show what the upload sends."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"bucket": "skill-named"}, {"data": "other-data"}],
+     "dismiss": [{"bucket": "user-configured", "data": ["task-output", "user-chosen-files"]}]
+    }
+   },
    "enabled": true
   }
  ]

@@ -7,7 +7,6 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"slices"
 
 	"github.com/bickus/skill-verdict/pkg/internal/textutil"
 	"github.com/bickus/skill-verdict/pkg/llm/decisions"
@@ -54,11 +53,6 @@ func instructions(q rules.Question, about, place string) map[string]string {
 	return out
 }
 
-func guard() query {
-	q := rules.Template(rules.Guard)
-	return query{id: rules.Guard, question: decisions.Question{Options: q.Options, Instructions: instructions(q, "", "")}}
-}
-
 func chars(q decisions.Question) int {
 	n := 0
 	for _, m := range []map[string]string{q.Instructions, q.Options} {
@@ -77,26 +71,25 @@ func skip(questions []named, reason string) map[string]reply {
 	return out
 }
 
-func (r *run) ask(ctx context.Context, state string, qs []query) (map[string]reply, reply) {
+func (r *run) ask(ctx context.Context, state string, qs []query) map[string]reply {
 	cfg := r.layer.Config
 	state = textutil.Cut(state, cfg.MaxStateChars)
-	all := append(slices.Clone(qs), guard())
 	size := len(state)
-	for _, q := range all {
+	for _, q := range qs {
 		size += chars(q.question)
 	}
 	switch {
 	case size > cfg.MaxRequestChars:
-		return skipped(all, oversized)
+		return skipped(qs, oversized)
 	case r.err != nil:
-		return skipped(all, failed)
+		return skipped(qs, failed)
 	}
 	body, err := json.Marshal(state)
 	if err != nil {
-		return skipped(all, err.Error())
+		return skipped(qs, err.Error())
 	}
-	questions := make(map[string]decisions.Question, len(all))
-	for _, q := range all {
+	questions := make(map[string]decisions.Question, len(qs))
+	for _, q := range qs {
 		questions[q.id] = q.question
 	}
 	answers, usage, err := r.layer.Client.Decide(ctx, body, questions)
@@ -104,10 +97,10 @@ func (r *run) ask(ctx context.Context, state string, qs []query) (map[string]rep
 	r.report.Usage = r.report.Usage.Add(usage)
 	if err != nil {
 		r.err = err
-		return skipped(all, "the request failed: "+err.Error())
+		return skipped(qs, "the request failed: "+err.Error())
 	}
-	out := make(map[string]reply, len(all))
-	for _, q := range all {
+	out := make(map[string]reply, len(qs))
+	for _, q := range qs {
 		a, ok := answers[q.id]
 		if !ok {
 			out[q.id] = reply{skipped: unanswered}
@@ -115,19 +108,13 @@ func (r *run) ask(ctx context.Context, state string, qs []query) (map[string]rep
 		}
 		out[q.id] = reply{choice: a.Choice, probabilities: a.Probabilities}
 	}
-	return split(out)
+	return out
 }
 
-func skipped(all []query, reason string) (map[string]reply, reply) {
-	out := make(map[string]reply, len(all))
-	for _, q := range all {
+func skipped(qs []query, reason string) map[string]reply {
+	out := make(map[string]reply, len(qs))
+	for _, q := range qs {
 		out[q.id] = reply{skipped: reason}
 	}
-	return split(out)
-}
-
-func split(out map[string]reply) (map[string]reply, reply) {
-	g := out[rules.Guard]
-	delete(out, rules.Guard)
-	return out, g
+	return out
 }

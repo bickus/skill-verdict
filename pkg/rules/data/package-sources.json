@@ -57,7 +57,31 @@
     "(?i)(?:\\bsetx(?:\\s+/m)?\\s+|SetEnvironmentVariable\\(\\s*['\"]|\\bset\\s+(?-i:-[a-zA-Z]*U[a-zA-Z]*)\\s+)(?:NPM_CONFIG_(?:@[\\w.-]+:)?REGISTRY|YARN_NPM_REGISTRY_SERVER|PIP_(?:EXTRA_)?INDEX_URL|UV_(?:EXTRA_|DEFAULT_)?INDEX(?:_URL)?|GOPROXY|HOMEBREW_(?:BOTTLE_DOMAIN|API_DOMAIN|BREW_GIT_REMOTE|CORE_GIT_REMOTE)|CARGO_REGISTRIES_\\w+|CONDA_CHANNELS)\\b",
     "(?im)\\b(?:NPM_CONFIG_(?:@[\\w.-]+:)?REGISTRY|YARN_NPM_REGISTRY_SERVER|PIP_(?:EXTRA_)?INDEX_URL|UV_(?:EXTRA_|DEFAULT_)?INDEX(?:_URL)?|GOPROXY|HOMEBREW_(?:BOTTLE_DOMAIN|API_DOMAIN|BREW_GIT_REMOTE|CORE_GIT_REMOTE)|CARGO_REGISTRIES_\\w+|CONDA_CHANNELS)\\s*=[^\\n]*(?:>>?|\\btee\\b(?:\\s+-a)?)\\s*['\"]?\\S*(?:profile|rc|environment)['\"]?(?:\\s|$)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Lower or dismiss when the source belongs to the OS vendor or to the vendor of the package the skill installs, and the skill needs that package. A source nobody knows keeps the severity."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a step that adds a package repository, registry, tap or channel to the system."
+     },
+     "source": {
+      "subject": "frame",
+      "question": "Whose package source does the marked text add?",
+      "options": {
+       "vendor-of-package": "the source belongs to the vendor of the operating system or to the vendor of the package that the skill installs from it.",
+       "unknown-source": "the source belongs to someone other than those vendors.",
+       "unknown": "the text does not show whose source it is."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"], "source": "unknown-source"}],
+     "severity": {"medium": [{"who": "user-step", "source": "unknown-source"}]},
+     "dismiss": [{"source": "vendor-of-package"}, {"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -65,7 +89,7 @@
    "category": "supply-chain",
    "severity": "high",
    "title": "Package installed from another registry",
-   "description": "An install command takes a package from a registry other than the default one. Unable to trust such installation if there is a well-known and popular package with the same name in the default registry. False-positive if there is no such.",
+   "description": "An install command takes a package from a registry other than the default one. That registry serves whatever its operator publishes under any name, and `--extra-index-url` also lets the default registry serve a name meant to be private.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -74,7 +98,31 @@
     "(?i)\\b(?:pip[\\d.]*|pipx|uv|uvx)\\s+(?:[^\\n]*\\s)?(?:-i|--index-url|--extra-index-url|--index|--default-index|-f|--find-links)[= ]\\s*[\"']?(?:https?|file)://",
     "(?i)\\b(?:NPM_CONFIG_REGISTRY|YARN_NPM_REGISTRY_SERVER|PIP_(?:EXTRA_)?INDEX_URL|PIP_FIND_LINKS|UV_(?:EXTRA_|DEFAULT_)?INDEX(?:_URL)?|UV_FIND_LINKS)=[\"']?(?:https?|file)://[^\\n]*\\b(?:npm|pnpm|yarn|bun|npx|pip[\\d.]*|pipx|uv|uvx)\\s"
    ],
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for an install command that takes a package from a registry other than the default one."
+     },
+     "registry": {
+      "subject": "frame",
+      "question": "Who runs the registry that the marked command installs from?",
+      "options": {
+       "vendor-own": "the vendor of the package runs the registry.",
+       "private-mirror": "the registry is a mirror the user configures, or the URL is a placeholder.",
+       "third-party": "someone other than the vendor of the package or the user runs the registry.",
+       "unknown": "the text does not show who runs the registry."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"], "registry": "third-party"}],
+     "dismiss": [{"registry": ["vendor-own", "private-mirror"]}, {"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -82,7 +130,7 @@
    "category": "supply-chain",
    "severity": "critical",
    "title": "Install protection turned off",
-   "description": "The skill turns off a package manager's install script blocking or its minimum release age, in a command or in a project file. Unless this is a false positive, do not trust the skill - packages with disabled protection should not be installed by scripts.",
+   "description": "The skill turns off a package manager's install script blocking or its minimum release age, in a command or in a project file. A project file overrides what the user set, and a release age of zero or a blocklist turned off lets fresh releases and install scripts run. An allow list that names the packages whose scripts may run keeps the rest blocked.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -107,7 +155,32 @@
     "(?i)\\ballow-plugins\\s*[\"']?\\s*[:= ]\\s*[\"']?true\\b",
     "(?is)\\ballow-plugins[\"']?\\s*:\\s*\\{[^}]*\\btrue\\b"
    ],
-   "judge": {"downgrade": true, "instructions": "Decide only whether the protection is turned off. A comment or README explaining why does not make it a false positive."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a setting or a command that changes a package manager's install script blocking or its minimum release age."
+     },
+     "kind": {
+      "subject": "frame",
+      "question": "What does the marked setting or command do to the install protection of the package manager?",
+      "options": {
+       "off": "it turns a protection off for every package: install scripts run, or fresh releases install without a minimum age.",
+       "allow-list": "it names the packages whose install scripts may run, and the scripts of other packages stay blocked.",
+       "on-or-explained": "it turns a protection on, or the text explains the setting without setting it.",
+       "not-a-match": "the marked text is not a setting or a command of a package manager's install protection."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install", "user-step"], "kind": "off"}],
+     "severity": {"medium": [{"kind": "allow-list"}]},
+     "dismiss": [{"kind": "on-or-explained"}, {"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}, {"kind": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -119,7 +192,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -131,7 +204,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
    "enabled": true
   }
  ]

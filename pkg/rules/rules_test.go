@@ -94,16 +94,16 @@ func TestSettingsChangeShippedValues(t *testing.T) {
 	}{
 		{"shipped off stays off", defaults(), "PROMPT-INJECTION-SEMANTIC", values{"prompt-injection", finding.Medium, false, false, true, finding.Low}, false},
 		{"enabled turns a shipped-off rule on", map[string]map[string]config.RuleSetting{"walk": nil, "reveal": nil, "static": nil, "references": nil, "honeypot": nil, "discovery": {"PROMPT-INJECTION-SEMANTIC": {Enabled: &on}}, "judge": nil}, "PROMPT-INJECTION-SEMANTIC", values{"prompt-injection", finding.Medium, true, false, true, finding.Low}, false},
-		{"enabled false turns a rule off", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Enabled: &off}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, false, false, true, finding.Medium}, false},
-		{"category changes to any name", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Category: &custom}}), "COMMAND-ON-LOAD", values{"my-own-category", finding.High, true, false, true, finding.Medium}, true},
-		{"severity changes", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Severity: &low}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.Low, true, false, true, finding.Medium}, true},
-		{"interrupt turns on for a text rule", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Interrupt: &on}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, true, true, true, finding.Medium}, true},
+		{"enabled false turns a rule off", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Enabled: &off}}), "UNPINNED-GIT", values{"supply-chain", finding.High, false, false, true, finding.Medium}, false},
+		{"category changes to any name", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Category: &custom}}), "UNPINNED-GIT", values{"my-own-category", finding.High, true, false, true, finding.Medium}, true},
+		{"severity changes", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Severity: &low}}), "UNPINNED-GIT", values{"supply-chain", finding.Low, true, false, true, finding.Medium}, true},
+		{"interrupt turns on for a text rule", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Interrupt: &on}}), "UNPINNED-GIT", values{"supply-chain", finding.High, true, true, true, finding.Medium}, true},
 		{"shipped interrupt stays on", defaults(), "FILE-TOO-LARGE", values{"unreviewable", finding.High, true, true, false, ""}, false},
-		{"floor changes alone", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Judge: &config.JudgeSetting{DowngradeFloor: &low}}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, true, false, true, finding.Low}, true},
-		{"empty floor removes the floor", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Judge: &config.JudgeSetting{DowngradeFloor: &none}}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, true, false, true, ""}, true},
-		{"downgrade off keeps the floor", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Judge: &config.JudgeSetting{Downgrade: &off}}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, true, false, false, finding.Medium}, true},
-		{"title, description and kind are ignored", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Title: "renamed", Description: "rewritten", Kind: finding.KindFact}}), "COMMAND-ON-LOAD", values{"load-time-exec", finding.High, true, false, true, finding.Medium}, true},
-		{"untouched rule keeps its values", withStatic(map[string]config.RuleSetting{"COMMAND-ON-LOAD": {Enabled: &off}}), "REMOTE-SCRIPT-PIPED", values{"remote-execution", finding.Critical, true, false, true, finding.High}, true},
+		{"floor changes alone", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Judge: &config.JudgeSetting{DowngradeFloor: &low}}}), "UNPINNED-GIT", values{"supply-chain", finding.High, true, false, true, finding.Low}, true},
+		{"empty floor removes the floor", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Judge: &config.JudgeSetting{DowngradeFloor: &none}}}), "UNPINNED-GIT", values{"supply-chain", finding.High, true, false, true, ""}, true},
+		{"downgrade off keeps the floor", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Judge: &config.JudgeSetting{Downgrade: &off}}}), "UNPINNED-GIT", values{"supply-chain", finding.High, true, false, false, finding.Medium}, true},
+		{"title, description and kind are ignored", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Title: "renamed", Description: "rewritten", Kind: finding.KindFact}}), "UNPINNED-GIT", values{"supply-chain", finding.High, true, false, true, finding.Medium}, true},
+		{"untouched rule keeps its values", withStatic(map[string]config.RuleSetting{"UNPINNED-GIT": {Enabled: &off}}), "REMOTE-SCRIPT-PIPED", values{"remote-execution", finding.Critical, true, false, true, finding.High}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -143,7 +143,8 @@ func TestLoadErrors(t *testing.T) {
 		{"row with an unknown option", "testdata/decision/option", defaults(), "rule X9: decision.outcome.confirm: who: unknown option"},
 		{"row with a question the rule does not ask", "testdata/decision/question", defaults(), "rule X10: decision.outcome.dismiss: unknown question"},
 		{"confirm and dismiss rows that share an answer", "testdata/decision/overlap", defaults(), "rule X11: decision.outcome: a confirm row and a dismiss row"},
-		{"not-a-match row with a second question", "testdata/decision/not-a-match", defaults(), "rule X12: decision.outcome.dismiss: kind"},
+		{"confirm and misfire rows that share an answer", "testdata/decision/misfire", defaults(), "rule X12: decision.outcome: a confirm row and a misfire row"},
+		{"severity and misfire rows that share an answer", "testdata/decision/lowered", defaults(), "rule X18: decision.outcome: a severity row and a misfire row"},
 		{"severity row not below the rule severity", "testdata/decision/severity", defaults(), "rule X13: decision.outcome.severity.high"},
 		{"usages next to a decision", "testdata/decision/usages", defaults(), "rule X14: usages and decision"},
 		{"unknown question template", "testdata/decision/template", defaults(), "rule X15: decision.questions.who.template"},
@@ -156,6 +157,27 @@ func TestLoadErrors(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error %q does not mention %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestDecisionLoads(t *testing.T) {
+	cases := []struct {
+		name string
+		dir  string
+		id   string
+	}{
+		{"a dismiss row may list the misfire option", "testdata/decision/split", "X19"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			set, err := rules.Load(tc.dir, defaults())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if set.ByID[tc.id].Decision == nil {
+				t.Fatalf("%s has no decision", tc.id)
 			}
 		})
 	}

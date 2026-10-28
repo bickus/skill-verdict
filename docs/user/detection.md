@@ -123,27 +123,24 @@ A rule that the model may lower has a `decision` block in its rule data:
   - `confirm` rows confirm the finding.
   - `severity` rows give the finding a lower severity.
   - `dismiss` rows dismiss the finding, or lower it to the rule's floor.
+  - `misfire` rows dismiss the finding even when the rule has a floor. Such a row names the answer that the rule matched text it does not look for, usually the option `not-a-match`.
 
 A condition holds when the probabilities of its options add up to the threshold of its row or more:
 
 | Setting | Default | Rows |
 |---|---|---|
 | `layers.decision.confirmProbability` | `0.3` | `confirm` |
-| `layers.decision.dismissProbability` | `0.8` | `severity` and `dismiss` |
-| `layers.decision.guardProbability` | `0.6` | the guard question below |
+| `layers.decision.dismissProbability` | `0.8` | `severity`, `dismiss` and `misfire` |
 
 The layer decides a finding in this order:
 
-1. The guard. Every request also asks the guard question `addressed`. When one request of the finding gets `yes` at `guardProbability` or more, only `confirm` rows count. The reason of the finding then says that the text speaks to a reviewer.
+1. `misfire` rows. A match dismisses the finding, with or without a floor. They come first, so an answer that the rule did not match wins over a confirming answer to another question.
 2. `confirm` rows. A match confirms the finding at its severity.
-3. `severity` rows. The highest matching severity wins, and the rule's floor still applies.
-4. `dismiss` rows. A row whose only condition is `not-a-match` dismisses the finding even when the rule has a floor. The answer `not-a-match` means that the rule matched text it does not look for. Any other matching row dismisses a finding of a rule without a floor and lowers the finding to the floor otherwise.
+3. `severity` rows. The highest matching severity wins, and the rule's floor still applies. A result at or above the current severity leaves the finding as it is.
+4. `dismiss` rows. A match dismisses the finding of a rule without a floor and lowers the finding to the floor otherwise.
 5. No row matches. The finding keeps its severity.
 
-The guard question asks whether the text does one of these:
-
-- speaks to a reviewer, a scanner, a classifier or a model
-- claims that something is safe, unused, harmless or only documentation
+A `dismiss` row may list the misfire option next to the other dismissing options, for example `{"who": ["documentation", "not-a-match"]}`. An answer split between those options then still reaches the threshold and ends at the floor. The `misfire` row needs the misfire option alone at the threshold.
 
 A question gets no answer when the layer does not send its request. Then only rows without that question can match. The layer sends no request in these cases:
 
@@ -153,7 +150,7 @@ A question gets no answer when the layer does not send its request. Then only ro
 
 A rule with `judge.downgrade` set to `false` gets only its `confirm` rows.
 
-In the JSON report, the `decision` object of a finding lists every question with the chosen option and its probability, per place. The reason of the judgement shows the matched row, for example `who: agent-runs (0.91), pin: none (0.84)`.
+In the JSON report, the `decision` object of a finding lists every question with the chosen option and its probability, per place. The reason of the judgement shows the matched row, for example `who: agent-runs (0.91), source: skill-named (0.84)`.
 
 ### What the model reads
 
@@ -161,9 +158,16 @@ Each question names its subject, the text the model reads for it:
 
 - `frame`: the block of text around the finding. A header gives the file and the role of the file. The header also gives the language of the fenced code block that holds the line, or `no`. The headings above the line come next, then the three lines before the block and the block itself. The marked line starts with `>>`. A block is a list item with its continuation lines, a paragraph, a table row, or a fenced code block with its opening line. Of a block over 40 lines, the model gets the first 20 lines, the lines around the marked line and the last 20 lines. In a script the block is the function that holds the line. Without a syntax tree it is the 5 lines before and after the line.
 - `trace`: the frame of the line, then the trace of the value through the code, see layer 3. Where the trace stops following a value backward, it says `value not followed past NAME`. A line that only tests a variable, such as `[[ -z "$KEY" ]]`, is traced through the other reads of that variable. A finding outside traced code, in prose, a comment or a file with a syntax error, gets the frame alone. A trace with no call that takes the value gets no answer.
-- `places`: every place of the same thing, each as a frame. The layer asks the question once per place. A `confirm` row matches when it matches at one place. A `severity` or `dismiss` row has to match at every place. A long list goes out in several requests.
-- `entry`: `SKILL.md` with its frontmatter, under a line that names the finding.
+- `places`: every place of the same thing, each as a frame. The layer asks the question once per place and gives each place the outcome of the order above. The answers to the `frame` and `entry` questions of the rule count at every place. A long list goes out in several requests.
+- `entry`: `SKILL.md` with its frontmatter, then the README of the skill when it has one, under a line that names the finding. The layer cuts the two files together at `maxStateChars` minus 2000 characters.
 - `facts`: the lines of the reference brief about the finding's reference, and the frames of up to five of its places.
+
+A finding with several places takes the worst outcome of its places:
+
+1. A place that confirms the finding or matches no row keeps the finding. A confirming place confirms it.
+2. Otherwise the highest severity among the places with a `severity` outcome wins.
+3. Otherwise one dismissing place dismisses the finding, or lowers it to the floor.
+4. Otherwise every place is a misfire, and the layer dismisses the finding.
 
 The role of a file is one of these:
 
@@ -180,28 +184,58 @@ The layer cuts every text at `layers.decision.maxStateChars` and sends no reques
 
 | Rule | Question | Subject |
 |---|---|---|
-| `WORD-HOMOGLYPHS` | Why does the word mix scripts? | `frame` |
+| `WORD-INVISIBLE-CHARS`, `WORD-HOMOGLYPHS` | Why does the word mix scripts or hide characters? | `frame` |
+| `ARCHIVE-RAR-MENTIONED` | Where does the RAR file come from? | `frame` |
+| `LINK-IN-COMMENT` | What does the comment do? | `frame` |
+| `DESERIALIZE-PHP`, `DESERIALIZE-RUBY-MARSHAL`, `DESERIALIZE-RUBY-YAML` | Where does the data come from? | `trace` from the call |
 | `REMOTE-ENDPOINT-UPLOAD` | What do the requests send? | `trace` from the request |
+| `SECRETS-ENV-DUMPED` | What does the code do with the whole environment? | `frame` |
 | `SECRETS-ENV-USED` | Where does the value go? | `trace` |
-| `SECRETS-ENV-USED` | Whose secret does the variable hold? | `frame` |
+| `SECRETS-ENV-USED` | Whose secret does the variable hold? | `entry` |
+| `ENV-NAME-COMPUTED` | Which variable does the built name stand for? | `trace` from the call |
+| `SECRETS-DIRS-LISTED` | Which directory does the code list or search? | `frame` |
+| `CLOUD-STORAGE-UPLOAD` | Where does the bucket come from? What does the upload send? | `trace` from the call |
+| `PACKAGE-SOURCE-ADDED` | Who does it? Whose source does it add? | `frame` |
+| `PACKAGE-OTHER-REGISTRY` | Who does it? Who runs the registry? | `frame` |
+| `PACKAGE-PROTECTION-OFF` | Who does it? What does the setting do to the protection? | `frame` |
+| `ROOT-PASSWORDLESS` | What does the text do with passwordless rights? | `frame` |
 | `SKILL-REFERENCED` | What does the text do with the other skill? | `frame` |
 | `SKILL-REFERENCED` | What does this skill prepare for the other skill? | `entry` |
-| `UNPINNED-INSTALL` | Who runs the command? | `places` |
-| `UNPINNED-INSTALL` | What fixes the version? | `places` |
-| `UNPINNED-GIT` | Who does the step? | `places` |
-| `UNPINNED-GIT` | What fixes the code? | `places` |
+| `AGENT-CONFIG-READ`, `AGENT-MCP-CONFIG-READ` | Where does what the code reads go? | `trace` |
+| `AGENT-CONFIG-READ`, `AGENT-MCP-CONFIG-READ` | Is the skill for managing agent settings? | `entry` |
+| `CLOUD-METADATA-READ` | What does the text read from the endpoint? | `frame` |
+| `UNPINNED-INSTALL` | Who does it? | `places` |
+| `REMOTE-SCRIPT-PIPED` | Who does it? | `frame` |
+| `ENCODED-CODE-EXECUTED` | What happens to the decoded result? | `trace` |
+| `CONTAINER-TRUST-DISABLED` | Who does it? | `frame` |
+| `SETTING-UNSAFE`, `KUBERNETES-PRIVILEGED` | Does the skill or the user apply the setting? | `frame` |
+| `UNPINNED-DOWNLOAD` | What does the skill do with the URL? | `frame` |
+| `UNPINNED-GIT` | Who does it? Whose repository does it clone? | `frame` |
+| `PACKAGE-MISSING`, `PACKAGE-NEW`, `PACKAGE-LOW-DOWNLOADS`, `PACKAGE-TYPOSQUAT` | Who does it? | `places` |
 | `REMOTE-CODE-AT-INSTALL` | What is the step? | `places` |
 | reference rules with `usages` | What does the skill do with the reference? See [External references](references.md#what-the-skill-does-with-a-reference). | `places` |
 
-The options and the outcome rows of each rule are in its rule data. A trace question with `"from": "call"` starts at the call that the rule matched. The trace then shows what feeds the call. Any other trace question starts at the value that the rule matched. The trace then shows where the value goes.
+The options and the outcome rows of each rule are in its rule data. The question "Who does it?" is the template `who`. Its options are:
+
+- `agent-runs`: a step or a command block under any heading of `SKILL.md` or of a file it sends the agent to. A command that a script of the skill runs counts too.
+- `platform-install`: an entry that the agent platform applies without a person reading it:
+  - an install entry in the frontmatter `metadata`
+  - a server command in an MCP configuration
+  - a lock or manifest entry
+- `user-step`: a step that the skill tells a person to do by hand
+- `documentation`: a file for people that asks nobody to do it, or text about a past change
+- `not-a-match`: text that the rule does not look for
+- `unknown`: the text does not show who does it
+
+A trace question with `"from": "call"` starts at the call that the rule matched. The trace then shows what feeds the call. Any other trace question starts at the value that the rule matched. The trace then shows where the value goes.
 
 The places of a static finding are the places where its rule matched the same name, such as a package. The scanner takes the name from the end of the evidence and sends one request per name. Each finding gets the answers at its own place. The `REMOTE-CODE-AT-INSTALL` findings go into one request per skill. For findings of the discovery layer the decision layer runs a second time, after discovery. The decision layer also raises `REMOTE-CODE-AT-INSTALL` from a usage answer and decides such a finding in the same run. The places of a reference finding are all places where the skill names the reference.
 
 A registry install of the scanned skill itself, such as `clawhub install <folder>`, gives no static finding. The scanner compares the install with the name of the skill folder. The skill author writes the `name` in the frontmatter, and that name can point at another skill. The Judge and the discovery model get the folder name for the same reason.
 
-The layer also gives every place of an external reference a usage. The skill cites it, points the reader at it, has the user act there, or has the agent fetch data, follow instructions, install code or send data. The last three raise `REMOTE-INSTRUCTIONS-FOLLOWED`, `REMOTE-CODE-AT-INSTALL` and `REMOTE-ENDPOINT-UPLOAD-HIDDEN`. Only an answer at or above `layers.decision.dismissProbability` enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). No question contains the skill's name or description, because the skill author writes both.
+The layer also gives every place of an external reference a usage. The skill cites it, points the reader at it, has the user act there, or has the agent fetch data, follow instructions, install code or send data. The last three raise `REMOTE-INSTRUCTIONS-FOLLOWED`, `REMOTE-CODE-AT-INSTALL` and `REMOTE-ENDPOINT-UPLOAD-HIDDEN`. Only an answer at or above `layers.decision.dismissProbability` raises a rule or enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). No question contains the skill's name or description, because the skill author writes both.
 
-The AI Judge never sees a finding of the static, reveal or references layer. A rule of those layers needs a `decision` block for the model to lower it. Without the block, its finding keeps its severity.
+The AI Judge never sees a finding of the static, reveal or references layer. A rule of those layers needs a `decision` block for the model to lower it. A rule without the block ships with `judge.downgrade` set to `false` and no floor, and its finding keeps its severity.
 
 ---
 

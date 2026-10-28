@@ -54,6 +54,20 @@
    "enabled": true
   },
   {
+   "id": "T-PATH",
+   "category": "tool-misuse",
+   "severity": "low",
+   "title": "Path glob probe",
+   "description": "Probe limited to Markdown files in a commands folder.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "files": ["commands/*.md"],
+   "patterns": ["(?i)probepath"],
+   "judge": {"downgrade": true},
+   "enabled": true
+  },
+  {
    "id": "T-EXCL",
    "category": "tool-misuse",
    "severity": "low",

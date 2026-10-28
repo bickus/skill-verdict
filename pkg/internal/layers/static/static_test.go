@@ -115,6 +115,8 @@ func TestGlobExcludeAndOneFindingPerLine(t *testing.T) {
 	}{
 		{"glob matches base name", "glob.cfg", []hit{{"T-GLOB", 1, "glob.cfg"}}},
 		{"glob rejects other names", "glob.txt", nil},
+		{"glob with a slash matches the end of the path", "plugins/p/commands/run.md", []hit{{"T-PATH", 1, "plugins/p/commands/run.md"}}},
+		{"glob with a slash matches whole folder names only", "subcommands/run.md", nil},
 		{"exclude applies to its own line only", "excl.txt", []hit{{"T-EXCL", 2, "excl.txt"}}},
 		{"line with an invisible character is reported once", "dedup.txt", []hit{{"T-ANY", 1, "dedup.txt"}}},
 	}
@@ -177,7 +179,7 @@ func TestEveryClassHasHitAndNearMiss(t *testing.T) {
 		{"deserialization", "load.rb", "load-miss.rb"},
 		{"ssrf", "meta.py", "meta-miss.py"},
 		{"tool-misuse", "client.py", "client-miss.py"},
-		{"load-time-exec", "loadtime.md", "loadtime-miss.md"},
+		{"load-time-exec", "commands/loadtime.md", "commands/loadtime-miss.md"},
 		{"privilege-escalation", "sudoers.sh", ""},
 		{"prompt-injection", "skillref.md", "skillref-miss.md"},
 	}
@@ -218,6 +220,60 @@ func TestSecretEnvNameMatchesWholeTokens(t *testing.T) {
 
 func onLine(found []finding.Finding, line int) bool {
 	return slices.ContainsFunc(found, func(f finding.Finding) bool { return f.Location.Line == line })
+}
+
+func severityOnLine(found []finding.Finding, line int) finding.Severity {
+	i := slices.IndexFunc(found, func(f finding.Finding) bool { return f.Location.Line == line })
+	if i < 0 {
+		return ""
+	}
+	return found[i].Severity
+}
+
+func TestCommandOnLoadSeverity(t *testing.T) {
+	s := scan(t, "testdata/loadtime", "")
+	cases := []struct {
+		name string
+		file string
+		line int
+		want finding.Severity
+	}{
+		{"a read-only command is medium", "SKILL.md", 7, finding.Medium},
+		{"a command outside the read-only list is high", "SKILL.md", 8, finding.High},
+		{"a read-only command with a pipe is high", "SKILL.md", 9, finding.High},
+		{"a fenced block opened with an exclamation mark is high", "SKILL.md", 11, finding.High},
+		{"a command file in a nested commands folder runs too", "commands/git/log.md", 1, finding.Medium},
+		{"a file the agent does not load gives no finding", "notes.md", 1, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := severityOnLine(inFile(s, "COMMAND-ON-LOAD", tc.file), tc.line); got != tc.want {
+				t.Errorf("severity on line %d = %q, want %q", tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUnpinnedDependencyNeedsAnInstall(t *testing.T) {
+	cases := []struct {
+		name     string
+		dir      string
+		manifest string
+		want     int
+	}{
+		{"an installer in the skill keeps the finding", "testdata/dependencies/installed", "package.json", 1},
+		{"a file that names the manifest keeps the finding", "testdata/dependencies/named", "requirements.txt", 1},
+		{"an installer of another ecosystem gives no finding", "testdata/dependencies/other", "package.json", 0},
+		{"a manifest nothing installs gives no finding", "testdata/dependencies/unused", "requirements.txt", 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := scan(t, tc.dir, "")
+			if got := len(inFile(s, "UNPINNED-DEPENDENCY", tc.manifest)); got != tc.want {
+				t.Errorf("%d findings in %s, want %d", got, tc.manifest, tc.want)
+			}
+		})
+	}
 }
 
 func TestRunRecordsLayerOutcome(t *testing.T) {

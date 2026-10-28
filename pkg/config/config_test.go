@@ -88,7 +88,6 @@ func TestValidateRejects(t *testing.T) {
 		{"negative price", func(c *config.Config) { c.LLM.Price.Output = -1 }},
 		{"confirm probability of zero", func(c *config.Config) { c.Layers.Decision.ConfirmProbability = 0 }},
 		{"dismiss probability above one", func(c *config.Config) { c.Layers.Decision.DismissProbability = 1.1 }},
-		{"guard probability of zero", func(c *config.Config) { c.Layers.Decision.GuardProbability = 0 }},
 		{"confirm probability above the dismiss probability", func(c *config.Config) { c.Layers.Decision.ConfirmProbability = 0.9 }},
 	}
 	for _, tc := range cases {
@@ -128,7 +127,6 @@ func TestValidateAccepts(t *testing.T) {
 		{"decision probabilities at one", func(c *config.Config) {
 			c.Layers.Decision.ConfirmProbability = 1
 			c.Layers.Decision.DismissProbability = 1
-			c.Layers.Decision.GuardProbability = 1
 		}},
 	}
 	for _, tc := range cases {

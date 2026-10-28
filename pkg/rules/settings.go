@@ -9,7 +9,7 @@ func Settings(s *Set) map[string]map[string]config.RuleSetting {
 	out := make(map[string]map[string]config.RuleSetting)
 	for id, r := range s.ByID {
 		category, severity, enabled, interrupt := r.Category, r.Severity, r.Enabled, r.Interrupt
-		downgrade, floor, instructions := r.Judge.Downgrade, r.Judge.DowngradeFloor, r.Judge.Instructions
+		downgrade, floor := r.Judge.Downgrade, r.Judge.DowngradeFloor
 		if out[r.Layer] == nil {
 			out[r.Layer] = make(map[string]config.RuleSetting)
 		}
@@ -21,7 +21,7 @@ func Settings(s *Set) map[string]map[string]config.RuleSetting {
 			Severity:    &severity,
 			Enabled:     &enabled,
 			Interrupt:   &interrupt,
-			Judge:       &config.JudgeSetting{Downgrade: &downgrade, DowngradeFloor: &floor, Instructions: &instructions},
+			Judge:       &config.JudgeSetting{Downgrade: &downgrade, DowngradeFloor: &floor},
 			Attribution: r.Attribution,
 		}
 		out[r.Layer][id] = setting

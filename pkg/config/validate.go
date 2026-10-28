@@ -78,7 +78,6 @@ func (c Config) validatePositive() error {
 		{"layers.references.youngOwnerDays", int64(refs.YoungOwnerDays)},
 		{"layers.references.newPackageDays", int64(refs.NewPackageDays)},
 		{"layers.references.lowDownloads", int64(refs.LowDownloads)},
-		{"layers.references.popularStars", int64(refs.PopularStars)},
 		{"layers.decision.timeout", int64(c.Layers.Decision.Timeout)},
 		{"layers.decision.maxStateChars", int64(c.Layers.Decision.MaxStateChars)},
 		{"layers.decision.maxRequestChars", int64(c.Layers.Decision.MaxRequestChars)},
@@ -193,7 +192,6 @@ func (c Config) validateDecision() error {
 	for _, s := range []setting[float64]{
 		{"confirmProbability", d.ConfirmProbability},
 		{"dismissProbability", d.DismissProbability},
-		{"guardProbability", d.GuardProbability},
 	} {
 		if s.value <= 0 || s.value > 1 {
 			return fmt.Errorf("layers.%s.%s: must be above 0 and at most 1", DecisionLayer, s.name)

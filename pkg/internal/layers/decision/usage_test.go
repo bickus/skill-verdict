@@ -87,3 +87,33 @@ func TestToolServerUntrustedCountsFactsAboveLow(t *testing.T) {
 		})
 	}
 }
+
+func TestUsageRaisesARuleOnlyAtTheDismissProbability(t *testing.T) {
+	host := refs.Ref{Kind: refs.Domain, Value: "tools.example.com", URLs: []string{"https://tools.example.com/mcp"}, Locations: []finding.Location{{File: "SKILL.md", Line: 3}}}
+	repo := refs.Ref{Kind: refs.GitHub, Value: "acme/tools", URLs: []string{"https://github.com/acme/tools"}, Locations: []finding.Location{{File: "SKILL.md", Line: 4}}}
+	cases := []struct {
+		name    string
+		ref     refs.Ref
+		rule    string
+		answers string
+		want    []string
+	}{
+		{"an install answer at 0.8 raises the rule", host, "DOMAIN-HTTP-ERROR", `{"R1.1.usage":{"choice":"agent-install","probabilities":{"agent-install":0.8,"unknown":0.2}}}`, []string{"DOMAIN-HTTP-ERROR", "REMOTE-CODE-AT-INSTALL"}},
+		{"an install answer below 0.8 raises nothing", host, "DOMAIN-HTTP-ERROR", `{"R1.1.usage":{"choice":"agent-install","probabilities":{"agent-install":0.79,"unknown":0.21}}}`, []string{"DOMAIN-HTTP-ERROR"}},
+		{"a tool server answer at 0.8 raises the rule", repo, "GITHUB-OWNER-MISSING", `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.8,"unknown":0.2}}}`, []string{"GITHUB-OWNER-MISSING", "TOOL-SERVER-UNTRUSTED"}},
+		{"a tool server answer below 0.8 raises nothing", repo, "GITHUB-OWNER-MISSING", `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.79,"unknown":0.21}}}`, []string{"GITHUB-OWNER-MISSING"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := referenceState(t, tc.ref, tc.rule)
+			pipeline.Run(context.Background(), s, []pipeline.Layer{decision.Layer{Client: model(t, tc.answers), Config: config.Default().Layers.Decision}})
+			var got []string
+			for _, f := range s.Findings {
+				got = append(got, f.Rule)
+			}
+			if s.Layers[1].Status != pipeline.Done || !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("layer %+v, findings %v, want %v", s.Layers[1], got, tc.want)
+			}
+		})
+	}
+}

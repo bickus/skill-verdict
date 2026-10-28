@@ -12,7 +12,26 @@
    "patterns": [
     "(?i)[\\w.-]+\\.rar\\b"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
+   "decision": {
+    "questions": {
+     "origin": {
+      "subject": "frame",
+      "question": "The marked line names a file with the `.rar` extension. Where does that RAR file come from?",
+      "options": {
+       "fetched": "the skill downloads or fetches the RAR file, or tells someone to.",
+       "user-given": "the user provides the RAR file or already has it.",
+       "format-mention": "the text lists `.rar` as a format the skill supports or handles.",
+       "not-a-match": "the marked text is not the name of a RAR file."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"origin": "fetched"}],
+     "dismiss": [{"origin": "user-given"}, {"origin": "format-mention"}],
+     "misfire": [{"origin": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -24,7 +43,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Dismiss only when the match is not a password for an archive or a page at all. The skill's purpose or its reason for giving the password is not a reason to lower."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "enabled": true
   },
   {
@@ -36,7 +55,7 @@
    "kind": "fact",
    "layer": "walk",
    "scope": "any",
-   "judge": {"downgrade": false, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": true
   },
@@ -50,7 +69,7 @@
    "layer": "walk",
    "scope": "any",
    "files": ["*.rar"],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true,
    "interrupt": false
   }

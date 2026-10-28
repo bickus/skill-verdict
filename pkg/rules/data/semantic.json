@@ -17,7 +17,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the text is not an instruction to the agent at all. How much harm the instruction could do is not a reason to lower or to keep."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
    "enabled": false
   },
   {
@@ -29,7 +29,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Lower only when the text is not an instruction to the agent at all. How much harm the instruction could do is not a reason to lower or to keep."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
    "enabled": false
   },
   {
@@ -41,7 +41,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Decide from where the data ends up. Lower to the floor when it stays in files on the user's machine, or when it goes to the service the skill is for and the skill says so. Keep when it reaches another person, a group chat, a service the purpose does not need, or when a credential is printed or sent. Missing consent or missing redaction alone is not a reason to keep."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
    "enabled": true
   },
   {
@@ -53,7 +53,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "downgradeFloor": "low", "instructions": "Decide from who is misled. Lower to the floor when it is the target of a declared exercise: a CTF challenge, a simulation the user set up. Keep when the user, a customer or another real person is misled, or when the steps end in running code or handing over a secret."},
+   "judge": {"downgrade": true, "downgradeFloor": "low"},
    "enabled": true
   }
  ]

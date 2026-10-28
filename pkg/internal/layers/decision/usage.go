@@ -192,7 +192,7 @@ func (r *run) raise(rep *refs.Report, answers []placed) []finding.Finding {
 	raised := make(map[string]bool)
 	for j, loc := range rep.Ref.Locations {
 		rule, ok := s.Rules.ByID[usageRules[answers[j].choice]]
-		if !ok || !rule.Enabled {
+		if !ok || !rule.Enabled || answers[j].probability < r.layer.Config.DismissProbability {
 			continue
 		}
 		s.Cover(rule.ID, loc.File, loc.Line-around, loc.Line+around)
@@ -217,7 +217,9 @@ func (r *run) raise(rep *refs.Report, answers []placed) []finding.Finding {
 func (r *run) server(rep *refs.Report, answers []placed) []finding.Finding {
 	s := r.state
 	rule, ok := s.Rules.ByID[untrusted]
-	at := slices.IndexFunc(answers, func(a placed) bool { return a.choice == toolServer })
+	at := slices.IndexFunc(answers, func(a placed) bool {
+		return a.choice == toolServer && a.probability >= r.layer.Config.DismissProbability
+	})
 	if !ok || !rule.Enabled || at < 0 {
 		return nil
 	}

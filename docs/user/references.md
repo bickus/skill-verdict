@@ -17,6 +17,8 @@ During scanning, `skill-verdict` parses all text files and extracts four categor
 | **Packages** | Package install commands (`pip`, `pipx`, `uv`, `npm`, `pnpm`, `yarn`, `npx`), `package.json` dependencies, `requirements.txt`, npm and PyPI install entries in the frontmatter metadata, and MCP server entries that run `npx` or `uvx`. | `pip install requests`, `npm i express`, `{"kind":"node","package":"latchkey"}` |
 | **IP Addresses** | Raw IPv4/IPv6 addresses in URLs, `host:port` pairs, or network commands (`curl`, `nc`, `ssh`, etc.). | `http://198.51.100.4:8080`, `nc 203.0.113.5 4444` |
 
+An address in a reserved or documentation range gives no `IP-ADDRESS-PUBLIC` finding. The public DNS resolvers of Google, Cloudflare, Quad9 and OpenDNS give none either, because a connectivity check pings or queries them.
+
 References are deduplicated across the entire skill so each external resource is evaluated only once per scan.
 
 ---
@@ -36,7 +38,7 @@ The checks below say what a reference is. They do not say what the skill does wi
 | `agent-install` | The agent installs or runs code from it. | `REMOTE-CODE-AT-INSTALL` |
 | `agent-upload` | The agent sends data from the user, the machine or another service to it. | `REMOTE-ENDPOINT-UPLOAD-HIDDEN` |
 
-Packages and references reached through a redirect get no usage. A place with no clear answer, or with an answer below `layers.decision.dismissProbability`, gets no usage in the reference brief. The discovery model then reads the place itself. The `decision` layer must be enabled, no other layer gives usages. The judge sees every usage in the reference brief. A reference gets one finding per rule, at the first place whose top answer has that usage, however many places have it and whatever the probability of the answer. For a `REMOTE-CODE-AT-INSTALL` finding from a usage, the layer asks the rule's own question about the step. See [Detection](detection.md#layer-6-decision). The other findings go to the judge like any other finding. The discovery model may report the same three rules on its own. Such a finding is left out, with no message to the model, when its lines overlap the lines around a place whose usage raised the same rule. A usage that raises no rule removes no discovery finding.
+Packages and references reached through a redirect get no usage. A place with no clear answer, or with an answer below `layers.decision.dismissProbability`, gets no usage in the reference brief. The discovery model then reads the place itself. The `decision` layer must be enabled, no other layer gives usages. The judge sees every usage in the reference brief. A usage raises its rule only when the top answer at a place has that usage at `layers.decision.dismissProbability` or above. A reference gets one finding per rule, at the first such place, however many places have the usage. For a `REMOTE-CODE-AT-INSTALL` finding from a usage, the layer asks the rule's own question about the step. See [Detection](detection.md#layer-6-decision). The other findings go to the judge like any other finding. The discovery model may report the same three rules on its own. Such a finding is left out, with no message to the model, when its lines overlap the lines around a place whose usage raised the same rule. A usage that raises no rule removes no discovery finding.
 
 Some fact rules have a `usages` list in their rule data. Each of them lists the same usages:
 
@@ -48,6 +50,10 @@ Some fact rules have a `usages` list in their rule data. Each of them lists the 
 
 The rules are:
 
+- `IP-ADDRESS-PUBLIC`
+- `DOMAIN-SHORTENER`
+- `DOMAIN-PASTE`
+- `DOMAIN-FILEHOST`
 - `DOMAIN-NEW`
 - `DOMAIN-NEW-REDIRECT`
 - `DOMAIN-EXPIRING`
@@ -61,13 +67,14 @@ The rules are:
 - `GITHUB-REPO-MISSING`
 - `PLATFORM-SITE-MISSING`
 
-The `usages` list in the rule data is a short form of a `decision` block, see [Detection](detection.md#layer-6-decision). The scanner turns the list into the usage question at every place of the reference, with this outcome table:
+The `usages` list in the rule data is a short form of a `decision` block, see [Detection](detection.md#layer-6-decision). The scanner turns the list into the usage question at every place of the reference. The finding takes the first of these outcomes that applies:
 
-- One place with a usage from the list confirms the finding. The probability of that usage has to reach `layers.decision.confirmProbability`.
-- `user-action` at every place lowers the finding to `medium`, when the rule severity is above `medium`.
+- A place with a usage from the list confirms the finding. The probability of that usage has to reach `layers.decision.confirmProbability`.
+- A place whose answer fits none of the outcomes below keeps the finding at its severity.
+- A place with `user-action` lowers the finding to `medium`, when the rule severity is above `medium`. A rule at `medium` or below keeps its severity for such a place.
 - `citation` or `documentation` at every place dismisses the finding of a rule without a floor. The finding of a rule with a floor goes to the floor.
 
-The last two need a probability of `layers.decision.dismissProbability` at every place. The layer decides these rules from the usage answers above and sends no extra request. When no row matches, the finding keeps its severity. The judge never reviews a reference finding.
+The last two need a probability of `layers.decision.dismissProbability` at each place. The layer decides these rules from the usage answers above and sends no extra request. The judge never reviews a reference finding.
 
 A tool server gets what the agent sends and steers the agent with its tool descriptions and replies. A reference with a `tool-server` place raises `TOOL-SERVER-UNTRUSTED` at the first such place. The reference needs at least one finding of the `references` layer whose rule severity is above `low`. The shipped `low` rules report facts that only the owner of the name can change, such as an error status at the host root. The evidence names the fact rules. The fact findings stay as they are.
 

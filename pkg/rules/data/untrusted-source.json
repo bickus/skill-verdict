@@ -5,7 +5,7 @@
    "category": "supply-chain",
    "severity": "critical",
    "title": "Code fetched from a moving target",
-   "description": "A referenced URL serves whatever its owner put there last: a raw, blob or archive link on a branch at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. Judge the finding by what the skill does with the URL. The agent fetching it, installing from it, running it, or following the instructions there keeps the severity. A download a person is told to do by hand is lowered to the floor. A citation nobody is told to act on can be lowered. A widely used project can also lower it when fetching from that project fits what the skill does. Decide that on the reference facts in this report, an owner that exists, an old account, a repository many people use, not on how familiar the name looks, because imitating a familiar name is what a typosquat does.",
+   "description": "A referenced URL serves whatever its owner put there last: a raw, blob or archive link on a branch at GitHub, GitLab, SourceHut, Codeberg or Bitbucket, a release download, or a gist. What a reviewer reads today is not what the user gets tomorrow, and the owner replaces it at the same address. A URL pinned to a commit hash does not match this rule. The agent fetching the URL, installing from it, running it, or following the instructions there keeps the severity. A download a person is told to do by hand and a citation end at the floor, because a person may still follow the link.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -28,7 +28,21 @@
     "(?i)cdn\\.jsdelivr\\.net/gh/[^/\\s@]+/[^/\\s@]+@[^/\\s]*[^0-9a-f/\\s][^/\\s]*/",
     "(?i)cdn\\.jsdelivr\\.net/npm/(?:@[^/\\s@]+/)?[^/\\s@]+(?:@latest)?/"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Judge only whether the passage does what the description says. Do not weigh how likely or how bad a supply chain attack is."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "usage": {
+      "subject": "frame",
+      "template": "usage",
+      "focus": "The reference is the URL on the marked line, shown as the subject."
+     }
+    },
+    "outcome": {
+     "confirm": [{"usage": ["agent-fetch", "agent-install", "agent-instructions", "agent-upload", "tool-server"]}],
+     "severity": {"medium": [{"usage": "user-action"}]},
+     "dismiss": [{"usage": ["citation", "documentation"]}]
+    }
+   },
    "enabled": true
   },
   {
@@ -52,24 +66,25 @@
    "decision": {
     "questions": {
      "who": {
-      "subject": "places",
+      "subject": "frame",
       "template": "who",
-      "focus": "The scanner rule looks for a step that clones a repository or installs from a Git source."
+      "focus": "The scanner rule looks for a step that clones a repository or installs from a Git source without a commit hash. A clone followed by a checkout of a commit hash, or a URL that carries a commit hash, is `not-a-match`."
      },
-     "pin": {
-      "subject": "places",
-      "question": "What fixes the code that the step at this place gets?",
+     "source": {
+      "subject": "frame",
+      "question": "Whose repository does the marked step clone or install from?",
       "options": {
-       "none": "no commit hash fixes the code: the step takes the default branch, a branch or a tag.",
-       "hash": "a commit hash fixes the code: the source names one, or a checkout of a hash follows the clone.",
-       "not-applicable": "the place has no clone or Git source whose code could be fixed."
+       "skill-named": "the repository is named in the files of the skill.",
+       "user-given": "the user names the repository, or it is the project the agent works in.",
+       "not-a-match": "the marked text clones or installs no repository."
       }
      }
     },
     "outcome": {
-     "confirm": [{"who": "agent-runs", "pin": "none"}],
+     "confirm": [{"who": ["agent-runs", "platform-install"], "source": "skill-named"}],
      "severity": {"medium": [{"who": "user-step"}]},
-     "dismiss": [{"who": ["documentation", "not-a-match"]}, {"pin": "hash"}]
+     "dismiss": [{"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}, {"source": ["user-given", "not-a-match"]}]
     }
    },
    "enabled": true
@@ -105,7 +120,8 @@
     "outcome": {
      "confirm": [{"step": "agent-runs"}],
      "severity": {"low": [{"step": "user-download"}]},
-     "dismiss": [{"step": ["not-a-match", "user-package", "system-package", "pinned", "lock-entry", "documentation"]}]
+     "dismiss": [{"step": ["not-a-match", "user-package", "system-package", "pinned", "lock-entry", "documentation"]}],
+     "misfire": [{"step": "not-a-match"}]
     }
    },
    "enabled": true
@@ -119,7 +135,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Dismiss when the content is reference material the agent looks things up in and no step depends on instructions from it, or if a false positive."},
+   "judge": {"downgrade": true},
    "enabled": true
   },
   {
@@ -131,7 +147,7 @@
    "kind": "llm",
    "layer": "discovery",
    "scope": "any",
-   "judge": {"downgrade": true, "instructions": "Dismiss when only data or the user's own request is passed on, or when the skill writes the prompt for a subagent its own task starts. Keep it when the text asks the receivers to pass it on, or reaches agents, sessions or skills outside the task."},
+   "judge": {"downgrade": true},
    "enabled": true
   }
  ]

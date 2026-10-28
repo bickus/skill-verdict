@@ -38,7 +38,26 @@
     "(?i)(?:by\\s+default|default\\s+to)\\s+(?:allow|accept|trust)\\s+(?:all|any|everything)",
     "(?i)(?:trust|accept|allow)\\s+(?:all|any)\\s+(?:input|connections?|certificates?|origins?)\\s+(?:by\\s+default)"
    ],
-   "judge": {"downgrade": true, "instructions": "Lower when the setting is in an example, a test or a local development config. A setting the skill tells the user to apply keeps it."},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "applied": {
+      "subject": "frame",
+      "question": "The marked line holds a setting that turns off a protection or turns on debug mode. Who applies the setting?",
+      "options": {
+       "by-skill": "the agent or a script of the skill applies it, or it is in a configuration that the skill ships and uses.",
+       "user-told": "the skill tells the user to apply it.",
+       "example-or-test": "it is in a test fixture, or in a file written for people that nobody is told to apply.",
+       "not-a-match": "the marked text is not a setting that turns off a protection or turns on debug mode."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"applied": "by-skill"}, {"applied": "user-told"}],
+     "dismiss": [{"applied": "example-or-test"}],
+     "misfire": [{"applied": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -57,7 +76,26 @@
     "(?i)kubectl\\s+run\\b[^\\n]*--privileged",
     "(?i)--set\\b[^\\n]*privileged\\s*=\\s*true"
    ],
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "applied": {
+      "subject": "frame",
+      "question": "The marked line holds a setting that runs a workload privileged or gives it access to the host. Who applies the setting?",
+      "options": {
+       "by-skill": "the agent or a script of the skill applies it, or it is in a configuration that the skill ships and uses.",
+       "user-told": "the skill tells the user to apply it.",
+       "example-or-test": "it is in a test fixture, or in a file written for people that nobody is told to apply.",
+       "not-a-match": "the marked text is not a setting that runs a workload privileged or gives it access to the host."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"applied": "by-skill"}, {"applied": "user-told"}],
+     "dismiss": [{"applied": "example-or-test"}],
+     "misfire": [{"applied": "not-a-match"}]
+    }
+   },
    "enabled": true
   }
  ]

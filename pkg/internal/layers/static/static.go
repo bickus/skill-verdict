@@ -7,9 +7,9 @@ import (
 	"context"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 
-	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/code"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
@@ -61,10 +61,24 @@ func (Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, error
 }
 
 func applies(r rules.Compiled, a *inventory.Artifact) bool {
-	if len(r.Files) > 0 && !config.MatchAny(r.Files, path.Base(a.Path)) {
+	if len(r.Files) > 0 && !matchesFile(r.Files, a.Path) {
 		return false
 	}
 	return (r.Scope == rules.Link) == (a.ContentType == inventory.Symlink)
+}
+
+func matchesFile(globs []string, file string) bool {
+	return slices.ContainsFunc(globs, func(glob string) bool { return matchPath(glob, file) })
+}
+
+func matchPath(glob, file string) bool {
+	segments := strings.Split(file, "/")
+	n := strings.Count(glob, "/") + 1
+	if len(segments) < n {
+		return false
+	}
+	ok, err := path.Match(glob, strings.Join(segments[len(segments)-n:], "/"))
+	return err == nil && ok
 }
 
 type source struct {
@@ -89,7 +103,7 @@ func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool, s
 		src.fenced = fences(src.lines)
 	}
 	for _, r := range s.Rules.Static {
-		if !applies(r, a) {
+		if !applies(r, a) || !installed(s.Skill, r, a) {
 			continue
 		}
 		found := unique(src.matches(r), seen)
@@ -145,6 +159,9 @@ func (src *source) build(r rules.Compiled, m []int) (finding.Finding, bool) {
 	end := max(a.Source(m[1]), start+1)
 	line := textutil.LineAt(src.starts, start)
 	f := r.Finding(finding.Location{File: a.Path, Line: line}, textutil.Evidence(src.text[m[0]:m[1]]))
+	if readOnly(r, src.text[m[0]:m[1]]) && f.Severity.Rank() > finding.Medium.Rank() {
+		f.Severity = finding.Medium
+	}
 	if endLine := textutil.LineAt(src.starts, end-1); endLine > line {
 		f.Location.EndLine = endLine
 	}
@@ -169,6 +186,55 @@ func (src *source) selfInstall(row int, m []int) bool {
 		if start >= span[0] && end <= span[1] {
 			return true
 		}
+	}
+	return false
+}
+
+func readOnly(r rules.Compiled, match string) bool {
+	if len(r.ReadOnly) == 0 {
+		return false
+	}
+	_, command, opened := strings.Cut(match, "!`")
+	command, closed := strings.CutSuffix(command, "`")
+	if !opened || !closed || strings.ContainsAny(command, "|;&<>`") || strings.Contains(command, "$(") {
+		return false
+	}
+	return matchesAny(r.ReadOnly, command)
+}
+
+func installed(skill *inventory.Skill, r rules.Compiled, manifest *inventory.Artifact) bool {
+	if len(r.Installers) == 0 {
+		return true
+	}
+	name := strings.ToLower(path.Base(manifest.Path))
+	installers := ecosystem(r, manifest.Path)
+	for i := range skill.Artifacts {
+		a := &skill.Artifacts[i]
+		if a == manifest || a.Kind != inventory.Content || !textual(a.ContentType) {
+			continue
+		}
+		if text := a.Text(); strings.Contains(strings.ToLower(text), name) || matchesAny(installers, text) {
+			return true
+		}
+	}
+	return false
+}
+
+func ecosystem(r rules.Compiled, manifest string) []*regexp.Regexp {
+	var out []*regexp.Regexp
+	for _, in := range r.Installers {
+		if matchesFile(in.Files, manifest) {
+			out = append(out, in.Patterns...)
+		}
+	}
+	return out
+}
+
+func textual(kind inventory.ContentType) bool {
+	switch kind {
+	case inventory.Markdown, inventory.Code, inventory.Text, inventory.Data:
+		return true
+	case inventory.Media, inventory.Unknown, inventory.Symlink, inventory.Special, inventory.Directory:
 	}
 	return false
 }

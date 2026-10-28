@@ -161,9 +161,6 @@ func ruleBlock(s *pipeline.State, group []labelled, file string) string {
 		seen[id] = true
 		r := s.Rules.ByID[id]
 		fmt.Fprintf(&b, "[%s] - %s - %s - %s\n  %s\n", id, r.Title, r.Severity, floor(r), r.Description)
-		if r.Judge.Instructions != "" {
-			fmt.Fprintf(&b, "  Additional instructions for Judge agent: %s\n", r.Judge.Instructions)
-		}
 	}
 	return llmcall.Render(files, file, map[string]string{"rules": strings.TrimSuffix(b.String(), "\n")})
 }

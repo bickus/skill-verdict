@@ -5,15 +5,21 @@
    "category": "load-time-exec",
    "severity": "high",
    "title": "Command run when the skill loads",
-   "description": "A backtick-quoted command preceded by an exclamation mark is executed by Claude Code when it loads the file, before any instruction in the file is read.",
+   "description": "Claude Code runs a backtick-quoted command preceded by an exclamation mark, and every fenced block opened with ```!, when it loads `SKILL.md` or a command file, before the model reads the file. The text around the command changes nothing. A read-only command such as `git status` is medium.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
-   "files": ["*.md"],
+   "files": ["SKILL.md", "commands/*.md", "commands/*/*.md"],
    "patterns": [
-    "(?m)(?:^|\\s)!`[^`\\r\\n]+`"
+    "(?m)(?:^|\\s)!`[^`\\r\\n]+`",
+    "(?m)^```!"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "readOnly": [
+    "^(date|pwd|whoami|uname|hostname)( -[A-Za-z]+)*$",
+    "^git (status|branch|log|diff|rev-parse)( [A-Za-z0-9_./]+)*$",
+    "^(ls|cat|head|tail)( -[A-Za-z0-9]+)*( [A-Za-z0-9_][A-Za-z0-9_.-]*(/[A-Za-z0-9_][A-Za-z0-9_.-]*)*)*$"
+   ],
+   "judge": {"downgrade": false},
    "enabled": true
   }
  ]

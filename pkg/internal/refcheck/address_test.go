@@ -18,6 +18,7 @@ func TestAddressCollect(t *testing.T) {
 		want  expect
 	}{
 		{"public address", "137.117.157.128", expect{status: refs.Checked, findings: []string{"IP-ADDRESS-PUBLIC"}, facts: map[string]string{"public": "true"}}},
+		{"public resolver", "1.1.1.1", expect{status: refs.Checked, facts: map[string]string{"public": "true"}}},
 		{"private address", "10.0.0.1", expect{status: refs.Checked, facts: map[string]string{"public": "false"}}},
 		{"malformed value", "300.1.1.1", expect{status: refs.Failed}},
 	}

@@ -155,9 +155,6 @@ func override(r Rule, s config.RuleSetting) Rule {
 	if s.Judge.DowngradeFloor != nil {
 		r.Judge.DowngradeFloor = *s.Judge.DowngradeFloor
 	}
-	if s.Judge.Instructions != nil {
-		r.Judge.Instructions = *s.Judge.Instructions
-	}
 	return r
 }
 

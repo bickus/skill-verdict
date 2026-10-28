@@ -39,7 +39,6 @@ type place struct {
 	text      string
 	locations []int
 	replies   map[string]reply
-	request   int
 }
 
 type groupQuestion struct {
@@ -53,7 +52,6 @@ type group struct {
 	state     func(places string) string
 	questions []groupQuestion
 	places    []*place
-	guards    []reply
 	byFinding map[spotted]*place
 }
 
@@ -100,17 +98,12 @@ func (r *run) places(ctx context.Context, rule rules.Rule, f finding.Finding, qu
 		e.add(rules.Places, instance{replies: skip(questions, noLine)})
 		return
 	}
-	requests := make(map[int]bool)
 	for _, p := range places {
 		in := instance{label: p.id, replies: make(map[string]reply, len(questions))}
 		for _, n := range questions {
 			in.replies[n.name] = p.reply(g.want(n))
 		}
 		e.add(rules.Places, in)
-		if !requests[p.request] {
-			requests[p.request] = true
-			e.guards = append(e.guards, g.guards[p.request])
-		}
 	}
 }
 
@@ -169,7 +162,7 @@ func target(rule rules.Rule, f finding.Finding) string {
 
 func (r *run) askAll(ctx context.Context, g *group) {
 	cfg := r.layer.Config
-	fixed := len(g.state("")) + chars(guard().question)
+	fixed := len(g.state(""))
 	var batch []*place
 	text, total := fixed, fixed
 	for _, p := range g.places {
@@ -198,13 +191,11 @@ func (r *run) askPlaces(ctx context.Context, g *group, batch []*place) {
 		texts = append(texts, strings.TrimRight(p.text, "\n"))
 		qs = append(qs, queries(g.asked(), g.subject, p.id)...)
 	}
-	replies, guarded := r.ask(ctx, g.state(strings.Join(texts, "\n\n")), qs)
+	replies := r.ask(ctx, g.state(strings.Join(texts, "\n\n")), qs)
 	for _, p := range batch {
 		p.replies = make(map[string]reply, len(g.questions))
 		for _, q := range g.questions {
 			p.replies[q.id] = replies[p.id+"."+q.id]
 		}
-		p.request = len(g.guards)
 	}
-	g.guards = append(g.guards, guarded)
 }

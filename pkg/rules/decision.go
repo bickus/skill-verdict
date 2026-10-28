@@ -26,10 +26,8 @@ const (
 )
 
 const (
-	Guard     = "addressed"
-	Usage     = "usage"
-	NotAMatch = "not-a-match"
-	FromCall  = "call"
+	Usage    = "usage"
+	FromCall = "call"
 )
 
 const (
@@ -37,6 +35,7 @@ const (
 	confirmKind   = "confirm"
 	severityKind  = "severity"
 	dismissKind   = "dismiss"
+	misfireKind   = "misfire"
 )
 
 type Question struct {
@@ -70,6 +69,7 @@ type Outcome struct {
 	Confirm  []Row                      `json:"confirm,omitempty"`
 	Severity map[finding.Severity][]Row `json:"severity,omitempty"`
 	Dismiss  []Row                      `json:"dismiss,omitempty"`
+	Misfire  []Row                      `json:"misfire,omitempty"`
 }
 
 type Decision struct {
@@ -148,7 +148,7 @@ func (q Question) resolve() (Question, error) {
 	}
 	t, ok := templates[q.Template]
 	switch {
-	case !ok || q.Template == Guard:
+	case !ok:
 		return q, fmt.Errorf("template: unknown template %q", q.Template)
 	case q.Question != "" || len(q.Options) > 0:
 		return q, errors.New("template: a question names a template or carries its own question and options")
@@ -167,9 +167,6 @@ func (d *Decision) validate(severity finding.Severity) error {
 	from, traced := "", false
 	for _, name := range slices.Sorted(maps.Keys(d.Questions)) {
 		q := d.Questions[name]
-		if name == Guard {
-			return fmt.Errorf("decision.questions.%s: the scanner adds this question to every request itself", name)
-		}
 		if err := q.validate(); err != nil {
 			return fmt.Errorf("decision.questions.%s.%w", name, err)
 		}
@@ -214,7 +211,7 @@ func (o Outcome) validate(questions map[string]Question, severity finding.Severi
 			return fmt.Errorf("decision.outcome.%s: %w", a.kind, err)
 		}
 		for _, b := range all[i+1:] {
-			if a.kind != b.kind && overlap(a.row, b.row) {
+			if conflicting(a.kind, b.kind) && overlap(a.row, b.row) {
 				return fmt.Errorf("decision.outcome: a %s row and a %s row match the same answers", a.kind, b.kind)
 			}
 		}
@@ -222,8 +219,18 @@ func (o Outcome) validate(questions map[string]Question, severity finding.Severi
 	return nil
 }
 
+func conflicting(a, b string) bool {
+	switch {
+	case a == b:
+		return false
+	case a == confirmKind || b == confirmKind:
+		return true
+	}
+	return a == severityKind || b == severityKind
+}
+
 func (o Outcome) rows(severity finding.Severity) ([]kinded, error) {
-	all := make([]kinded, 0, len(o.Confirm)+len(o.Dismiss))
+	all := make([]kinded, 0, len(o.Confirm)+len(o.Dismiss)+len(o.Misfire))
 	for _, row := range o.Confirm {
 		all = append(all, kinded{confirmKind, row})
 	}
@@ -237,6 +244,9 @@ func (o Outcome) rows(severity finding.Severity) ([]kinded, error) {
 	}
 	for _, row := range o.Dismiss {
 		all = append(all, kinded{dismissKind, row})
+	}
+	for _, row := range o.Misfire {
+		all = append(all, kinded{misfireKind, row})
 	}
 	return all, nil
 }
@@ -252,9 +262,6 @@ func (k kinded) check(questions map[string]Question) error {
 		}
 		if err := named(q, k.row[name]); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
-		}
-		if k.kind == dismissKind && len(k.row) > 1 && slices.Contains(k.row[name], NotAMatch) {
-			return fmt.Errorf("%s: a row with %s names no other question", name, NotAMatch)
 		}
 	}
 	return nil

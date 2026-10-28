@@ -13,7 +13,7 @@
    "category": "supply-chain",
    "severity": "medium",
    "title": "Unpinned dependency",
-   "description": "A dependency has no fixed version, so any later release, including a hijacked one, is installed.",
+   "description": "A dependency has no fixed version, so any later release, including a hijacked one, is installed. The finding stands only when a file of the skill names the manifest or runs an installer of its ecosystem.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -27,7 +27,29 @@
     "(?i)install\\s+(?:the\\s+)?latest\\s+(?:version\\s+)?(?:of\\s+)?(?:all\\s+)?(?:packages?|dependencies)",
     "(?i)(?:don't|do\\s+not)\\s+(?:pin|lock|specify)\\s+(?:package\\s+)?versions?"
    ],
-   "judge": {"downgrade": true, "instructions": "Judge only whether the passage does what the description says: a dependency declaration that lets a later version in. Do not weigh how likely or how bad a supply chain attack is."},
+   "installers": [
+    {
+     "files": ["*requirements*", "pyproject.toml", "setup.py", "Pipfile*"],
+     "patterns": [
+      "(?i)\\bpip3?\\s+install\\s+-r\\b",
+      "(?i)\\bpip3?\\s+install\\s+\\.",
+      "(?i)\\bpip3?\\s+install\\s+-e\\b",
+      "(?i)\\buv\\s+(?:sync|run|pip\\s+install)\\b",
+      "(?i)\\bpoetry\\s+install\\b",
+      "(?i)\\bpipenv\\s+install\\b"
+     ]
+    },
+    {
+     "files": ["package.json"],
+     "patterns": [
+      "(?i)\\bnpm\\s+(?:install|ci|i)\\b",
+      "(?i)\\bpnpm\\s+(?:install|i)\\b",
+      "(?i)\\byarn(?:\\s+install)?\\b",
+      "(?i)\\bbun\\s+install\\b"
+     ]
+    }
+   ],
+   "judge": {"downgrade": false},
    "enabled": true
   },
   {
@@ -68,22 +90,13 @@
      "who": {
       "subject": "places",
       "template": "who",
-      "focus": "The scanner rule looks for one package named in an install or run command, or in an install entry of the skill's metadata. The package is shown as the subject. Words after the command that are not a package the command installs are `not-a-match`: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name."
-     },
-     "pin": {
-      "subject": "places",
-      "question": "What fixes the version of the package at this place?",
-      "options": {
-       "none": "nothing names a version: the package stands alone or with `@latest`.",
-       "tag-or-range": "a tag, a branch, a caret, a tilde, a floor or a range names the version, so a later release can still be installed.",
-       "exact": "an exact version or a hash fixes what is installed.",
-       "not-applicable": "the place names no package whose version could be fixed."
-      }
+      "focus": "The scanner rule looks for one package named in an install or run command, or in an install entry of the skill's metadata, with no exact version. The package is shown as the subject. A command that fixes an exact version or a digest of the package is `not-a-match`. Words after the command that are not a package the command installs are `not-a-match` too: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name."
      }
     },
     "outcome": {
-     "confirm": [{"who": "agent-runs", "pin": ["none", "tag-or-range"]}],
-     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}, {"pin": "exact"}]
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
     }
    },
    "enabled": true
@@ -114,7 +127,21 @@
     "(?i)download\\s+and\\s+(?:run|execute)\\s+(?:the\\s+)?script",
     "(?i)run\\s+(?:this|the)\\s+(?:following\\s+)?(?:curl|wget)\\s+command"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "high", "instructions": "Decide only whether a remote script is fetched and run. A known vendor, an official install page or a well-known name is not a reason to lower."},
+   "judge": {"downgrade": true, "downgradeFloor": "high"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a command that downloads a script and runs it at once."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "severity": {"medium": [{"who": "user-step"}]},
+     "misfire": [{"who": ["documentation", "not-a-match"]}]
+    }
+   },
    "enabled": true
   },
   {
@@ -145,7 +172,27 @@
     "(?i)__import__\\s*\\(['\"]os['\"]\\s*\\)\\.system",
     "(?i)decode\\s+(?:this|the)\\s+(?:base64|hex)\\s+(?:and\\s+)?(?:run|execute)"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": "Do not lower because the decoded content looks harmless. Lower only when the decoded data is never executed and is not a command."},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "decoded": {
+      "subject": "trace",
+      "question": "The marked line holds encoded data or code that decodes or hides what it runs. What happens to the decoded result?",
+      "options": {
+       "executed": "the decoded result is executed, evaluated, piped to a shell or imported.",
+       "obfuscated": "the code hides what it does: identifiers named in hex, imports built from strings, or execution of built strings.",
+       "data-only": "the decoded result is used as data: an image, a key file, a payload or a parsed configuration.",
+       "never-decoded": "the marked text is a long literal that no code in the state decodes.",
+       "not-a-match": "the marked text holds neither encoded data nor code that decodes or hides what it runs."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"decoded": "executed"}, {"decoded": "obfuscated"}],
+     "dismiss": [{"decoded": "data-only"}, {"decoded": "never-decoded"}],
+     "misfire": [{"decoded": "not-a-match"}]
+    }
+   },
    "enabled": true
   },
   {
@@ -153,7 +200,7 @@
    "category": "supply-chain",
    "severity": "medium",
    "title": "Container image verification disabled",
-   "description": "A container is pulled with content trust disabled or from an insecure registry.",
+   "description": "A setting lets Docker pull images from a registry over plain HTTP or with an unknown certificate authority, so anyone on the network path can serve the image. Or it turns off image signature checks that the user had turned on.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -165,7 +212,21 @@
    "exclude": [
     "(?i)--disable-content-trust=false"
    ],
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a setting that lets Docker pull from an insecure registry or turns off image signature checks."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}, {"who": "user-step"}],
+     "dismiss": [{"who": "documentation"}, {"who": "not-a-match"}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
    "enabled": true
   }
  ]

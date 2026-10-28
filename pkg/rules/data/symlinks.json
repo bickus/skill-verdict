@@ -17,7 +17,7 @@
     "(?i)^[a-z]:/(?:users(?:/[^/]+)?)?$",
     "^\\.\\.(?:/\\.\\.)*$"
    ],
-   "judge": {"downgrade": true, "downgradeFloor": "medium", "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true
   },
   {
@@ -32,7 +32,7 @@
    "patterns": [
     "(?i)^(?:\\.\\.(?:/|$)|/|[a-z]:)"
    ],
-   "judge": {"downgrade": true, "instructions": ""},
+   "judge": {"downgrade": false},
    "enabled": true
   }
  ]

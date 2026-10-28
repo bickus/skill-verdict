@@ -28,21 +28,34 @@ func engineRules() *rules.Set {
 	usage.Subject = rules.Places
 	table := &rules.Decision{
 		Questions: map[string]rules.Question{"kind": kind},
-		Outcome:   rules.Outcome{Confirm: []rules.Row{{"kind": {"bad"}}}, Dismiss: []rules.Row{{"kind": {"fine"}}, {"kind": {"not-a-match"}}}},
+		Outcome: rules.Outcome{
+			Confirm: []rules.Row{{"kind": {"bad"}}},
+			Dismiss: []rules.Row{{"kind": {"fine", "not-a-match"}}},
+			Misfire: []rules.Row{{"kind": {"not-a-match"}}},
+		},
 	}
 	pair := &rules.Decision{
 		Questions: map[string]rules.Question{"who": who, "pin": pin},
 		Outcome:   rules.Outcome{Confirm: []rules.Row{{"who": {"agent"}, "pin": {"none"}}}},
 	}
+	order := &rules.Decision{
+		Questions: map[string]rules.Question{"who": who, "kind": kind},
+		Outcome:   rules.Outcome{Confirm: []rules.Row{{"who": {"agent"}}}, Misfire: []rules.Row{{"kind": {"not-a-match"}}}},
+	}
 	places := &rules.Decision{
 		Questions: map[string]rules.Question{"usage": usage},
-		Outcome:   rules.Outcome{Confirm: []rules.Row{{"usage": {"agent-install"}}}, Dismiss: []rules.Row{{"usage": {"citation"}}}},
+		Outcome: rules.Outcome{
+			Confirm:  []rules.Row{{"usage": {"agent-install"}}},
+			Severity: map[finding.Severity][]rules.Row{finding.Medium: {{"usage": {"user-action"}}}},
+			Dismiss:  []rules.Row{{"usage": {"citation"}}},
+		},
 	}
 	down := rules.JudgePolicy{Downgrade: true}
 	return &rules.Set{ByID: map[string]rules.Rule{
 		"PLAIN":   {ID: "PLAIN", Severity: finding.High, Kind: finding.KindHeuristic, Layer: config.StaticLayer, Judge: down, Decision: table},
 		"FLOORED": {ID: "FLOORED", Severity: finding.High, Kind: finding.KindHeuristic, Layer: config.StaticLayer, Judge: rules.JudgePolicy{Downgrade: true, DowngradeFloor: finding.Medium}, Decision: table},
 		"PAIR":    {ID: "PAIR", Severity: finding.High, Kind: finding.KindHeuristic, Layer: config.StaticLayer, Judge: down, Decision: pair},
+		"ORDER":   {ID: "ORDER", Severity: finding.High, Kind: finding.KindHeuristic, Layer: config.StaticLayer, Judge: down, Decision: order},
 		"PLACES":  {ID: "PLACES", Severity: finding.High, Kind: finding.KindFact, Layer: config.ReferencesLayer, Judge: down, Decision: places},
 	}}
 }
@@ -85,15 +98,17 @@ func TestDecisionAppliesTheOutcomeTable(t *testing.T) {
 		{"a confirming answer below 0.3 decides nothing", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.75,"bad":0.25}}}`, "", finding.High},
 		{"a dismissing answer at 0.8 dismisses", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.8,"unknown":0.2}}}`, finding.Dismissed, finding.High},
 		{"a dismissing answer below 0.8 decides nothing", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.79,"unknown":0.21}}}`, "", finding.High},
-		{"a text that speaks to a reviewer blocks a dismissal", marked("PLAIN"), `{"kind":{"choice":"fine","probabilities":{"fine":0.9,"unknown":0.1}},"addressed":{"choice":"yes","probabilities":{"yes":0.7,"no":0.3}}}`, finding.Upheld, finding.High},
-		{"not-a-match dismisses through the floor", marked("FLOORED"), `{"kind":{"choice":"not-a-match","probabilities":{"not-a-match":0.9,"unknown":0.1}}}`, finding.Dismissed, finding.High},
-		{"another dismissing answer stops at the floor", marked("FLOORED"), `{"kind":{"choice":"fine","probabilities":{"fine":0.9,"unknown":0.1}}}`, finding.Downgraded, finding.Medium},
+		{"a misfire dismisses through the floor", marked("FLOORED"), `{"kind":{"choice":"not-a-match","probabilities":{"not-a-match":0.9,"unknown":0.1}}}`, finding.Dismissed, finding.High},
+		{"a dismissing answer stops at the floor", marked("FLOORED"), `{"kind":{"choice":"fine","probabilities":{"fine":0.9,"unknown":0.1}}}`, finding.Downgraded, finding.Medium},
+		{"a dismiss row split over two options reaches the threshold", marked("FLOORED"), `{"kind":{"choice":"fine","probabilities":{"fine":0.5,"not-a-match":0.4,"unknown":0.1}}}`, finding.Downgraded, finding.Medium},
+		{"a misfire on one question wins over a confirmation on another", marked("ORDER"), `{"who":{"choice":"agent","probabilities":{"agent":0.9,"user":0.1}},"kind":{"choice":"not-a-match","probabilities":{"not-a-match":0.9,"unknown":0.1}}}`, finding.Dismissed, finding.High},
 		{"a conjunction confirms when both answers hold", marked("PAIR"), `{"who":{"choice":"agent","probabilities":{"agent":0.9,"user":0.1}},"pin":{"choice":"none","probabilities":{"none":0.6,"exact":0.4}}}`, finding.Confirmed, finding.High},
 		{"a conjunction decides nothing when one answer fails", marked("PAIR"), `{"who":{"choice":"agent","probabilities":{"agent":0.9,"user":0.1}},"pin":{"choice":"exact","probabilities":{"exact":0.8,"none":0.2}}}`, "", finding.High},
 		{"a question without an answer keeps the severity", marked("PLAIN"), `{}`, "", finding.High},
 		{"a confirming answer at one place confirms", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.6,"agent-install":0.4}}}`, finding.Confirmed, finding.High},
 		{"a dismissing answer at every place dismisses", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.85,"unknown":0.15}}}`, finding.Dismissed, finding.High},
 		{"a dismissing answer at one place of two decides nothing", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"citation","probabilities":{"citation":0.7,"unknown":0.3}}}`, "", finding.High},
+		{"a lowered place outweighs a dismissed place", cited(), `{"R1.1.usage":{"choice":"citation","probabilities":{"citation":0.9,"unknown":0.1}},"R1.2.usage":{"choice":"user-action","probabilities":{"user-action":0.9,"unknown":0.1}}}`, finding.Downgraded, finding.Medium},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
