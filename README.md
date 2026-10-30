@@ -194,7 +194,7 @@ Keep in mind: `skill-verdict` does not execute skills or inspect the inside of e
 
 AIR's [SkillJacking](https://www.air.security/blog-posts/skilljacking) research inspired the external checks. The researchers demonstrated takeovers through abandoned dependencies in legitimate skills.
 
-The [research list](docs/research.md) collects published reports on attacks through skills, plugins, MCP servers and packages. The scanner's test samples use the techniques from these reports.
+The [research folder](docs/research/README.md) lists published reports on attacks through skills, plugins, MCP servers and packages. The folder also lists the attack techniques from the reports, and the scanner's test samples use these techniques.
 
 Contributions require a DCO sign-off. See [CONTRIBUTING.md](CONTRIBUTING.md) for submission requirements.
 
