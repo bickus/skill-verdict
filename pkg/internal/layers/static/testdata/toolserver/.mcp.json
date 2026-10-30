@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@1.0.0"]
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
+    }
+  }
+}

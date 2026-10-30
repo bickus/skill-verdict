@@ -24,10 +24,13 @@ const (
 	untrusted  = "TOOL-SERVER-UNTRUSTED"
 )
 
+var networkKinds = []refs.Kind{refs.Domain, refs.Address}
+
 var usageRules = map[string]string{
 	"agent-instructions": "REMOTE-INSTRUCTIONS-FOLLOWED",
 	"agent-install":      "REMOTE-CODE-AT-INSTALL",
 	"agent-upload":       "REMOTE-ENDPOINT-UPLOAD-HIDDEN",
+	toolServer:           "TOOL-SERVER-REMOTE-HIDDEN",
 }
 
 type placed struct {
@@ -47,8 +50,9 @@ func (r *run) usages(ctx context.Context) {
 		}
 		answers := r.classify(rep, g)
 		classified = true
-		raised = append(raised, r.raise(rep, answers)...)
-		raised = append(raised, r.server(rep, answers)...)
+		server := r.server(rep, answers)
+		raised = append(raised, r.raise(rep, answers, len(server) > 0)...)
+		raised = append(raised, server...)
 	}
 	s.Record(finding.Dedup(raised)...)
 	if a := s.Skill.Artifact(refcheck.BriefPath); a != nil && classified {
@@ -186,7 +190,7 @@ func mention(content string, rep *refs.Report, line int) (code.Span, bool) {
 	return code.Span{}, false
 }
 
-func (r *run) raise(rep *refs.Report, answers []placed) []finding.Finding {
+func (r *run) raise(rep *refs.Report, answers []placed, serverFound bool) []finding.Finding {
 	s := r.state
 	var out []finding.Finding
 	raised := make(map[string]bool)
@@ -195,8 +199,8 @@ func (r *run) raise(rep *refs.Report, answers []placed) []finding.Finding {
 		if !ok || !rule.Enabled || answers[j].probability < r.layer.Config.DismissProbability {
 			continue
 		}
-		s.Cover(rule.ID, loc.File, loc.Line-around, loc.Line+around)
-		if raised[rule.ID] {
+		r.cover(rule.ID, loc)
+		if raised[rule.ID] || r.silent(rep, rule.ID, loc, serverFound) {
 			continue
 		}
 		raised[rule.ID] = true
@@ -212,6 +216,21 @@ func (r *run) raise(rep *refs.Report, answers []placed) []finding.Finding {
 		out = append(out, f)
 	}
 	return out
+}
+
+func (r *run) cover(rule string, loc finding.Location) {
+	first, last := loc.Line, loc.Line
+	if _, _, b, ok := r.blockAt(loc); ok {
+		first, last = b.first, b.last
+	}
+	r.state.Cover(rule, loc.File, first, last)
+}
+
+func (r *run) silent(rep *refs.Report, rule string, loc finding.Location, serverFound bool) bool {
+	if rule == usageRules[toolServer] && (serverFound || !slices.Contains(networkKinds, rep.Ref.Kind)) {
+		return true
+	}
+	return r.state.Restated(rule, loc.File, loc.Line)
 }
 
 func (r *run) server(rep *refs.Report, answers []placed) []finding.Finding {

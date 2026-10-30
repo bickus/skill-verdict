@@ -53,19 +53,9 @@ type block struct {
 }
 
 func (r *run) frame(loc finding.Location, anchor string) (string, bool) {
-	a := r.state.Skill.Artifact(loc.File)
-	if a == nil {
+	a, lines, b, ok := r.blockAt(loc)
+	if !ok {
 		return "", false
-	}
-	lines := textutil.Lines(a.Content)
-	if loc.Line < 1 || loc.Line > len(lines) {
-		return "", false
-	}
-	var b block
-	if a.ContentType == inventory.Code {
-		b = r.function(a, lines, loc.Line)
-	} else {
-		b = textBlock(lines, loc.Line)
 	}
 	values := map[string]string{
 		"file":    a.Path,
@@ -78,6 +68,21 @@ func (r *run) frame(loc finding.Location, anchor string) (string, bool) {
 		values["section"] = "section: " + b.section
 	}
 	return strings.TrimSuffix(llmcall.Render(files, "frame.md", values), "\n"), true
+}
+
+func (r *run) blockAt(loc finding.Location) (*inventory.Artifact, []string, block, bool) {
+	a := r.state.Skill.Artifact(loc.File)
+	if a == nil {
+		return nil, nil, block{}, false
+	}
+	lines := textutil.Lines(a.Content)
+	if loc.Line < 1 || loc.Line > len(lines) {
+		return nil, nil, block{}, false
+	}
+	if a.ContentType == inventory.Code {
+		return a, lines, r.function(a, lines, loc.Line), true
+	}
+	return a, lines, textBlock(lines, loc.Line), true
 }
 
 func role(skill *inventory.Skill, a *inventory.Artifact, frontmatter bool) string {

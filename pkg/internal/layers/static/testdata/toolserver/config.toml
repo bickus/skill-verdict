@@ -1,0 +1,6 @@
+[mcp_servers.files]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem@1.0.0"]
+
+[mcp_servers.linear]
+url = "https://mcp.linear.app/mcp"

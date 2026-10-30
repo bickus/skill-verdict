@@ -57,8 +57,9 @@ func referenceState(t *testing.T, ref refs.Ref, rule string) *pipeline.State {
 	return s
 }
 
-func TestToolServerUntrustedCountsFactsAboveLow(t *testing.T) {
+func TestToolServerAnswerRaisesOneServerFinding(t *testing.T) {
 	host := refs.Ref{Kind: refs.Domain, Value: "tools.example.com", URLs: []string{"https://tools.example.com/mcp"}, Locations: []finding.Location{{File: "SKILL.md", Line: 3}}}
+	twice := refs.Ref{Kind: refs.Domain, Value: "tools.example.com", URLs: []string{"https://tools.example.com/mcp"}, Locations: []finding.Location{{File: "SKILL.md", Line: 6}, {File: "SKILL.md", Line: 3}}}
 	repo := refs.Ref{Kind: refs.GitHub, Value: "acme/tools", URLs: []string{"https://github.com/acme/tools"}, Locations: []finding.Location{{File: "SKILL.md", Line: 4}}}
 	cases := []struct {
 		name string
@@ -66,15 +67,18 @@ func TestToolServerUntrustedCountsFactsAboveLow(t *testing.T) {
 		rule string
 		want []string
 	}{
-		{"error at the root alone raises nothing", host, "DOMAIN-HTTP-ERROR", []string{"DOMAIN-HTTP-ERROR"}},
-		{"missing owner raises the finding", repo, "GITHUB-OWNER-MISSING", []string{"GITHUB-OWNER-MISSING", "TOOL-SERVER-UNTRUSTED"}},
+		{"a low fact gives the remote server finding", host, "DOMAIN-HTTP-ERROR", []string{"DOMAIN-HTTP-ERROR", "TOOL-SERVER-REMOTE-HIDDEN"}},
+		{"a fact above low gives only the untrusted server finding", repo, "GITHUB-OWNER-MISSING", []string{"GITHUB-OWNER-MISSING", "TOOL-SERVER-UNTRUSTED"}},
+		{"the text rule at the place gives no second finding", host, "TOOL-SERVER-REMOTE", []string{"TOOL-SERVER-REMOTE"}},
+		{"the text rule at another place keeps the finding at this place", twice, "TOOL-SERVER-REMOTE", []string{"TOOL-SERVER-REMOTE", "TOOL-SERVER-REMOTE-HIDDEN"}},
+		{"a repository that runs as a tool server is not remote", repo, "GITHUB-REPO-MOVED", []string{"GITHUB-REPO-MOVED"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := referenceState(t, tc.ref, tc.rule)
-			client := model(t, `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.97}}}`)
+			client := model(t, `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.97}},"R1.2.usage":{"choice":"tool-server","probabilities":{"tool-server":0.97}}}`)
 			pipeline.Run(context.Background(), s, []pipeline.Layer{decision.Layer{Client: client, Config: config.Default().Layers.Decision}})
-			if s.Layers[1].Status != pipeline.Done || !reflect.DeepEqual(s.Refs[0].Usages, []string{"tool-server"}) {
+			if s.Layers[1].Status != pipeline.Done || s.Refs[0].Usages[0] != "tool-server" {
 				t.Fatalf("decision layer %+v, usages %v", s.Layers[1], s.Refs[0].Usages)
 			}
 			var got []string
@@ -113,6 +117,28 @@ func TestUsageRaisesARuleOnlyAtTheDismissProbability(t *testing.T) {
 			}
 			if s.Layers[1].Status != pipeline.Done || !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("layer %+v, findings %v, want %v", s.Layers[1], got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUsageFindingCoversOnlyTheBlockOfItsPlace(t *testing.T) {
+	host := refs.Ref{Kind: refs.Domain, Value: "tools.example.com", URLs: []string{"https://tools.example.com/mcp"}, Locations: []finding.Location{{File: "SKILL.md", Line: 6}}}
+	s := referenceState(t, host, "DOMAIN-HTTP-ERROR")
+	client := model(t, `{"R1.1.usage":{"choice":"tool-server","probabilities":{"tool-server":0.97}}}`)
+	pipeline.Run(context.Background(), s, []pipeline.Layer{decision.Layer{Client: client, Config: config.Default().Layers.Decision}})
+	cases := []struct {
+		name string
+		line int
+		want bool
+	}{
+		{"the list item of the place", 6, true},
+		{"the next list item", 7, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := s.Covered("TOOL-SERVER-REMOTE-HIDDEN", "SKILL.md", tc.line, tc.line); got != tc.want {
+				t.Errorf("line %d covered = %v, want %v", tc.line, got, tc.want)
 			}
 		})
 	}

@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "files": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@1.0.0"]
+    },
+    "atlassian": {
+      "httpUrl": "https://mcp.atlassian.com/v1/mcp"
+    },
+    "jira": {
+      "url": "https://mcp.example.com/sse",
+      "type": "sse"
+    },
+    "bridge": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@0.1.29",
+        "https://mcp.example.com/mcp"
+      ]
+    }
+  }
+}

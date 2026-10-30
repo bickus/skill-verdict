@@ -206,6 +206,7 @@ The layer cuts every text at `layers.decision.maxStateChars` and sends no reques
 | `CLOUD-METADATA-READ` | What does the text read from the endpoint? | `frame` |
 | `UNPINNED-NPM`, `UNPINNED-PYPI`, `UNPINNED-GEM`, `UNPINNED-CRATE`, `UNPINNED-IMAGE`, `UNPINNED-TAP`, `UNPINNED-CLAWHUB` | Who does it? | `places` |
 | `REMOTE-SCRIPT-PIPED` | Who does it? | `frame` |
+| `TOOL-SERVER-REMOTE` | Who does it? | `frame` |
 | `ENCODED-CODE-EXECUTED` | What happens to the decoded result? | `trace` |
 | `CONTAINER-TRUST-DISABLED` | Who does it? | `frame` |
 | `SETTING-UNSAFE`, `KUBERNETES-PRIVILEGED` | Does the skill or the user apply the setting? | `frame` |
@@ -234,7 +235,14 @@ The places of a static finding are the places where its rule matched the same na
 
 A registry install of the scanned skill itself, such as `clawhub install <folder>`, gives no static finding. The scanner compares the install with the name of the skill folder. The skill author writes the `name` in the frontmatter, and that name can point at another skill. The Judge and the discovery model get the folder name for the same reason.
 
-The layer also gives every place of an external reference a usage. The skill cites it, points the reader at it, has the user act there, or has the agent fetch data, follow instructions, install code or send data. The last three raise `REMOTE-INSTRUCTIONS-FOLLOWED`, `REMOTE-CODE-AT-INSTALL` and `REMOTE-ENDPOINT-UPLOAD-HIDDEN`. Only an answer at or above `layers.decision.dismissProbability` raises a rule or enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). No question contains the skill's name or description, because the skill author writes both.
+The layer also gives every place of an external reference a usage, which says what the skill does with the reference. Four usages raise a rule:
+
+- a tool server at a domain or an IP address raises `TOOL-SERVER-REMOTE-HIDDEN`. A tool server whose host has a fact finding above `low` raises `TOOL-SERVER-UNTRUSTED` instead.
+- following instructions raises `REMOTE-INSTRUCTIONS-FOLLOWED`
+- installing code raises `REMOTE-CODE-AT-INSTALL`
+- sending data raises `REMOTE-ENDPOINT-UPLOAD-HIDDEN`
+
+Only an answer at or above `layers.decision.dismissProbability` raises a rule or enters the reference brief. See [External references](references.md#what-the-skill-does-with-a-reference). No question contains the skill's name or description, because the skill author writes both.
 
 The AI Judge never sees a finding of the static, reveal or references layer. A rule of those layers needs a `decision` block for the model to lower it. A rule without the block ships with `judge.downgrade` set to `false` and no floor, and its finding keeps its severity.
 
@@ -269,6 +277,7 @@ Fixed regular expressions cannot detect every possible phrasing of an attack. La
 - **Conversational Exfiltration (`EXFILTRATION-IN-PROSE`)**: Directing the agent to send user inputs, chat history or credentials to an outside service, or to a file that another agent or session reads.
 - **Subtle Prompt Attacks (`PROMPT-INJECTION-SEMANTIC`)**: Clever role-playing or hypothetical framing designed to override system guardrails.
 - **Staged Skill Loading (`SKILL-REFERENCED-HIDDEN`)**: Sending the agent to another skill for its procedures after relaxing safety rules or granting tools that skill can use.
+- **Remote Tool Servers (`TOOL-SERVER-REMOTE-HIDDEN`)**: A step in words that connects the agent to an MCP server on the network, or a server address built from parts.
 
 Most discovery rules have fields. A field is a closed question that the model answers for every finding it reports, with a fixed set of options. The rule data lists the options a rule takes. The scanner refuses a finding with an answer the rule does not take, and the refusal names the field and the options the rule takes. A refused finding does not reach the report.
 
@@ -277,11 +286,13 @@ Most discovery rules have fields. A field is a closed question that the model an
 | `INSTRUCTIONS-FORWARDED` | `recipient` | `other-agent-or-session`, `other-skill` |
 | `EXFILTRATION-IN-PROSE` | `destination` | `outside-endpoint`, `file-another-agent-reads` |
 | `REMOTE-INSTRUCTIONS-FOLLOWED` | `source` | `page-the-skill-names` |
-| `REMOTE-CODE-AT-INSTALL`, `PACKAGE-SOURCE-ADDED-HIDDEN`, `PACKAGE-PROTECTION-OFF-HIDDEN`, `ROOT-PASSWORDLESS-HIDDEN`, `ARCHIVE-PASSWORD-GIVEN` | `who` | `agent`, `user` |
+| `REMOTE-CODE-AT-INSTALL`, `PACKAGE-SOURCE-ADDED-HIDDEN`, `PACKAGE-PROTECTION-OFF-HIDDEN`, `ROOT-PASSWORDLESS-HIDDEN`, `TOOL-SERVER-REMOTE-HIDDEN`, `ARCHIVE-PASSWORD-GIVEN` | `who` | `agent`, `user` |
 | `REMOTE-ENDPOINT-UPLOAD-HIDDEN` | `data` and `destination` | `user-or-machine-data` together with `other-host` |
 | `SKILL-REFERENCED-HIDDEN` | `prepares` | `relaxes-rules`, `grants-tools`, `writes-config` |
 
 The two prompt injection rules have no fields and are off by default.
+
+A rule whose id ends in `-HIDDEN` restates the text rule with the same id without the suffix. The scanner drops its finding when the finding starts on a line of a text rule finding, and the text rule has the same or a higher severity. A usage answer at a place that the text rule matched raises no finding either. The other places of the same reference still raise it.
 
 ---
 

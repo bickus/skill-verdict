@@ -181,6 +181,32 @@ func TestRunServesFilesToTheModel(t *testing.T) {
 	}
 }
 
+func TestRunDropsAModelFindingWhereItsTextRuleFoundThePlace(t *testing.T) {
+	upload := `{"data":"user-or-machine-data","destination":"other-host"}`
+	cases := []struct {
+		name  string
+		text  string
+		line  int
+		model string
+		want  []string
+	}{
+		{"model twin on the line of the text rule is dropped", "TOOL-SERVER-REMOTE", 3, item("SKILL.md", "TOOL-SERVER-REMOTE-HIDDEN", `{"who":"agent"}`, 3, 4), []string{"TOOL-SERVER-REMOTE"}},
+		{"model twin that starts before the line of the text rule is kept", "TOOL-SERVER-REMOTE", 4, item("SKILL.md", "TOOL-SERVER-REMOTE-HIDDEN", `{"who":"agent"}`, 3, 4), []string{"TOOL-SERVER-REMOTE", "TOOL-SERVER-REMOTE-HIDDEN"}},
+		{"model twin on another line is kept", "TOOL-SERVER-REMOTE", 6, item("SKILL.md", "TOOL-SERVER-REMOTE-HIDDEN", `{"who":"agent"}`, 3, 4), []string{"TOOL-SERVER-REMOTE", "TOOL-SERVER-REMOTE-HIDDEN"}},
+		{"text rule with a lower severity keeps the model twin", "REMOTE-ENDPOINT-UPLOAD", 3, item("SKILL.md", "REMOTE-ENDPOINT-UPLOAD-HIDDEN", upload, 3, 4), []string{"REMOTE-ENDPOINT-UPLOAD", "REMOTE-ENDPOINT-UPLOAD-HIDDEN"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newState(t, nil)
+			s.Findings = []finding.Finding{{Rule: tc.text, Severity: s.Rules.ByID[tc.text].Severity, Location: finding.Location{File: "SKILL.md", Line: tc.line}}}
+			pipeline.Run(context.Background(), s, []pipeline.Layer{layer(&fake{replies: []llm.Message{add(tc.model)}}, 10)})
+			if got := ruleIDs(s.Findings); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("findings %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRunFailsTheLayer(t *testing.T) {
 	cases := []struct {
 		name  string

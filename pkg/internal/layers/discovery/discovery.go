@@ -79,7 +79,8 @@ func fieldList(b *strings.Builder, fields map[string]rules.Field) {
 func convert(s *pipeline.State, allowed map[string]bool, items []item) []finding.Finding {
 	var out []finding.Finding
 	for _, it := range items {
-		if !allowed[it.RuleID] || s.Covered(it.RuleID, it.File, it.StartLine, max(it.StartLine, it.EndLine)) {
+		last := max(it.StartLine, it.EndLine)
+		if !allowed[it.RuleID] || s.Covered(it.RuleID, it.File, it.StartLine, last) || s.Restated(it.RuleID, it.File, it.StartLine) {
 			continue
 		}
 		f := s.Rules.ByID[it.RuleID].Finding(finding.Location{File: it.File, Line: it.StartLine}, textutil.Clip(it.Message))

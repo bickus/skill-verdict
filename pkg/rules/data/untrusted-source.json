@@ -172,6 +172,64 @@
    "enabled": true
   },
   {
+   "id": "TOOL-SERVER-REMOTE",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Agent connected to a remote tool server",
+   "description": "The skill connects the agent to an MCP or other tool server over the network: a server entry with a URL in an MCP configuration, an `mcp add` command for a remote server, or a bridge such as `mcp-remote`. The server sends the tool list, the tool descriptions and the tool results, and they steer the agent in every later conversation. The scanner never sees them, and the owner can change them after the scan. Nothing fixes a remote server to a version. A server that a command starts on the user's machine is not remote. A user who trusts the servers they connect can lower this rule or turn it off, together with TOOL-SERVER-REMOTE-HIDDEN.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?i)\\bmcp\\s+add(?:-json)?\\b[^\\n]*?(?:https?://|--transport[ =]+(?:http|sse)\\b|[ \\t]-t[ =]?(?:http|sse)\\b|[ \\t]--url\\b)",
+    "(?i)\\bmcp-remote(?:@[\\w.^~-]+)?[\"']?\\s*,?\\s*[\"']?https?://",
+    "(?i)\"(?:type|transport)\"\\s*:\\s*\"(?:sse|https?|streamable-?https?|streamable_http|streamableHttp|http-stream|remote)\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:url|serverUrl|httpUrl)\"\\s*:\\s*\"https?://",
+    "(?i)\"(?:url|serverUrl|httpUrl)\"\\s*:\\s*\"https?://[^\"]*\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:type|transport)\"\\s*:\\s*\"(?:sse|https?|streamable-?https?|streamable_http|streamableHttp|http-stream|remote)\"",
+    "(?i)\"(?:mcpServers|mcp_servers)\"\\s*:\\s*\\{\\s*\"[^\"]+\"\\s*:\\s*\\{\\s*\"(?:url|serverUrl|httpUrl)\"\\s*:\\s*\"https?://",
+    "(?i)\"httpUrl\"\\s*:\\s*\"https?://",
+    "(?im)^[ \\t]*\\[mcp_servers\\.[^\\]\\n]+\\][ \\t]*\\r?\\n(?:[ \\t]*(?:#[^\\n]*|[\\w.-]+[ \\t]*=[^\\n]*)?\\r?\\n)*?[ \\t]*url[ \\t]*=[ \\t]*[\"']https?://"
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for an MCP configuration entry, a command or a bridge that connects the agent to a tool server at a URL. A URL that is not the address of a tool server is `not-a-match`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install", "user-step"]}],
+     "dismiss": [{"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "TOOL-SERVER-REMOTE-HIDDEN",
+   "category": "prompt-injection",
+   "severity": "high",
+   "title": "Agent connected to a remote tool server out of sight",
+   "description": "The skill connects the agent to an MCP or other tool server over the network in a way no text pattern sees: a step in words, an address built from parts, decoded data or a downloaded file, or a server the skill names without its address. A person who adds the server to the agent by following the skill counts. A server entry with a URL in an MCP configuration and an `mcp add` command belong to TOOL-SERVER-REMOTE, do not report them. A server that a command starts on the user's machine is not remote. The server sends the tool list, the tool descriptions and the tool results, and they steer the agent in every later conversation. The scanner never sees them, and the owner can change them after the scan.",
+   "kind": "llm",
+   "layer": "discovery",
+   "scope": "any",
+   "judge": {"downgrade": true},
+   "fields": {
+    "who": {
+     "question": "Who does what the passage describes?",
+     "options": {
+      "agent": "the agent: a step in `SKILL.md` or in a file that `SKILL.md` sends the agent to, a command that a script of the skill runs, or an entry the agent platform applies. `SKILL.md` is written for the agent, so `you` there means the agent.",
+      "user": "a person is told to do it by hand: a step in a README or a guide written for people, a message that a script prints for the user, or a step that the agent asks the user to do.",
+      "documentation": "nobody is told to do it: an example, a note, a troubleshooting hint, a changelog entry, or a thing that was removed."
+     },
+     "accept": ["agent", "user"]
+    }
+   },
+   "enabled": true
+  },
+  {
    "id": "INSTRUCTIONS-FORWARDED",
    "category": "prompt-injection",
    "severity": "high",

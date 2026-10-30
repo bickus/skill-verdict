@@ -130,7 +130,7 @@
    "category": "supply-chain",
    "severity": "critical",
    "title": "Install protection turned off",
-   "description": "The skill turns off a package manager's install script blocking or its minimum release age, in a command or in a project file. A project file overrides what the user set, and a release age of zero or a blocklist turned off lets fresh releases and install scripts run. An allow list that names the packages whose scripts may run keeps the rest blocked.",
+   "description": "The skill turns off a package manager's install script blocking or its minimum release age, in a command, in a project file or by clearing the variable that sets it. A project file overrides what the user set, and a release age of zero or a blocklist turned off lets fresh releases and install scripts run. A list of packages or sources that may skip a protection turns the protection off for them.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -153,7 +153,17 @@
     "(?i)--allow-scripts\\b",
     "(?i)\\ballowScripts\\b",
     "(?i)\\ballow-plugins\\s*[\"']?\\s*[:= ]\\s*[\"']?true\\b",
-    "(?is)\\ballow-plugins[\"']?\\s*:\\s*\\{[^}]*\\btrue\\b"
+    "(?is)\\ballow-plugins[\"']?\\s*:\\s*\\{[^}]*\\btrue\\b",
+    "(?i)uploaded[-_]prior[-_]to[\"']?[ \\t]*[:= ][ \\t]*[\"']?P0+D\\b",
+    "(?i)(?:\\b|_)exclude[-_]newer[\"']?[ \\t]*[:= ][ \\t]*[\"']?(?:false|PT?0+[DHMSW]|0+[ \\t]*(?:[smhdw]|seconds?|minutes?|hours?|days?|weeks?))\\b",
+    "(?i)\\bexclude-newer-(?:package|override)\\b|\\[pypi-exclude-newer\\]",
+    "(?i)\\bPOETRY_SOLVER_MIN_RELEASE_AGE(?:[\"']?[ \\t]*[:=][ \\t]*[\"']?0\\b|_EXCLUDE)",
+    "(?i)--cooldown(?:[ \\t]*=[ \\t]*|[ \\t]+)[\"']?0\\b",
+    "(?i)\\b(?:PIPX|BUNDLE)_COOLDOWN[\"']?[ \\t]*[:=][ \\t]*[\"']?0\\b",
+    "(?i)\\bbundle[ \\t]+config[ \\t]+(?:set[ \\t]+)?(?:--(?:local|global)[ \\t]+)?cooldown[ \\t]+[\"']?0\\b",
+    "(?i):cooldown:[ \\t]*[\"']?0\\b",
+    "(?i)\\bcool-down-period[\"']?[ \\t]*[:=][ \\t]*[\"']?0+d?\\b",
+    "(?i)(?:\\bunset[ \\t]+(?:-v[ \\t]+)?|\\benv\\b[^\\n|;&]*?[ \\t](?:-u[ \\t]*|--unset(?:=|[ \\t]+))|\\bpop\\([ \\t]*|\\bdel[ \\t]+[\\w.]*environ\\[[ \\t]*|\\bdelete[ \\t]+process\\.env(?:\\.|\\[))[\"']?(?:PIP_UPLOADED_PRIOR_TO|UV_EXCLUDE_NEWER|PIPX_COOLDOWN|POETRY_SOLVER_MIN_RELEASE_AGE|BUNDLE_COOLDOWN)\\b"
    ],
    "judge": {"downgrade": true},
    "decision": {
@@ -167,8 +177,7 @@
       "subject": "frame",
       "question": "What does the marked setting or command do to the install protection of the package manager?",
       "options": {
-       "off": "it turns a protection off for every package: install scripts run, or fresh releases install without a minimum age.",
-       "allow-list": "it names the packages whose install scripts may run, and the scripts of other packages stay blocked.",
+       "off": "it turns a protection off for every package or for the packages or sources it names: install scripts run, or fresh releases install without a minimum age.",
        "on-or-explained": "it turns a protection on, or the text explains the setting without setting it.",
        "not-a-match": "the marked text is not a setting or a command of a package manager's install protection."
       }
@@ -176,7 +185,6 @@
     },
     "outcome": {
      "confirm": [{"who": ["agent-runs", "platform-install", "user-step"], "kind": "off"}],
-     "severity": {"medium": [{"kind": "allow-list"}]},
      "dismiss": [{"kind": "on-or-explained"}, {"who": ["documentation", "not-a-match"]}],
      "misfire": [{"who": "not-a-match"}, {"kind": "not-a-match"}]
     }

@@ -1,0 +1,5 @@
+{
+  "name": "toolserver-fixture",
+  "repository": {"type": "git", "url": "https://github.com/acme/tools"},
+  "bugs": {"url": "https://github.com/acme/tools/issues"}
+}

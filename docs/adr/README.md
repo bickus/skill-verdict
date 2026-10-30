@@ -18,3 +18,4 @@
 | [0015](0015-reference-severity.md) | A reference rule blocks by default only when an outsider can take the name or the content behind it. The platform's own answer at a host root tells the scanner that a platform name is unclaimed. |
 | [0016](0016-closed-questions.md) | A rule a model may lower states closed questions and an outcome table as data. The model picks answers, code applies the table, and an unlisted combination keeps the severity. Free-text judgment applies only to findings a model raised. |
 | [0017](0017-unpinned-by-tool-and-popularity.md) | Every install tool has its own rule for a missing fixed version, so a user who protects one tool lowers only its rule. An unpinned reference with no count at or above the line gets a second finding that no release age lowers. |
+| [0018](0018-model-rules-that-restate-a-text-rule.md) | A model rule that restates a text rule gives no finding where the text rule already has one at the same or a higher severity. |
