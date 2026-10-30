@@ -47,6 +47,7 @@ type githubUser struct {
 type githubRepo struct {
 	Owner     githubUser `json:"owner"`
 	Stars     int        `json:"stargazers_count"`
+	Forks     int        `json:"forks_count"`
 	Fork      bool       `json:"fork"`
 	Archived  bool       `json:"archived"`
 	CreatedAt time.Time  `json:"created_at"`
@@ -91,6 +92,7 @@ func (g *GitHubCollector) Collect(ctx context.Context, ref refs.Ref) refs.Report
 		return rep
 	}
 	repoFacts(&rep, r)
+	rep.Unpopular = r.Stars < g.cfg.PopularStars || r.Forks < g.cfg.PopularForks
 	if r.Owner.Login == "" || strings.EqualFold(r.Owner.Login, owner) {
 		return rep
 	}
@@ -135,6 +137,7 @@ func ownerFacts(rep *refs.Report, user githubUser, youngDays int) {
 
 func repoFacts(rep *refs.Report, r githubRepo) {
 	addFact(rep, "stars", strconv.Itoa(r.Stars))
+	addFact(rep, "forks", strconv.Itoa(r.Forks))
 	addFact(rep, "fork", strconv.FormatBool(r.Fork))
 	addFact(rep, "archived", strconv.FormatBool(r.Archived))
 	if !r.CreatedAt.IsZero() {

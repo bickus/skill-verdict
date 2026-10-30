@@ -21,8 +21,10 @@ type packageCase struct {
 }
 
 const (
-	npmStats  = "packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/"
-	pypiStats = "packages.ecosyste.ms/api/v1/registries/pypi.org/packages/"
+	npmStats   = "packages.ecosyste.ms/api/v1/registries/npmjs.org/packages/"
+	pypiStats  = "packages.ecosyste.ms/api/v1/registries/pypi.org/packages/"
+	npmCounts  = "api.npmjs.org/downloads/point/last-month/"
+	pypiCounts = "pypistats.org/api/packages/"
 )
 
 func registryCases() []packageCase {
@@ -33,19 +35,30 @@ func registryCases() []packageCase {
 		{"npm package present", "npm:express", map[string]route{npmStats + "express": statsRoute("4.0.0", daysAgo(4000), 5000000)},
 			expect{status: refs.Checked, facts: map[string]string{"version": "4.0.0", "monthly_downloads": "5000000"}}},
 		{"npm package new with few downloads", "npm:fresh", map[string]route{npmStats + "fresh": statsRoute("0.0.1", daysAgo(5), 12)},
-			expect{status: refs.Checked, findings: []string{"PACKAGE-NEW", "PACKAGE-LOW-DOWNLOADS"}, facts: map[string]string{"monthly_downloads": "12"}}},
+			expect{status: refs.Checked, findings: []string{"PACKAGE-NEW", "PACKAGE-LOW-DOWNLOADS"}, facts: map[string]string{"monthly_downloads": "12"}, unpopular: true}},
 		{"scoped npm package", "npm:@types/node", map[string]route{npmStats + "@types/node": statsRoute("18.0.0", daysAgo(4000), 5000000)},
 			expect{status: refs.Checked, facts: map[string]string{"version": "18.0.0"}}},
-		{"npm package unknown to stats but in the registry", "npm:brandnew",
+		{"npm package unknown to stats and without a count is unpopular", "npm:brandnew",
 			map[string]route{"registry.npmjs.org/brandnew/latest": npmRoute("1.0.0")},
-			expect{status: refs.Checked, facts: map[string]string{"version": "1.0.0"}}},
+			expect{status: refs.Checked, facts: map[string]string{"version": "1.0.0", "monthly_downloads": "none"}, unpopular: true}},
+		{"registry count wins over stats", "npm:express", map[string]route{npmStats + "express": statsRoute("4.0.0", daysAgo(4000), 5000000), npmCounts + "express": npmCountRoute(40000)},
+			expect{status: refs.Checked, facts: map[string]string{"monthly_downloads": "40000"}, unpopular: true}},
+		{"no source publishes a count", "npm:quiet", map[string]route{npmStats + "quiet": uncountedRoute("1.0.0", daysAgo(4000))},
+			expect{status: refs.Checked, facts: map[string]string{"monthly_downloads": "none"}, unpopular: true}},
+		{"count source fails and stats has no count", "npm:quiet", map[string]route{npmStats + "quiet": uncountedRoute("1.0.0", daysAgo(4000)), npmCounts + "quiet": down},
+			expect{status: refs.Failed, detail: "HTTP 500"}},
 		{"pypi package missing", "pypi:nopkg", map[string]route{},
 			expect{status: refs.Checked, findings: []string{"PACKAGE-MISSING"}}},
 		{"pypi package present", "pypi:requests", map[string]route{pypiStats + "requests": statsRoute("2.31.0", time.Date(2011, 2, 14, 0, 0, 0, 0, time.UTC), 100000)},
 			expect{status: refs.Checked, facts: map[string]string{"version": "2.31.0", "monthly_downloads": "100000", "first_published": "2011-02-14"}}},
-		{"stats down, registry answers", "pypi:requests",
+		{"pypi count from pypistats", "pypi:requests", map[string]route{pypiStats + "requests": statsRoute("2.31.0", daysAgo(4000), 10), pypiCounts + "requests/recent": pypiCountRoute(3000000)},
+			expect{status: refs.Checked, facts: map[string]string{"monthly_downloads": "3000000"}}},
+		{"stats down, registry and count answer", "pypi:requests",
+			map[string]route{pypiStats + "requests": down, "pypi.org/pypi/requests/json": pypiRoute("2.31.0", "2011-02-14T00:00:00Z"), pypiCounts + "requests/recent": pypiCountRoute(3000000)},
+			expect{status: refs.Checked, facts: map[string]string{"version": "2.31.0", "first_published": "2011-02-14", "monthly_downloads": "3000000"}}},
+		{"stats down and no count leaves the package unchecked", "pypi:requests",
 			map[string]route{pypiStats + "requests": down, "pypi.org/pypi/requests/json": pypiRoute("2.31.0", "2011-02-14T00:00:00Z")},
-			expect{status: refs.Checked, facts: map[string]string{"version": "2.31.0", "first_published": "2011-02-14", "monthly_downloads": "unknown"}}},
+			expect{status: refs.Failed, detail: "HTTP 500"}},
 		{"stats down, registry missing", "npm:nopkg", map[string]route{npmStats + "nopkg": down},
 			expect{status: refs.Checked, findings: []string{"PACKAGE-MISSING"}}},
 		{"registry error", "npm:err", map[string]route{"registry.npmjs.org/err/latest": {status: http.StatusInternalServerError, body: "{}"}},

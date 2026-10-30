@@ -47,6 +47,7 @@ type State struct {
 	Skill     *inventory.Skill
 	Rules     *rules.Set
 	Findings  []finding.Finding
+	Places    []finding.Finding
 	Refs      []refs.Report
 	Layers    []LayerStatus
 	Interrupt string

@@ -103,16 +103,26 @@ func scanArtifact(s *pipeline.State, a *inventory.Artifact, seen map[key]bool, s
 		src.fenced = fences(src.lines)
 	}
 	for _, r := range s.Rules.Static {
-		if !applies(r, a) || !installed(s.Skill, r, a) {
-			continue
-		}
-		found := unique(src.matches(r), seen)
-		if len(found) > maxPerRule {
-			found = found[:maxPerRule]
+		s.Record(src.found(r, seen)...)
+	}
+	for _, r := range s.Rules.PlaceOnly {
+		s.Places = append(s.Places, src.found(r, seen)...)
+	}
+}
+
+func (src *source) found(r rules.Compiled, seen map[key]bool) []finding.Finding {
+	a := src.artifact
+	if !applies(r, a) || !installed(src.state.Skill, r, a) {
+		return nil
+	}
+	found := unique(src.matches(r), seen)
+	if len(found) > maxPerRule {
+		found = found[:maxPerRule]
+		if r.Enabled {
 			a.Note(name + ": " + r.ID + " capped at 50")
 		}
-		s.Record(found...)
 	}
+	return found
 }
 
 func unique(found []finding.Finding, seen map[key]bool) []finding.Finding {
@@ -226,8 +236,11 @@ func installed(skill *inventory.Skill, r rules.Compiled, manifest *inventory.Art
 	if len(r.Installers) == 0 {
 		return true
 	}
+	installers, lockfiles := ecosystem(r, manifest.Path)
+	if locked(skill, lockfiles, manifest.Path) {
+		return false
+	}
 	name := strings.ToLower(path.Base(manifest.Path))
-	installers := ecosystem(r, manifest.Path)
 	for i := range skill.Artifacts {
 		a := &skill.Artifacts[i]
 		if a == manifest || a.Kind != inventory.Content || !textual(a.ContentType) {
@@ -240,14 +253,26 @@ func installed(skill *inventory.Skill, r rules.Compiled, manifest *inventory.Art
 	return false
 }
 
-func ecosystem(r rules.Compiled, manifest string) []*regexp.Regexp {
-	var out []*regexp.Regexp
+func ecosystem(r rules.Compiled, manifest string) ([]*regexp.Regexp, []string) {
+	var patterns []*regexp.Regexp
+	var lockfiles []string
 	for _, in := range r.Installers {
 		if matchesFile(in.Files, manifest) {
-			out = append(out, in.Patterns...)
+			patterns = append(patterns, in.Patterns...)
+			lockfiles = append(lockfiles, in.Lockfiles...)
 		}
 	}
-	return out
+	return patterns, lockfiles
+}
+
+func locked(skill *inventory.Skill, lockfiles []string, manifest string) bool {
+	dir := path.Dir(manifest)
+	for i := range skill.Artifacts {
+		if a := &skill.Artifacts[i]; path.Dir(a.Path) == dir && matchesFile(lockfiles, a.Path) {
+			return true
+		}
+	}
+	return false
 }
 
 func textual(kind inventory.ContentType) bool {

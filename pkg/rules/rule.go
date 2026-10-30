@@ -28,31 +28,33 @@ type JudgePolicy struct {
 }
 
 type Installer struct {
-	Files    []string `json:"files"`
-	Patterns []string `json:"patterns"`
+	Files     []string `json:"files"`
+	Lockfiles []string `json:"lockfiles,omitempty"`
+	Patterns  []string `json:"patterns"`
 }
 
 type Rule struct {
-	ID          string           `json:"id"`
-	Category    string           `json:"category"`
-	Severity    finding.Severity `json:"severity"`
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	Kind        finding.Kind     `json:"kind"`
-	Layer       string           `json:"layer"`
-	Scope       Scope            `json:"scope,omitempty"`
-	Files       []string         `json:"files,omitempty"`
-	Patterns    []string         `json:"patterns,omitempty"`
-	Exclude     []string         `json:"exclude,omitempty"`
-	Lowered     []string         `json:"lowered,omitempty"`
-	Installers  []Installer      `json:"installers,omitempty"`
-	Judge       JudgePolicy      `json:"judge"`
-	Usages      []string         `json:"usages,omitempty"`
-	Decision    *Decision        `json:"decision,omitempty"`
-	Fields      map[string]Field `json:"fields,omitempty"`
-	Enabled     bool             `json:"enabled"`
-	Interrupt   bool             `json:"interrupt"`
-	Attribution json.RawMessage  `json:"-"`
+	ID          string            `json:"id"`
+	Category    string            `json:"category"`
+	Severity    finding.Severity  `json:"severity"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Kind        finding.Kind      `json:"kind"`
+	Layer       string            `json:"layer"`
+	Scope       Scope             `json:"scope,omitempty"`
+	Files       []string          `json:"files,omitempty"`
+	Patterns    []string          `json:"patterns,omitempty"`
+	Exclude     []string          `json:"exclude,omitempty"`
+	Lowered     []string          `json:"lowered,omitempty"`
+	Installers  []Installer       `json:"installers,omitempty"`
+	Judge       JudgePolicy       `json:"judge"`
+	Usages      []string          `json:"usages,omitempty"`
+	Places      map[string]string `json:"places,omitempty"`
+	Decision    *Decision         `json:"decision,omitempty"`
+	Fields      map[string]Field  `json:"fields,omitempty"`
+	Enabled     bool              `json:"enabled"`
+	Interrupt   bool              `json:"interrupt"`
+	Attribution json.RawMessage   `json:"-"`
 }
 
 func (r Rule) Finding(loc finding.Location, evidence string) finding.Finding {
@@ -107,6 +109,9 @@ func (r Rule) validateGlobs() error {
 		if err := config.ValidGlobs("installers.files", in.Files); err != nil {
 			return err
 		}
+		if err := config.ValidGlobs("installers.lockfiles", in.Lockfiles); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -140,8 +145,9 @@ type Compiled struct {
 }
 
 type CompiledInstaller struct {
-	Files    []string
-	Patterns []*regexp.Regexp
+	Files     []string
+	Lockfiles []string
+	Patterns  []*regexp.Regexp
 }
 
 func compile(r Rule) (Compiled, error) {
@@ -167,7 +173,7 @@ func compile(r Rule) (Compiled, error) {
 		if err != nil {
 			return Compiled{}, err
 		}
-		c.Installers = append(c.Installers, CompiledInstaller{Files: in.Files, Patterns: patterns})
+		c.Installers = append(c.Installers, CompiledInstaller{Files: in.Files, Lockfiles: in.Lockfiles, Patterns: patterns})
 	}
 	return c, nil
 }
@@ -194,8 +200,9 @@ func (r *Rule) prepare() error {
 }
 
 type Set struct {
-	Static []Compiled
-	ByID   map[string]Rule
+	Static    []Compiled
+	PlaceOnly []Compiled
+	ByID      map[string]Rule
 }
 
 func (s *Set) ForLayer(layer string) map[string]bool {

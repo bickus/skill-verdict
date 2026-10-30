@@ -50,14 +50,15 @@ type Fact struct {
 }
 
 type Report struct {
-	ID       string   `json:"id,omitempty"`
-	Ref      Ref      `json:"reference"`
-	Status   Status   `json:"status"`
-	Detail   string   `json:"detail,omitempty"`
-	Facts    []Fact   `json:"facts"`
-	Usages   []string `json:"usages,omitempty"`
-	Findings []string `json:"-"`
-	Derived  []Ref    `json:"-"`
+	ID        string   `json:"id,omitempty"`
+	Ref       Ref      `json:"reference"`
+	Status    Status   `json:"status"`
+	Detail    string   `json:"detail,omitempty"`
+	Facts     []Fact   `json:"facts"`
+	Usages    []string `json:"usages,omitempty"`
+	Findings  []string `json:"-"`
+	Derived   []Ref    `json:"-"`
+	Unpopular bool     `json:"-"`
 }
 
 func (r Report) LocationID(i int) string {

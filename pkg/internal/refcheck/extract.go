@@ -16,12 +16,14 @@ import (
 )
 
 var (
-	urlPattern     = regexp.MustCompile(`https?://(?:\[[^\s\]]+\][^\s<>"'` + "`" + `()\[\]{}]*|[^\s<>"'` + "`" + `()\[\]{}]+)`)
-	gitSSHPattern  = regexp.MustCompile(`git@github\.com:([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
-	ghClonePattern = regexp.MustCompile(`\bgh\s+repo\s+clone\s+([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
-	ownerPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}$`)
-	repoPattern    = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
-	domainPattern  = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
+	urlPattern      = regexp.MustCompile(`https?://(?:\[[^\s\]]+\][^\s<>"'` + "`" + `()\[\]{}]*|[^\s<>"'` + "`" + `()\[\]{}]+)`)
+	gitSSHPattern   = regexp.MustCompile(`git@github\.com:([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
+	ghClonePattern  = regexp.MustCompile(`\bgh\s+repo\s+clone\s+([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
+	goModulePattern = regexp.MustCompile(`(?:\bgo\s+(?:install|get|run)\s+(?:-\S+\s+)*|["']?(?:module|package)["']?\s*:\s*["']?)github\.com/([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
+	npmGitPattern   = regexp.MustCompile(`\bgithub:([A-Za-z0-9][A-Za-z0-9-]{0,38})/([A-Za-z0-9._-]+)`)
+	ownerPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,38}$`)
+	repoPattern     = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
+	domainPattern   = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 )
 
 var githubSections = map[string]bool{
@@ -113,7 +115,7 @@ func githubValues(text string) []githubValue {
 			values = append(values, githubValue{value: v, url: u.String()})
 		}
 	}
-	for _, re := range []*regexp.Regexp{gitSSHPattern, ghClonePattern} {
+	for _, re := range []*regexp.Regexp{gitSSHPattern, ghClonePattern, goModulePattern, npmGitPattern} {
 		for _, m := range re.FindAllStringSubmatch(text, -1) {
 			if v, ok := githubName(m[1], m[2]); ok {
 				values = append(values, githubValue{value: v})

@@ -204,13 +204,14 @@ The layer cuts every text at `layers.decision.maxStateChars` and sends no reques
 | `AGENT-CONFIG-READ`, `AGENT-MCP-CONFIG-READ` | Where does what the code reads go? | `trace` |
 | `AGENT-CONFIG-READ`, `AGENT-MCP-CONFIG-READ` | Is the skill for managing agent settings? | `entry` |
 | `CLOUD-METADATA-READ` | What does the text read from the endpoint? | `frame` |
-| `UNPINNED-INSTALL` | Who does it? | `places` |
+| `UNPINNED-NPM`, `UNPINNED-PYPI`, `UNPINNED-GEM`, `UNPINNED-CRATE`, `UNPINNED-IMAGE`, `UNPINNED-TAP`, `UNPINNED-CLAWHUB` | Who does it? | `places` |
 | `REMOTE-SCRIPT-PIPED` | Who does it? | `frame` |
 | `ENCODED-CODE-EXECUTED` | What happens to the decoded result? | `trace` |
 | `CONTAINER-TRUST-DISABLED` | Who does it? | `frame` |
 | `SETTING-UNSAFE`, `KUBERNETES-PRIVILEGED` | Does the skill or the user apply the setting? | `frame` |
 | `UNPINNED-DOWNLOAD` | What does the skill do with the URL? | `frame` |
-| `UNPINNED-GIT` | Who does it? Whose repository does it clone? | `frame` |
+| `UNPINNED-GIT`, `REPO-UNPINNED-UNPOPULAR` | Who does it? Whose repository does it clone? | `frame` |
+| `PACKAGE-UNPINNED-UNPOPULAR` | Who does it? | `frame` |
 | `PACKAGE-MISSING`, `PACKAGE-NEW`, `PACKAGE-LOW-DOWNLOADS`, `PACKAGE-TYPOSQUAT` | Who does it? | `places` |
 | `REMOTE-CODE-AT-INSTALL` | What is the step? | `places` |
 | reference rules with `usages` | What does the skill do with the reference? See [External references](references.md#what-the-skill-does-with-a-reference). | `places` |

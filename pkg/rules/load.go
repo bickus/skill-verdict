@@ -40,6 +40,9 @@ func Load(dir string, byLayer map[string]map[string]config.RuleSetting) (*Set, e
 	if merged, err = apply(merged, byLayer); err != nil {
 		return nil, err
 	}
+	if err = checkPlaces(merged); err != nil {
+		return nil, err
+	}
 	return build(merged), nil
 }
 
@@ -160,11 +163,34 @@ func override(r Rule, s config.RuleSetting) Rule {
 
 func build(rules []Compiled) *Set {
 	s := &Set{ByID: make(map[string]Rule, len(rules))}
+	placed := make(map[string]bool)
 	for _, c := range rules {
 		s.ByID[c.ID] = c.Rule
-		if c.Enabled && c.Layer == config.StaticLayer {
+		if c.Enabled {
+			for id := range c.Places {
+				placed[id] = true
+			}
+		}
+	}
+	for _, c := range rules {
+		switch {
+		case c.Layer != config.StaticLayer:
+		case c.Enabled:
 			s.Static = append(s.Static, c)
+		case placed[c.ID]:
+			s.PlaceOnly = append(s.PlaceOnly, c)
 		}
 	}
 	return s
+}
+
+func checkPlaces(rules []Compiled) error {
+	for _, c := range rules {
+		for _, id := range slices.Sorted(maps.Keys(c.Places)) {
+			if !slices.ContainsFunc(rules, func(o Compiled) bool { return o.ID == id && o.Layer == config.StaticLayer }) {
+				return fmt.Errorf("rule %s: places: %s is not a static rule", c.ID, id)
+			}
+		}
+	}
+	return nil
 }

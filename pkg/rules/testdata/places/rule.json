@@ -1,0 +1,16 @@
+{
+ "rules": [
+  {
+   "id": "X22",
+   "category": "reference",
+   "severity": "high",
+   "title": "Places from a rule outside the static layer",
+   "description": "The places name a rule that is not a static rule.",
+   "kind": "fact",
+   "layer": "references",
+   "places": {"GITHUB-REPO-MISSING": ""},
+   "judge": {"downgrade": true},
+   "enabled": true
+  }
+ ]
+}

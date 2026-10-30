@@ -315,6 +315,79 @@
    "enabled": true
   },
   {
+   "id": "PACKAGE-UNPINNED-UNPOPULAR",
+   "category": "reference",
+   "severity": "high",
+   "title": "Unpopular package installed without a fixed version",
+   "description": "The skill installs an npm or PyPI package without a fixed version, and the package had fewer downloads last month than the configured line, or no source publishes a count for it. Few people would notice a bad release of such a package, so a minimum release age does not protect against it. The owner, or whoever takes over the owner's account, decides what the next install gets. The finding stands at each place that UNPINNED-NPM, UNPINNED-PYPI or UNPINNED-DEPENDENCY match, also when those rules are turned off.",
+   "kind": "fact",
+   "layer": "references",
+   "scope": "any",
+   "places": {"UNPINNED-NPM": "npm:", "UNPINNED-PYPI": "pypi:", "UNPINNED-DEPENDENCY": ""},
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a package that a command, an install entry or a manifest entry installs with no exact version, and that few people use. The subject is the package name that the scanner checked on its registry, or the command when the scanner found no package name. A command or an entry that fixes an exact version is `not-a-match`. Words after a command that are not a package it installs are `not-a-match` too: prose, a flag, a path, a file name or a placeholder such as `your-package`."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "REPO-UNPINNED-UNPOPULAR",
+   "category": "reference",
+   "severity": "high",
+   "title": "Unpopular repository cloned without a fixed commit",
+   "description": "The skill clones a repository or installs from a Git source without a commit hash, and the repository has fewer stars or fewer forks than the configured lines, or it is on a host the scanner has no counts for. Few people would notice a bad push to such a repository. The owner, or whoever takes over the owner's account, decides what the next clone gets. The finding stands at each place that UNPINNED-GIT matches, also when that rule is turned off.",
+   "kind": "fact",
+   "layer": "references",
+   "scope": "any",
+   "places": {"UNPINNED-GIT": ""},
+   "judge": {"downgrade": true, "downgradeFloor": "medium"},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "frame",
+      "template": "who",
+      "focus": "The scanner rule looks for a step that clones a repository or installs from a Git source without a commit hash, where few people use the repository. Words after the command that are not a repository are `not-a-match`."
+     },
+     "source": {
+      "subject": "frame",
+      "question": "Whose repository does the marked step clone or install from?",
+      "options": {
+       "skill-named": "the repository is named in the files of the skill.",
+       "user-given": "the user names the repository, or it is the project the agent works in.",
+       "not-a-match": "the marked text clones or installs no repository."
+      }
+     },
+     "pin": {
+      "subject": "frame",
+      "question": "What fixes the commit that the marked step gets?",
+      "options": {
+       "none": "nothing fixes the commit: the step names no ref, a branch or a tag, and no later line checks out a commit hash.",
+       "hash": "a commit hash fixes it: in the URL, in a revision option, or in a checkout right after the clone.",
+       "not-a-match": "the marked text clones or installs no repository."
+      }
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"], "source": "skill-named", "pin": "none"}],
+     "severity": {"medium": [{"who": "user-step"}]},
+     "dismiss": [{"who": ["documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}, {"source": ["user-given", "not-a-match"]}, {"pin": ["hash", "not-a-match"]}]
+    }
+   },
+   "enabled": true
+  },
+  {
    "id": "TOOL-SERVER-UNTRUSTED",
    "category": "reference",
    "severity": "critical",

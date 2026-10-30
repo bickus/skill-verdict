@@ -18,6 +18,7 @@ import (
 	"github.com/bickus/skill-verdict/pkg/finding"
 	"github.com/bickus/skill-verdict/pkg/internal/inventory"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/references"
+	"github.com/bickus/skill-verdict/pkg/internal/layers/static"
 	"github.com/bickus/skill-verdict/pkg/internal/layers/walk"
 	"github.com/bickus/skill-verdict/pkg/internal/pipeline"
 	"github.com/bickus/skill-verdict/pkg/rules"
@@ -35,14 +36,15 @@ func (rt rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
 	return rt.base.RoundTrip(r)
 }
 
-func fakeGitHub(t *testing.T) *http.Client {
+func fake(t *testing.T, bodies map[string]string) *http.Client {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/users/acme" {
+		body, found := bodies[r.URL.Path]
+		if !found {
 			http.Error(w, "{}", http.StatusNotFound)
 			return
 		}
-		if _, err := io.WriteString(w, `{"login":"acme","type":"User"}`); err != nil {
+		if _, err := io.WriteString(w, body); err != nil {
 			t.Error(err)
 		}
 	}))
@@ -54,14 +56,19 @@ func fakeGitHub(t *testing.T) *http.Client {
 	return &http.Client{Transport: rewrite{target: target, base: srv.Client().Transport}}
 }
 
-func newState(t *testing.T, dir string, settings map[string]config.RuleSetting) *pipeline.State {
+func fakeGitHub(t *testing.T) *http.Client {
+	return fake(t, map[string]string{"/users/acme": `{"login":"acme","type":"User"}`})
+}
+
+func newState(t *testing.T, dir string, staticRules, referenceRules map[string]config.RuleSetting) *pipeline.State {
 	t.Helper()
 	root, err := walk.Resolve(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	layers := config.Default().Layers
-	layers.References.Rules = settings
+	layers.Static.Rules = staticRules
+	layers.References.Rules = referenceRules
 	set, err := rules.Load("", layers.Rules())
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +99,7 @@ func TestRunTurnsFactsIntoFindings(t *testing.T) {
 	cfg.RequestDelay = 0
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := newState(t, "testdata/skill", tc.settings)
+			s := newState(t, "testdata/skill", nil, tc.settings)
 			layer := references.New(fakeGitHub(t), cfg, "")
 			pipeline.Run(context.Background(), s, []pipeline.Layer{layer})
 			if !reflect.DeepEqual(s.Findings, tc.want) {
@@ -109,7 +116,7 @@ func TestRunTurnsFactsIntoFindings(t *testing.T) {
 }
 
 func TestRunWritesTheBriefArtifact(t *testing.T) {
-	s := newState(t, "testdata/skill", nil)
+	s := newState(t, "testdata/skill", nil, nil)
 	cfg := config.Default().Layers.References
 	cfg.Collectors = map[string]bool{"github": true}
 	cfg.RequestDelay = 0
@@ -129,7 +136,7 @@ func TestRunWritesTheBriefArtifact(t *testing.T) {
 }
 
 func TestRunStopsOverMaxReferences(t *testing.T) {
-	s := newState(t, "testdata/many", nil)
+	s := newState(t, "testdata/many", nil, nil)
 	cfg := config.Default().Layers.References
 	cfg.Collectors = map[string]bool{"github": true}
 	cfg.RequestDelay = 0
@@ -146,4 +153,76 @@ func TestRunStopsOverMaxReferences(t *testing.T) {
 	if !reflect.DeepEqual(s.Layers, layers) {
 		t.Errorf("layers %+v, want %+v", s.Layers, layers)
 	}
+}
+
+func scanUnpinned(t *testing.T, staticRules map[string]config.RuleSetting) *pipeline.State {
+	t.Helper()
+	s := newState(t, "testdata/unpinned", staticRules, nil)
+	cfg := config.Default().Layers.References
+	cfg.Collectors = map[string]bool{"github": true, "package": true}
+	cfg.RequestDelay = 0
+	client := fake(t, map[string]string{
+		"/api/v1/registries/npmjs.org/packages/rarepkg": `{"downloads":10,"downloads_period":"last-month","first_release_published_at":"2015-01-01T00:00:00Z"}`,
+		"/api/v1/registries/npmjs.org/packages/bigpkg":  `{"downloads":5000000,"downloads_period":"last-month","first_release_published_at":"2015-01-01T00:00:00Z"}`,
+		"/users/acme":      `{"login":"acme","type":"User","created_at":"2015-01-01T00:00:00Z"}`,
+		"/repos/acme/tool": `{"owner":{"login":"acme"},"stargazers_count":5,"forks_count":0}`,
+	})
+	pipeline.Run(context.Background(), s, []pipeline.Layer{static.Layer{}, references.New(client, cfg, "")})
+	return s
+}
+
+func TestUnpopularFindingsStandAtUnpinnedPlaces(t *testing.T) {
+	s := scanUnpinned(t, nil)
+	cases := []struct {
+		name string
+		rule string
+		line int
+		want []string
+	}{
+		{"unpopular package installed without a version", "PACKAGE-UNPINNED-UNPOPULAR", 5, []string{"npm:rarepkg"}},
+		{"popular package installed without a version", "PACKAGE-UNPINNED-UNPOPULAR", 6, nil},
+		{"unpopular package with an exact version", "PACKAGE-UNPINNED-UNPOPULAR", 7, nil},
+		{"unpopular repository cloned without a commit", "REPO-UNPINNED-UNPOPULAR", 8, []string{"acme/tool"}},
+		{"repository on a host without counts", "REPO-UNPINNED-UNPOPULAR", 9, []string{""}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := referencesAt(s.Findings, tc.rule, tc.line); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("%s on line %d names %q, want %q", tc.rule, tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUnpopularFindingsStayWithTheToolRuleOff(t *testing.T) {
+	off := false
+	s := scanUnpinned(t, map[string]config.RuleSetting{"UNPINNED-NPM": {Enabled: &off}, "UNPINNED-GIT": {Enabled: &off}})
+	cases := []struct {
+		name string
+		rule string
+		line int
+		want []string
+	}{
+		{"npm rule that is off records no finding", "UNPINNED-NPM", 5, nil},
+		{"unpopular package keeps its finding", "PACKAGE-UNPINNED-UNPOPULAR", 5, []string{"npm:rarepkg"}},
+		{"git rule that is off records no finding", "UNPINNED-GIT", 8, nil},
+		{"unpopular repository keeps its finding", "REPO-UNPINNED-UNPOPULAR", 8, []string{"acme/tool"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := referencesAt(s.Findings, tc.rule, tc.line); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("%s on line %d names %q, want %q", tc.rule, tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
+func referencesAt(found []finding.Finding, rule string, line int) []string {
+	var out []string
+	for _, f := range found {
+		if f.Rule == rule && f.Location.Line == line {
+			out = append(out, f.Reference)
+		}
+	}
+	return out
 }

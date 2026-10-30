@@ -22,10 +22,11 @@ const (
 
 var (
 	pipInstall  = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(.+)$")
-	uvxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])uvx\\s+(.+)$")
+	uvxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:uvx|pipx\\s+run|uv\\s+tool\\s+(?:run|install))\\s+(.+)$")
 	uvRun       = regexp.MustCompile("(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(.+)$")
-	npmInstall  = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn)\\s+(?:install|i|add)\\s+(.+)$")
-	npxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])npx\\s+(.+)$")
+	npmInstall  = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(.+)$")
+	npxRun      = regexp.MustCompile("(?:^|[\\s;&|(`\"'])(?:npx|bunx|pnpx|pnpm\\s+dlx|yarn\\s+dlx|npm\\s+exec)\\s+(.+)$")
+	denoRun     = regexp.MustCompile("(?:^|[\\s;&|(`\"'])deno\\s+(?:run|x|install)\\s+(?:-\\S+\\s+)*npm:([^\\s`\"'),;&|]+)")
 	shellEnd    = regexp.MustCompile("&&|\\|\\||[;|)`#]")
 	pypiPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 	npmPattern  = regexp.MustCompile(`^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$`)
@@ -42,6 +43,8 @@ var npmValueFlags = []string{
 	"--omit", "--os", "--otp", "--prefix", "--proxy", "--registry", "--save-prefix", "--scope",
 	"--script-shell", "--tag", "--userconfig", "--workspace", "-w",
 }
+
+var packageFlags = map[string][]string{registryNPM: {"-p", "--package"}, registryPyPI: {"--from"}}
 
 var registryFlags = []string{"--registry", "-i", "--index-url", "--extra-index-url", "--index", "--default-index", "-f", "--find-links"}
 
@@ -111,6 +114,8 @@ func commandPackages(text, registry string) []string {
 		if m := uvRun.FindStringSubmatch(text); m != nil {
 			names = append(names, withArgs(m[1])...)
 		}
+	} else if m := denoRun.FindStringSubmatch(text); m != nil {
+		names = append(names, nameOf(m[1], registry)...)
 	}
 	return names
 }
@@ -168,14 +173,26 @@ func installArgs(args, registry string) []string {
 }
 
 func firstArg(args, registry string) []string {
-	for _, tok := range shellArgs(args) {
+	fields := shellArgs(args)
+	for i, tok := range fields {
+		flag, value, joined := strings.Cut(tok, "=")
+		if slices.Contains(packageFlags[registry], flag) {
+			if !joined && i+1 < len(fields) {
+				value = fields[i+1]
+			}
+			return nameOf(value, registry)
+		}
 		if strings.HasPrefix(tok, "-") {
 			continue
 		}
-		if name, ok := packageName(tok, registry); ok {
-			return []string{name}
-		}
-		return nil
+		return nameOf(tok, registry)
+	}
+	return nil
+}
+
+func nameOf(tok, registry string) []string {
+	if name, ok := packageName(tok, registry); ok {
+		return []string{name}
 	}
 	return nil
 }

@@ -72,7 +72,7 @@ The Judge reviews only findings of the discovery layer. A model raised those fin
 Can an attacker use prompt injection to trick the AI Judge into dismissing a malicious finding?
 
 To protect against this, rules enforce **downgrade floors** (`judge.downgradeFloor`):
-- **No floor (`""`)**: The Judge has full discretion to dismiss the finding if it is a false positive (e.g. `AGENT-CONFIG-READ`, `UNPINNED-INSTALL`).
+- **No floor (`""`)**: The Judge has full discretion to dismiss the finding if it is a false positive (e.g. `AGENT-CONFIG-READ`, `UNPINNED-NPM`).
 - **Floor of `medium`**: Even if the Judge believes the usage is harmless, it can lower the finding no further than `medium` (e.g. `REMOTE-SCRIPT-PIPED`, `UNPINNED-DOWNLOAD`). Under default settings (`gate.severity: high`), this downgrades the finding from `block` to `review`, ensuring a human operator still looks at it!
 - **No downgrade (`judge.downgrade: false`)**: The Judge cannot lower the finding at all (e.g. `ARCHIVE-ENCRYPTED`, `FILE-BINARY`, `HONEYPOT-TRIGGERED`).
 

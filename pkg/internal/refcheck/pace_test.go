@@ -47,12 +47,12 @@ func TestPacedClosesHostAfterLastRetry(t *testing.T) {
 func TestPacedRequestsOneOwnerOnceForTwoRepositories(t *testing.T) {
 	n, cfg := pacedNet(t, map[string]route{
 		"api.github.com/users/acme":     userRoute("acme", daysAgo(3000)),
-		"api.github.com/repos/acme/one": repoRoute("acme", 10, false, false),
-		"api.github.com/repos/acme/two": repoRoute("acme", 20, false, false),
+		"api.github.com/repos/acme/one": repoRoute("acme", 1000, 100, false, false),
+		"api.github.com/repos/acme/two": repoRoute("acme", 2000, 100, false, false),
 	})
 	reports := run(t, githubRunner(n, cfg), "runner/owner")
-	verify(t, reports[0], expect{status: refs.Checked, facts: map[string]string{"stars": "10"}})
-	verify(t, reports[1], expect{status: refs.Checked, facts: map[string]string{"stars": "20"}})
+	verify(t, reports[0], expect{status: refs.Checked, facts: map[string]string{"stars": "1000"}})
+	verify(t, reports[1], expect{status: refs.Checked, facts: map[string]string{"stars": "2000"}})
 	if got := n.count("api.github.com/users/acme"); got != 1 {
 		t.Errorf("owner requests %d, want 1", got)
 	}

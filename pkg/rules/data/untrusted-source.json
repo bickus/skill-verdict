@@ -60,7 +60,9 @@
     "(?i)\\bgit\\+(?:https?|ssh)://[^\\s@#]+(?:@[^\\s#]*[^0-9a-f\\s#][^\\s#]*)?(?:[\\s#]|$)",
     "(?i)\\bgithub:[\\w.-]+/[\\w.-]+(?:#[^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)",
     "(?i)\\bgo\\s+(?:install|get|run)\\s+\\S+@(?:latest|upgrade|patch|main|master|HEAD)\\b",
-    "(?i)\\bopenclaw\\s+(?:skills?|plugins?)\\s+install\\s+(?:--?[\\w-]+\\s+)*git:[^\\s@#]+(?:[@#][^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)"
+    "(?i)\\bopenclaw\\s+(?:skills?|plugins?)\\s+install\\s+(?:--?[\\w-]+\\s+)*git:[^\\s@#]+(?:[@#][^\\s]*[^0-9a-f\\s][^\\s]*)?(?:\\s|$)",
+    "(?i)\"kind\"\\s*:\\s*\"go\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:module|package)\"\\s*:\\s*\"[\\w-]+(?:\\.[\\w-]+)+/[^\"@\\s]+(?:@(?:latest|main|master|HEAD))?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?go[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:module|package):[ \\t]*[\"']?[\\w-]+(?:\\.[\\w-]+)+/[^\"'@\\s]+(?:@(?:latest|main|master|HEAD))?[\"']?[ \\t]*\\r?$"
    ],
    "judge": {"downgrade": true, "downgradeFloor": "medium"},
    "decision": {

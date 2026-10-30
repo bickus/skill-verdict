@@ -6,8 +6,10 @@ package references
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/bickus/skill-verdict/pkg/config"
 	"github.com/bickus/skill-verdict/pkg/finding"
@@ -19,11 +21,21 @@ import (
 )
 
 const (
-	name    = "references"
-	tooMany = "REFERENCES-TOO-MANY"
+	name             = "references"
+	tooMany          = "REFERENCES-TOO-MANY"
+	packageUnpopular = "PACKAGE-UNPINNED-UNPOPULAR"
+	repoUnpopular    = "REPO-UNPINNED-UNPOPULAR"
 )
 
 var origin = inventory.RegisterOrigin(name, "Facts the scanner collected about the skill's external references from registries and services. Created by the scanner itself")
+
+var popularity = map[string]refs.Kind{packageUnpopular: refs.Package, repoUnpopular: refs.GitHub}
+
+type placing struct {
+	rule   rules.Rule
+	kind   refs.Kind
+	prefix string
+}
 
 type Layer struct {
 	collectors []refcheck.Collector
@@ -73,6 +85,7 @@ func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, err
 			}
 		}
 	}
+	s.Record(l.unpopular(s, reports)...)
 	if len(reports) > 0 {
 		text := refcheck.Brief(s.Skill, reports)
 		s.Skill.Artifacts = append(s.Skill.Artifacts, inventory.Artifact{
@@ -85,6 +98,55 @@ func (l Layer) Run(ctx context.Context, s *pipeline.State) (pipeline.Report, err
 func enabled(s *pipeline.State, id string) (rules.Rule, bool) {
 	rule, ok := s.Rules.ByID[id]
 	return rule, ok && rule.Enabled
+}
+
+func (l Layer) unpopular(s *pipeline.State, reports []refs.Report) []finding.Finding {
+	var out []finding.Finding
+	for _, id := range slices.Sorted(maps.Keys(popularity)) {
+		rule, on := enabled(s, id)
+		if !on || !l.collects(popularity[id]) {
+			continue
+		}
+		for _, at := range slices.Concat(s.Findings, s.Places) {
+			if prefix, ok := rule.Places[at.Rule]; ok {
+				out = append(out, placing{rule, popularity[id], prefix}.place(at, reports)...)
+			}
+		}
+	}
+	return finding.Dedup(out)
+}
+
+func (l Layer) collects(kind refs.Kind) bool {
+	return slices.ContainsFunc(l.collectors, func(c refcheck.Collector) bool { return c.Kind() == kind })
+}
+
+func (p placing) place(at finding.Finding, reports []refs.Report) []finding.Finding {
+	var out []finding.Finding
+	named := false
+	for _, rep := range reports {
+		if !p.names(rep.Ref, at.Location) {
+			continue
+		}
+		named = true
+		if rep.Status == refs.Checked && rep.Unpopular {
+			f := p.rule.Finding(at.Location, rep.Ref.Value)
+			f.Reference = rep.Ref.Value
+			out = append(out, f)
+		}
+	}
+	if !named {
+		out = append(out, p.rule.Finding(at.Location, at.Evidence))
+	}
+	return out
+}
+
+func (p placing) names(ref refs.Ref, span finding.Location) bool {
+	if ref.Kind != p.kind || ref.Derived || !strings.HasPrefix(ref.Value, p.prefix) {
+		return false
+	}
+	return slices.ContainsFunc(ref.Locations, func(loc finding.Location) bool {
+		return loc.File == span.File && loc.Line >= span.Line && loc.Line <= max(span.EndLine, span.Line)
+	})
 }
 
 func location(ref refs.Ref) finding.Location {

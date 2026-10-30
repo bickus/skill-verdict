@@ -171,8 +171,8 @@ func userRoute(login string, created time.Time) route {
 	return route{status: http.StatusOK, body: body}
 }
 
-func repoRoute(ownerLogin string, stars int, fork, archived bool) route {
-	body := fmt.Sprintf(`{"owner":{"login":%q},"stargazers_count":%d,"fork":%t,"archived":%t,"created_at":"2020-01-02T00:00:00Z","pushed_at":"2024-03-04T00:00:00Z"}`, ownerLogin, stars, fork, archived)
+func repoRoute(ownerLogin string, stars, forks int, fork, archived bool) route {
+	body := fmt.Sprintf(`{"owner":{"login":%q},"stargazers_count":%d,"forks_count":%d,"fork":%t,"archived":%t,"created_at":"2020-01-02T00:00:00Z","pushed_at":"2024-03-04T00:00:00Z"}`, ownerLogin, stars, forks, fork, archived)
 	return route{status: http.StatusOK, body: body}
 }
 
@@ -180,6 +180,19 @@ func statsRoute(version string, first time.Time, downloads int) route {
 	body := fmt.Sprintf(`{"latest_release_number":%q,"first_release_published_at":%q,"downloads":%d,"downloads_period":"last-month"}`,
 		version, first.Format(time.RFC3339), downloads)
 	return route{status: http.StatusOK, body: body}
+}
+
+func uncountedRoute(version string, first time.Time) route {
+	body := fmt.Sprintf(`{"latest_release_number":%q,"first_release_published_at":%q}`, version, first.Format(time.RFC3339))
+	return route{status: http.StatusOK, body: body}
+}
+
+func npmCountRoute(downloads int) route {
+	return route{status: http.StatusOK, body: fmt.Sprintf(`{"downloads":%d}`, downloads)}
+}
+
+func pypiCountRoute(downloads int) route {
+	return route{status: http.StatusOK, body: fmt.Sprintf(`{"data":{"last_month":%d}}`, downloads)}
 }
 
 func npmRoute(version string) route {
@@ -192,10 +205,11 @@ func pypiRoute(version, upload string) route {
 }
 
 type expect struct {
-	status   refs.Status
-	findings []string
-	facts    map[string]string
-	detail   string
+	status    refs.Status
+	findings  []string
+	facts     map[string]string
+	detail    string
+	unpopular bool
 }
 
 func factValue(rep refs.Report, key string) (string, bool) {
@@ -222,6 +236,9 @@ func verify(t *testing.T, rep refs.Report, want expect) {
 	}
 	if want.detail != "" && !strings.Contains(rep.Detail, want.detail) {
 		t.Errorf("detail %q lacks %q", rep.Detail, want.detail)
+	}
+	if rep.Unpopular != want.unpopular {
+		t.Errorf("unpopular %v, want %v", rep.Unpopular, want.unpopular)
 	}
 }
 

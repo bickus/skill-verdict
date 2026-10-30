@@ -281,6 +281,61 @@ func TestUnpinnedDependencyNeedsAnInstall(t *testing.T) {
 	}
 }
 
+func TestUnpinnedDependencyLockfileFixesVersions(t *testing.T) {
+	cases := []struct {
+		name string
+		dir  string
+		want int
+	}{
+		{"a lockfile next to the manifest gives no finding", "testdata/dependencies/locked", 0},
+		{"a lockfile in another folder keeps the finding", "testdata/dependencies/elsewhere", 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := scan(t, tc.dir, "")
+			if got := len(inFile(s, "UNPINNED-DEPENDENCY", "package.json")); got != tc.want {
+				t.Errorf("%d findings in package.json, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUnpinnedInstallRuleOfEachTool(t *testing.T) {
+	s := scan(t, "testdata/unpinned", "")
+	cases := []struct {
+		name string
+		rule string
+		line int
+		want bool
+	}{
+		{"npm install without a version", "UNPINNED-NPM", 5, true},
+		{"npm install with an exact version", "UNPINNED-NPM", 6, false},
+		{"bunx without a version", "UNPINNED-NPM", 7, true},
+		{"npx with a package flag", "UNPINNED-NPM", 8, true},
+		{"deno run of an npm spec", "UNPINNED-NPM", 9, true},
+		{"pip install without a version", "UNPINNED-PYPI", 10, true},
+		{"pip install with an exact version", "UNPINNED-PYPI", 11, false},
+		{"uv tool install without a version", "UNPINNED-PYPI", 12, true},
+		{"gem install without a version", "UNPINNED-GEM", 13, true},
+		{"gem install with a version", "UNPINNED-GEM", 14, false},
+		{"cargo verbose flag is no version", "UNPINNED-CRATE", 15, true},
+		{"cargo install with a version", "UNPINNED-CRATE", 16, false},
+		{"docker pull without a tag", "UNPINNED-IMAGE", 17, true},
+		{"docker pull with a version tag", "UNPINNED-IMAGE", 18, false},
+		{"brew tap of a third party", "UNPINNED-TAP", 19, true},
+		{"brew tap of homebrew", "UNPINNED-TAP", 20, false},
+		{"clawhub install without a version", "UNPINNED-CLAWHUB", 21, true},
+		{"clawhub install with a version", "UNPINNED-CLAWHUB", 22, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := onLine(inFile(s, tc.rule, "SKILL.md"), tc.line); got != tc.want {
+				t.Errorf("%s on line %d = %v, want %v", tc.rule, tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRunRecordsLayerOutcome(t *testing.T) {
 	cases := []struct {
 		name   string

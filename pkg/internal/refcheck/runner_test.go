@@ -31,7 +31,7 @@ func run(t *testing.T, r *refcheck.Runner, dir string) []refs.Report {
 }
 
 func TestRunMergesDuplicateReferences(t *testing.T) {
-	n := newNet(t, map[string]route{"api.github.com/users/acme": userRoute("acme", daysAgo(3000)), "api.github.com/repos/acme/tool": repoRoute("acme", 10, false, false)})
+	n := newNet(t, map[string]route{"api.github.com/users/acme": userRoute("acme", daysAgo(3000)), "api.github.com/repos/acme/tool": repoRoute("acme", 5000, 500, false, false)})
 	reports := run(t, githubRunner(n, testConfig()), "runner/dedup")
 	if len(reports) != 1 {
 		t.Fatalf("reports %+v, want one", reports)
@@ -43,7 +43,7 @@ func TestRunMergesDuplicateReferences(t *testing.T) {
 }
 
 func TestRunCapsReferences(t *testing.T) {
-	n := newNet(t, map[string]route{"api.github.com/users/acme": userRoute("acme", daysAgo(3000)), "api.github.com/repos/acme/one": repoRoute("acme", 10, false, false)})
+	n := newNet(t, map[string]route{"api.github.com/users/acme": userRoute("acme", daysAgo(3000)), "api.github.com/repos/acme/one": repoRoute("acme", 5000, 500, false, false)})
 	cfg := testConfig()
 	cfg.MaxReferences = 1
 	r := githubRunner(n, cfg)

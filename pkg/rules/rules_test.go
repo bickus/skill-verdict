@@ -150,6 +150,7 @@ func TestLoadErrors(t *testing.T) {
 		{"unknown question template", "testdata/decision/template", defaults(), "rule X15: decision.questions.who.template"},
 		{"field that accepts an option it does not offer", "testdata/fields/accept", defaults(), "rule X20: fields.who.accept: unknown option"},
 		{"fields on a rule outside the discovery layer", "testdata/fields/layer", defaults(), "rule X21: fields: only a rule of the discovery layer"},
+		{"places from a rule outside the static layer", "testdata/places", defaults(), "rule X22: places: GITHUB-REPO-MISSING is not a static rule"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

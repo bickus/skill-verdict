@@ -71,7 +71,7 @@ Findings:
     Evidence: github.com/attacker/stolen-tool
     Judge:    Confirmed. The repository points to an abandoned username that can be re-registered by an attacker.
 
-  HIGH      UNPINNED-INSTALL  Package install without pinned version
+  HIGH      UNPINNED-PYPI  PyPI package installed without a fixed version
     Location: scripts/setup.sh:3
     Evidence: pip install helper-pkg
     Judge:    Downgraded to LOW. Package is installed in an isolated venv for testing, but unpinned versions remain risky.

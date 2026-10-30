@@ -126,6 +126,10 @@ Referencing a GitHub repository without pinning a commit hash exposes you to rep
    - The account exists, but the repository does not. The owner may have deleted it, or a stranger may hold a name whose original account was deleted. The scanner cannot tell which, so the finding is `medium`. A young account next to a missing repository points at the second case.
 5. **New Owner Accounts (`GITHUB-OWNER-NEW`)**:
    - Flags accounts created within the last 90 days.
+6. **Unpopular Repositories Cloned Without a Commit Hash (`REPO-UNPINNED-UNPOPULAR`)**:
+   - The scanner reads the stars and the forks of every repository. A repository counts as popular with at least 1,000 stars and at least 100 forks.
+   - A clone without a commit hash of a repository below either line gets this finding. Nobody watches the pushes to such a repository.
+   - A clone from another host gets it too. The scanner has no counts for GitLab, Codeberg or any host other than GitHub.
 
 ---
 
@@ -139,7 +143,11 @@ Package dependencies in skills are verified against live registry data:
    - Compares package names against popular libraries. If a skill requires `reqeusts` instead of `requests`, or `chalk-color` instead of `chalk`, it is flagged for typosquatting.
 3. **New & Low-Download Packages (`PACKAGE-NEW`, `PACKAGE-LOW-DOWNLOADS`)**:
    - Brand-new packages and packages with negligible download counts represent unvetted code.
-4. **Non-Standard Registries (`PACKAGE-OTHER-REGISTRY`)**:
+4. **Unpopular Packages Installed Without a Fixed Version (`PACKAGE-UNPINNED-UNPOPULAR`)**:
+   - The scanner reads the downloads of the last month from the registry itself: the npm downloads API for npm and pypistats.org for PyPI. When the registry has no count, it takes the count from packages.ecosyste.ms.
+   - A package with fewer than 100,000 downloads a month counts as unpopular. A package without any count counts as unpopular too. A lookup that fails leaves the package unchecked, and the scan is incomplete.
+   - Many people use a popular package, so someone reports a bad release of it within days. A minimum release age waits longer than that. Nobody watches an unpopular package, so the waiting period does not help there. The finding stays when you lower `UNPINNED-NPM` and `UNPINNED-PYPI` or turn them off.
+5. **Non-Standard Registries (`PACKAGE-OTHER-REGISTRY`)**:
    - Flags install commands specifying `--index-url` or `--registry` pointing to untrusted third-party servers.
 
 ---
@@ -201,6 +209,9 @@ You can fine-tune timeouts, request pacing, and age thresholds in `config.json`:
       "youngOwnerDays": 90,
       "newPackageDays": 90,
       "lowDownloads": 1000,
+      "popularDownloads": 100000,
+      "popularStars": 1000,
+      "popularForks": 100,
       "maxReferences": 100
     }
   }
@@ -216,3 +227,6 @@ You can fine-tune timeouts, request pacing, and age thresholds in `config.json`:
 | `youngDomainDays` | `365` | Domains younger than this are flagged as `DOMAIN-NEW`. |
 | `expiryDays` | `14` | Domains expiring within this window trigger `DOMAIN-EXPIRING`. |
 | `maxReferences` | `100` | Skills referencing more items than this trigger `REFERENCES-TOO-MANY` and halt the scan. |
+| `popularDownloads` | `100000` | A package below this count of downloads last month gets `PACKAGE-UNPINNED-UNPOPULAR` at each install without a fixed version. |
+| `popularStars` | `1000` | A repository below this count of stars gets `REPO-UNPINNED-UNPOPULAR` at each clone without a commit hash. |
+| `popularForks` | `100` | A repository below this count of forks gets `REPO-UNPINNED-UNPOPULAR` at each clone without a commit hash. |

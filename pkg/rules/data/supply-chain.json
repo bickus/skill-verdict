@@ -13,7 +13,7 @@
    "category": "supply-chain",
    "severity": "medium",
    "title": "Unpinned dependency",
-   "description": "A dependency has no fixed version, so any later release, including a hijacked one, is installed. The finding stands only when a file of the skill names the manifest or runs an installer of its ecosystem.",
+   "description": "A dependency has no fixed version, so any later release, including a hijacked one, is installed. The finding stands only when a file of the skill names the manifest or runs an installer of its ecosystem. A lockfile of the ecosystem next to the manifest fixes every version, so a manifest with one has no finding.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
@@ -30,6 +30,7 @@
    "installers": [
     {
      "files": ["*requirements*", "pyproject.toml", "setup.py", "Pipfile*"],
+     "lockfiles": ["uv.lock", "poetry.lock", "pdm.lock", "pylock.toml", "pylock.*.toml", "Pipfile.lock"],
      "patterns": [
       "(?i)\\bpip3?\\s+install\\s+-r\\b",
       "(?i)\\bpip3?\\s+install\\s+\\.",
@@ -41,6 +42,7 @@
     },
     {
      "files": ["package.json"],
+     "lockfiles": ["package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "bun.lockb"],
      "patterns": [
       "(?i)\\bnpm\\s+(?:install|ci|i)\\b",
       "(?i)\\bpnpm\\s+(?:install|i)\\b",
@@ -53,35 +55,186 @@
    "enabled": true
   },
   {
-   "id": "UNPINNED-INSTALL",
+   "id": "UNPINNED-NPM",
    "category": "supply-chain",
    "severity": "high",
-   "title": "Unpinned install command",
-   "description": "An install or run command, or an install entry in the skill's frontmatter metadata, names a package without a version, so any later release, including a hijacked one, is installed. That covers npm, PyPI, RubyGems, crates.io, a Homebrew tap, a skill registry such as ClawHub, and container images. The command is in the skill text, not in a dependency manifest, and runs every time the skill is used.",
+   "title": "npm package installed without a fixed version",
+   "description": "An install or run command, an install entry in the skill's frontmatter metadata, or an MCP server command names an npm package without an exact version, so the newest release is installed, including a hijacked one. The rule covers npm, pnpm, Yarn, Bun and Deno installs, and the runners npx, bunx, pnpx, pnpm dlx, yarn dlx and npm exec. A minimum release age in the package manager holds back a hijacked release of a popular package, so a user who has one can lower this rule or turn it off. PACKAGE-UNPINNED-UNPOPULAR still covers a package that few people use, also when this rule is off.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:npx|bunx|pnpx|pnpm\\s+dlx|yarn\\s+dlx|npm\\s+exec)\\s+(?:-[\\w-]+(?:=\\S+)?\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])deno\\s+(?:run|x|install)\\s+(?:-\\S+\\s+)*npm:(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?i)\"kind\"\\s*:\\s*\"(?:node|npm|pnpm|yarn|bun)\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?(?:node|npm|pnpm|yarn|bun)[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$",
+    "(?i)\"command\"\\s*:\\s*\"(?:npx|bunx|pnpx)\"\\s*,\\s*\"args\"\\s*:\\s*\\[\\s*(?:\"-[^\"]*\"\\s*,\\s*)*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\""
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one npm package named in an install or run command, in an install entry of the skill's metadata or in an MCP server command, with no exact version. The package is shown as the subject. A command that fixes an exact version of the package is `not-a-match`. Words after the command that are not a package the command installs are `not-a-match` too: prose such as `run npm install in the folder`, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-PYPI",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "PyPI package installed without a fixed version",
+   "description": "An install or run command, an install entry in the skill's frontmatter metadata, or an MCP server command names a PyPI package without an exact version, so the newest release is installed, including a hijacked one. The rule covers pip, pipx, uv pip, uv tool, uvx and uv run --with. A minimum release age in the package manager holds back a hijacked release of a popular package, so a user who has one can lower this rule or turn it off. PACKAGE-UNPINNED-UNPOPULAR still covers a package that few people use, also when this rule is off.",
    "kind": "heuristic",
    "layer": "static",
    "scope": "any",
    "patterns": [
     "(?im)(?:^|[\\s;&|(`\"'])(?:python3?\\s+-m\\s+pip|pip3?|pipx|uv\\s+pip)\\s+install\\s+(?:(?:-U|--upgrade|-q|--quiet|--user|--pre|--no-cache-dir|--no-deps)\\s+)*[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])(?:npm|pnpm|yarn|bun)\\s+(?:install|i|add)\\s+(?:(?:-g|--global|-D|--save-dev|-S|--save|-E|--save-exact|-w|--workspace)\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])(?:npx|uvx|pipx\\s+run)\\s+(?:-[\\w-]+\\s+)*(?:@[a-z0-9][a-z0-9._-]*/)?[A-Za-z][A-Za-z0-9._-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])(?:uvx|pipx\\s+run|uv\\s+tool\\s+(?:run|install))\\s+(?:-[\\w-]+(?:=\\S+)?\\s+)*[A-Za-z][A-Za-z0-9._-]*(?:\\[[^\\]\\s]*\\])?(?:@latest)?(?:[\\s`\"'),;&|]|$)",
     "(?im)(?:^|[\\s;&|(`\"'])uv\\s+run\\s+(?:\\S+\\s+)*?--with(?:=|\\s+)[A-Za-z][A-Za-z0-9_.-]*(?:\\[[^\\]\\s]*\\])?(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])docker\\s+pull\\s+(?:-[\\w-]+\\s+)*[a-z0-9][a-z0-9._/-]*(?::[\\w.-]*latest[\\w.-]*)?(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?))\\s+install\\s+(?:--?[\\w-]+\\s+)*(?:(?:npm|clawhub):)?(?:@?[\\w.-]+/)?\\w[\\w.-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+tap\\s+[\\w-]+/[\\w-]+(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+install\\s+(?:--?[\\w-]+\\s+)*[\\w-]+/[\\w-]+/[\\w@.+-]+(?:[\\s`\"'),;&|]|$)",
+    "(?i)\"kind\"\\s*:\\s*\"(?:pip|pipx|uv|python)\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?(?:pip|pipx|uv|python)[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$",
+    "(?i)\"command\"\\s*:\\s*\"uvx\"\\s*,\\s*\"args\"\\s*:\\s*\\[\\s*(?:\"-[^\"]*\"\\s*,\\s*)*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\""
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one PyPI package named in an install or run command, in an install entry of the skill's metadata or in an MCP server command, with no exact version. The package is shown as the subject. A command that fixes an exact version of the package is `not-a-match`. Words after the command that are not a package the command installs are `not-a-match` too: prose such as `pip install the requirements`, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-GEM",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Gem installed without a fixed version",
+   "description": "A gem install command or an install entry in the skill's frontmatter metadata names a gem without a version, so the newest release is installed, including a hijacked one. Bundler has a minimum release age, and gem install gets one only in RubyGems 4.1.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
     "(?im)(?:^|[\\s;&|(`\"'])gem\\s+install\\s+(?:--?[\\w-]+\\s+)*[A-Za-z][\\w.-]*(?:[\\s`\"'),;&|]|$)",
-    "(?im)(?:^|[\\s;&|(`\"'])cargo\\s+(?:install|binstall)\\s+(?:--?[\\w-]+\\s+)*[A-Za-z][\\w-]*(?:[\\s`\"'),;&|]|$)",
-    "(?i)\"kind\"\\s*:\\s*\"(?:node|npm|pnpm|yarn|bun|pip|pipx|uv|python|gem|cargo)\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
-    "(?i)\"kind\"\\s*:\\s*\"brew\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:formula|package)\"\\s*:\\s*\"[\\w-]+/[\\w-]+/[\\w@.+-]+\"",
-    "(?i)\"kind\"\\s*:\\s*\"go\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:module|package)\"\\s*:\\s*\"[\\w-]+(?:\\.[\\w-]+)+/[^\"@\\s]+(?:@(?:latest|main|master|HEAD))?\"",
-    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?(?:node|npm|pnpm|yarn|bun|pip|pipx|uv|python|gem|cargo)[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$",
-    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?brew[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:formula|package):[ \\t]*[\"']?[\\w-]+/[\\w-]+/[\\w@.+-]+[\"']?[ \\t]*\\r?$",
-    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?go[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:module|package):[ \\t]*[\"']?[\\w-]+(?:\\.[\\w-]+)+/[^\"'@\\s]+(?:@(?:latest|main|master|HEAD))?[\"']?[ \\t]*\\r?$",
-    "(?i)\"command\"\\s*:\\s*\"(?:npx|bunx|pnpx|uvx)\"\\s*,\\s*\"args\"\\s*:\\s*\\[\\s*(?:\"-[^\"]*\"\\s*,\\s*)*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\""
+    "(?i)\"kind\"\\s*:\\s*\"gem\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?gem[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$"
    ],
    "exclude": [
-    "(?i)\\b(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?)|gem|cargo)\\s+(?:install|binstall)\\b.*\\s(?:-v|--version)(?:[\\s=]|$)",
+    "(?i)\\bgem\\s+install\\b.*\\s(?:-v|--version)(?:[\\s=]|$)"
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one gem named in a gem install command or in an install entry of the skill's metadata, with no version. The gem is shown as the subject. A command that fixes a version of the gem is `not-a-match`. Words after the command that are not a gem the command installs are `not-a-match` too: prose, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-CRATE",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Crate installed without a fixed version",
+   "description": "A cargo install command or an install entry in the skill's frontmatter metadata names a crate without a version, so the newest release is installed, including a hijacked one. Cargo has a minimum release age only in nightly builds.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(`\"'])cargo\\s+(?:install|binstall)\\s+(?:--?[\\w-]+\\s+)*[A-Za-z][\\w-]*(?:[\\s`\"'),;&|]|$)",
+    "(?i)\"kind\"\\s*:\\s*\"cargo\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"package\"\\s*:\\s*\"(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?cargo[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+package:[ \\t]*[\"']?(?:@[a-z0-9][\\w.-]*/)?[a-z0-9][\\w.-]*(?:@latest)?[\"']?[ \\t]*\\r?$"
+   ],
+   "exclude": [
+    "(?i)\\bcargo\\s+(?:install|binstall)\\b.*\\s--version(?:[\\s=]|$)"
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one crate named in a cargo install command or in an install entry of the skill's metadata, with no version. The crate is shown as the subject. A command that fixes a version of the crate is `not-a-match`. Words after the command that are not a crate the command installs are `not-a-match` too: prose, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-IMAGE",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Container image pulled without a fixed version",
+   "description": "A docker pull command names an image with no tag or with a latest tag, so the newest image is pulled, including a replaced one. No container tool has a minimum release age.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(`\"'])docker\\s+pull\\s+(?:-[\\w-]+\\s+)*[a-z0-9][a-z0-9._/-]*(?::[\\w.-]*latest[\\w.-]*)?(?:[\\s`\"'),;&|]|$)"
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one container image named in a pull command with no tag or with a latest tag. The image is shown as the subject. A command that fixes a digest or a version tag of the image is `not-a-match`. Words after the command that are not an image the command pulls are `not-a-match` too: prose, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-TAP",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "Homebrew tap added or used",
+   "description": "A brew tap command, a brew install of a formula from a tap, or a brew install entry in the skill's frontmatter metadata takes formulas from a third party repository. The owner of the tap can change a formula at any time. Homebrew core does not match. Homebrew has no minimum release age for taps.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+tap\\s+[\\w-]+/[\\w-]+(?:[\\s`\"'),;&|]|$)",
+    "(?im)(?:^|[\\s;&|(`\"'])brew\\s+install\\s+(?:--?[\\w-]+\\s+)*[\\w-]+/[\\w-]+/[\\w@.+-]+(?:[\\s`\"'),;&|]|$)",
+    "(?i)\"kind\"\\s*:\\s*\"brew\"\\s*,\\s*(?:\"[\\w-]+\"\\s*:\\s*(?:\"[^\"]*\"|\\[[^\\]{}]*\\]|true|false|null|-?\\d[\\d.]*)\\s*,\\s*)*\"(?:formula|package)\"\\s*:\\s*\"[\\w-]+/[\\w-]+/[\\w@.+-]+\"",
+    "(?im)^[ \\t]*(?:-[ \\t]+)?kind:[ \\t]*[\"']?brew[\"']?[ \\t]*\\r?\\n(?:[ \\t]+(?:[\\w-]+:[^\\n]*|-[ \\t]+[^:\\n]*)\\n)*?[ \\t]+(?:formula|package):[ \\t]*[\"']?[\\w-]+/[\\w-]+/[\\w@.+-]+[\"']?[ \\t]*\\r?$"
+   ],
+   "exclude": [
     "(?i)\\bbrew\\s+(?:tap|install)\\s+(?:--?[\\w-]+\\s+)*homebrew/"
    ],
    "judge": {"downgrade": true},
@@ -90,7 +243,39 @@
      "who": {
       "subject": "places",
       "template": "who",
-      "focus": "The scanner rule looks for one package named in an install or run command, or in an install entry of the skill's metadata, with no exact version. The package is shown as the subject. A command that fixes an exact version or a digest of the package is `not-a-match`. Words after the command that are not a package the command installs are `not-a-match` too: prose such as `run npm install in the folder` or `pip install the requirements`, a flag, a path or a file name."
+      "focus": "The scanner rule looks for a Homebrew tap that a brew tap command adds, or a formula from a tap that a brew install command or an install entry of the skill's metadata installs. The tap or the formula is shown as the subject. Words after the command that are not a tap or a formula are `not-a-match`: prose, a flag, a path or a file name."
+     }
+    },
+    "outcome": {
+     "confirm": [{"who": ["agent-runs", "platform-install"]}],
+     "dismiss": [{"who": ["user-step", "documentation", "not-a-match"]}],
+     "misfire": [{"who": "not-a-match"}]
+    }
+   },
+   "enabled": true
+  },
+  {
+   "id": "UNPINNED-CLAWHUB",
+   "category": "supply-chain",
+   "severity": "high",
+   "title": "ClawHub skill or plugin installed without a fixed version",
+   "description": "A ClawHub or OpenClaw install command names a skill or a plugin without a version, so the newest release is installed, including a hijacked one. The scanner skips an install of the skill's own folder name. ClawHub has no minimum release age.",
+   "kind": "heuristic",
+   "layer": "static",
+   "scope": "any",
+   "patterns": [
+    "(?im)(?:^|[\\s;&|(`\"'])(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?))\\s+install\\s+(?:--?[\\w-]+\\s+)*(?:(?:npm|clawhub):)?(?:@?[\\w.-]+/)?\\w[\\w.-]*(?:@latest)?(?:[\\s`\"'),;&|]|$)"
+   ],
+   "exclude": [
+    "(?i)\\b(?:claw[d]?hub|openclaw\\s+(?:skills?|plugins?))\\s+install\\b.*\\s(?:-v|--version)(?:[\\s=]|$)"
+   ],
+   "judge": {"downgrade": true},
+   "decision": {
+    "questions": {
+     "who": {
+      "subject": "places",
+      "template": "who",
+      "focus": "The scanner rule looks for one skill or plugin named in a ClawHub or OpenClaw install command with no version. The skill or the plugin is shown as the subject. A command that fixes a version is `not-a-match`. Words after the command that are not a skill or a plugin the command installs are `not-a-match` too: prose, a flag, a path or a file name."
      }
     },
     "outcome": {

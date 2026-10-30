@@ -148,23 +148,26 @@ type WalkConfig struct {
 }
 
 type ReferencesConfig struct {
-	Enabled         bool                   `json:"enabled"`
-	Collectors      map[string]bool        `json:"collectors"`
-	Timeout         Duration               `json:"timeout"`
-	Budget          Duration               `json:"budget"`
-	Concurrency     int                    `json:"concurrency"`
-	RequestDelay    Duration               `json:"requestDelay"`
-	RetryDelays     []Duration             `json:"retryDelays"`
-	MaxReferences   int                    `json:"maxReferences"`
-	MaxBodyBytes    int64                  `json:"maxBodyBytes"`
-	MaxRedirects    int                    `json:"maxRedirects"`
-	YoungDomainDays int                    `json:"youngDomainDays"`
-	ExpiryDays      int                    `json:"expiryDays"`
-	YoungOwnerDays  int                    `json:"youngOwnerDays"`
-	NewPackageDays  int                    `json:"newPackageDays"`
-	LowDownloads    int                    `json:"lowDownloads"`
-	GitHubTokenEnv  string                 `json:"githubTokenEnv"`
-	Rules           map[string]RuleSetting `json:"rules,omitempty"`
+	Enabled          bool                   `json:"enabled"`
+	Collectors       map[string]bool        `json:"collectors"`
+	Timeout          Duration               `json:"timeout"`
+	Budget           Duration               `json:"budget"`
+	Concurrency      int                    `json:"concurrency"`
+	RequestDelay     Duration               `json:"requestDelay"`
+	RetryDelays      []Duration             `json:"retryDelays"`
+	MaxReferences    int                    `json:"maxReferences"`
+	MaxBodyBytes     int64                  `json:"maxBodyBytes"`
+	MaxRedirects     int                    `json:"maxRedirects"`
+	YoungDomainDays  int                    `json:"youngDomainDays"`
+	ExpiryDays       int                    `json:"expiryDays"`
+	YoungOwnerDays   int                    `json:"youngOwnerDays"`
+	NewPackageDays   int                    `json:"newPackageDays"`
+	LowDownloads     int                    `json:"lowDownloads"`
+	PopularDownloads int                    `json:"popularDownloads"`
+	PopularStars     int                    `json:"popularStars"`
+	PopularForks     int                    `json:"popularForks"`
+	GitHubTokenEnv   string                 `json:"githubTokenEnv"`
+	Rules            map[string]RuleSetting `json:"rules,omitempty"`
 }
 
 type LLMConfig struct {
@@ -257,22 +260,25 @@ func Default() Config {
 			AST:    SwitchConfig{Enabled: true},
 			Static: LayerConfig{Enabled: true},
 			References: ReferencesConfig{
-				Enabled:         true,
-				Collectors:      collectors,
-				Timeout:         Duration(10 * time.Second),
-				Budget:          Duration(120 * time.Second),
-				Concurrency:     8,
-				RequestDelay:    Duration(time.Second),
-				RetryDelays:     []Duration{Duration(2 * time.Second), Duration(5 * time.Second)},
-				MaxReferences:   100,
-				MaxBodyBytes:    1 << 20,
-				MaxRedirects:    5,
-				YoungDomainDays: 365,
-				ExpiryDays:      14,
-				YoungOwnerDays:  90,
-				NewPackageDays:  90,
-				LowDownloads:    1000,
-				GitHubTokenEnv:  githubEnvVar,
+				Enabled:          true,
+				Collectors:       collectors,
+				Timeout:          Duration(10 * time.Second),
+				Budget:           Duration(120 * time.Second),
+				Concurrency:      8,
+				RequestDelay:     Duration(time.Second),
+				RetryDelays:      []Duration{Duration(2 * time.Second), Duration(5 * time.Second)},
+				MaxReferences:    100,
+				MaxBodyBytes:     1 << 20,
+				MaxRedirects:     5,
+				YoungDomainDays:  365,
+				ExpiryDays:       14,
+				YoungOwnerDays:   90,
+				NewPackageDays:   90,
+				LowDownloads:     1000,
+				PopularDownloads: 100000,
+				PopularStars:     1000,
+				PopularForks:     100,
+				GitHubTokenEnv:   githubEnvVar,
 			},
 			Decision:  defaultDecision(),
 			Honeypot:  ModelLayerConfig{Enabled: true, Calls: 10},
