@@ -12,7 +12,7 @@ A skill can contain nothing malicious and still expose you to an attack. An atta
 
 Skills often need external documentation or software. A link alone does not make a skill malicious, but documentation hidden behind bit.ly, instructions in github gist or a random package installed with @latest - at least are vulnerable.
 
-No score is calculated because a single vulnerability is enough to compromise your environment. But you control the checks and decision severity.
+No score is calculated because a single vulnerability is enough to compromise your environment. But you control the checks and blocking severity.
 
 ## Why so many "unpinned XXX" findings?
 
@@ -22,18 +22,6 @@ The scanner reports every install that has no fixed version or a code execution 
 - An install command with no version.
 - A clone of a branch.
 - A download link with replaceable content behind it.
-
-The verdict depends on who runs the step:
-
-- An install the agent does blocks. The agent does these steps:
-  - a command in `SKILL.md` or in a file that `SKILL.md` sends the agent to
-  - a command that a script of the skill runs
-  - an install entry in the frontmatter metadata
-- The scanner reads installs from npm, PyPI, RubyGems, crates.io, Go modules, container registries, Homebrew taps and skill registries such as ClawHub.
-- A package that the skill tells a person to install by hand gets no finding.
-- A download or clone that the skill tells a person to do by hand gets a finding below the block gate.
-- The operating system's package manager, Homebrew core and a fixed version get no finding. A version tag on GitHub does not count as fixed. The owner can replace the files behind it.
-- A skill that installs itself from a skill registry gets no finding. The scanner compares the install with the name of the skill folder. The `name` in the frontmatter does not count.
 
 You'd say that it generates noise findings, but let me try to convince you with some data.
 
@@ -48,9 +36,19 @@ Between September 2025 and September 2026, official releases of well-known packa
 
 None of these were typosquats. Some of the poisoned releases carried valid signatures. Each poisoned version stayed public for hours to days before removal. Before playing a roulette - be honest with yourself and assess what might be the damage from you being one of millions of people affected by such attacks.
 
-An unpinned install takes the newest release on every run - roulette, but fast and no actions from you.
+An unpinned install takes the newest release (unless you have a minimum release age policy) on every run - roulette, but fast and no actions from you.
 
 A version pinned to a hash stays the same after your review (which you should do, at least with AI agents) - safe, but manually updating is on you.
+
+### Already using a minimum release age?
+
+Each install tool has its own rule. Turn off the rule of each tool that has the setting on, or lower its severity:
+
+```json
+{"layers": {"static": {"rules": {"UNPINNED-NPM": {"enabled": false}, "UNPINNED-PYPI": {"severity": "low"}}}}}
+```
+
+Even with the UNPINNED-XXX rules off, an unpinned npm or PyPI package with few downloads still gets flaggedb because trusting them is not the same as trusting a package that's being downloaded 1M times a month.
 
 ## What it checks?
 
@@ -68,9 +66,15 @@ A version pinned to a hash stays the same after your review (which you should do
 - Encrypted archives.
 - Unsupported file formats and files over scan limits.
 
-Optional model checks look for harmful intent beyond fixed text patterns. Model review can lower or dismiss findings according to your configuration - we perfectly understand that a noisy report with a ton of false-positives is not worth even reading, so you'd better run it with the model reviewer level to get rid of most of false-positives.
+### Model checks (optional)
 
-An optional honeypot gives a model the tools of a coding agent. None of that tools are doing anything, and none of your installed agents or environments are used for such an "experiment". But if a model attempts to execute anything while being told not to - it's either an extremely dumb model or an interesting prompt injection technique that's not detectable by any static checks. And if so - we can't trust any further model analysis of the skill so it's not performed and a skill is immediately marked for blocking.
+- **Semantic discovery**. With a model configured, the scanner asks it to read the skill and look for harmful intent that fixed text patterns miss.
+- **Noise filtering**. Fixed text rules are noisy, and a report full of false positives is not worth reading. The [Decision layer](docs/user/config.md#decision-layer-layersdecision) use a Jev-class model to remove many of them.
+- **Judging**. AI Judge checks all AI discoveries and drops or lowers the ones that don't hold up.
+
+### Honeypot (optional)
+
+Honeypot gives a model the tools of a coding agent. None of those tools do anything, and none of your installed agents or environments are used for such an "experiment". But if a model attempts to execute anything while being told not to - it's either an extremely dumb model or an interesting prompt injection technique that's not detectable by any static checks. And if so - we can't trust any further model analysis of the skill so it's not performed and a skill is immediately marked for blocking.
 
 ## What it DOESN'T check (and why)
 
@@ -126,7 +130,13 @@ Or scan every skill located inside a directory:
 skill-verdict scan --config config.json ./path/to/skills
 ```
 
-Want an instant, air-gapped offline scan with zero network calls and zero AI tokens? Turn off the four network/model layers (`references`, `honeypot`, `discovery`, and `judge`) in your config, and leave `decision` off as it is by default. See [Configuration](docs/user/config.md) for how to tune every layer, and [Rules](docs/user/rules.md) for the full catalog of checks.
+For an offline scan with no network calls and no model tokens, turn off the five layers that use the network or a model:
+
+```json
+{"layers": {"references": {"enabled": false}, "decision": {"enabled": false}, "honeypot": {"enabled": false}, "discovery": {"enabled": false}, "judge": {"enabled": false}}}
+```
+
+`decision` is off by default, so it only matters if you turned it on. See [Configuration](docs/user/config.md) for how to tune every layer, and [Rules](docs/user/rules.md) for the full catalog of checks.
 
 ## Understand the result
 
@@ -135,7 +145,7 @@ Every scan produces a clear terminal report (or JSON for machines). Each finding
 - **Severity**: `low`, `medium`, `high`, or `critical`.
 - **Location**: the exact file and line number in the skill.
 - **Evidence**: the specific text, command, or external fact that triggered the alert.
-- **AI Judge Analysis**: if model review is enabled, the Judge explains whether the finding is a genuine risk or harmless context, and whether it was upheld, lowered, or dismissed.
+- **AI Judge**: if model review is enabled, the Judge says whether the finding is confirmed, downgraded or dismissed, and why. What the skill claims about its own good intentions does not count.
 
 The scan concludes with one of four overall verdicts:
 
@@ -148,7 +158,7 @@ The scan concludes with one of four overall verdicts:
 
 By default, `high` and `critical` findings produce a `block` verdict. You can adjust this threshold (`gate.severity`) in [Configuration](docs/user/config.md#the-gate-and-blocking-policy).
 
-See [Verdicts](docs/user/verdicts.md) for full details on how decisions are reached.
+See [Verdicts](docs/user/verdicts.md) for full details on how verdicts are reached.
 
 ## Use in automation
 
@@ -183,6 +193,7 @@ Keep in mind: `skill-verdict` does not execute skills or inspect the inside of e
 | Guide | What you will find |
 |---|---|
 | [Install](docs/user/install.md) | Binaries, verification, building from source, and scan modes. |
+  A model answers a few fixed questions about each finding, such as who runs the step, and the answers decide whether the finding stays, goes down or goes away. The layer is off by default and needs its own API key, see . Some rules have a lowest severity that no model answer can go below.
 | [Usage](docs/user/usage.md) | Command line usage, reading reports, and CI/automation recipes. |
 | [Configuration](docs/user/config.md) | Fine-tuning rules, model endpoints, limits, and the Gate policy. |
 | [Verdicts](docs/user/verdicts.md) | How the four verdicts work, the AI Judge, and why incomplete scans matter. |
