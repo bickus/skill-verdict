@@ -49,7 +49,7 @@ skill-verdict scan [--config P] [--rules-dir D] [--format text|json] [--verbose]
 | `--config P` | System default config | Path to a custom JSON configuration file. Fails if the file does not exist. |
 | `--rules-dir D` | `rules.dir` setting | Directory containing additional `*.json` custom rule definitions. |
 | `--format text\|json` | `text` | Output format: human-readable terminal text or machine-parsable JSON. |
-| `--verbose` | off | Include full details (such as dismissed findings and internal token breakdowns) in JSON output. A finding the decision layer looked at has a `decision` object with an `answers` list. An answer names the `question` and, for a question asked per place, the `place`. The answer then gives the `choice` and its `probability`, or `skipped` with the reason the question got no answer. |
+| `--verbose` | off | Include full details (such as dismissed findings, artifacts and internal token breakdowns) in JSON output. A finding the decision layer looked at has a `decision` object with an `answers` list. An answer names the `question` and, for a question asked per place, the `place`. The answer then gives the `choice` and its `probability`, or `skipped` with the reason the question got no answer. |
 | `--fail-on LEVEL` | `block` | Set the minimum verdict severity that triggers an exit code of `1`. Choices: `block`, `incomplete`, `review`, `never`. |
 
 ---
@@ -59,48 +59,68 @@ skill-verdict scan [--config P] [--rules-dir D] [--format text|json] [--verbose]
 When running in `text` format, `skill-verdict` prints an easy-to-read report organized into clear sections:
 
 ```text
-[BLOCK] ./skills/deploy-helper
+deploy-helper : block --------------------------------------------------------------------------------------------------
+Location: /home/me/skills/deploy-helper
 
-References:
-  github.com/attacker/stolen-tool (github: owner does not exist)
-  https://bit.ly/3xY9zA (domain: url shortener)
+REFERENCES
+domain:deploy-stats-sv-sample.com • checked
+github:sv-sample-owner-0x9q/stolen-tool • checked
+package:pypi:helper-pkg • checked
 
-Findings:
-  CRITICAL  GITHUB-OWNER-MISSING  Referenced GitHub owner does not exist
-    Location: SKILL.md:14
-    Evidence: github.com/attacker/stolen-tool
-    Judge:    Confirmed. The repository points to an abandoned username that can be re-registered by an attacker.
+FINDINGS
+critical • GITHUB-OWNER-MISSING • Referenced GitHub owner does not exist • reference
+Description: A referenced GitHub owner does not exist; the name can be registered and the referenced repository
+             recreated by anyone. Unless this is a false-positive - there can be no trust in what will be
+             executed/served from the referenced URL thus it is not safe.
+Location:    SKILL.md:9 • sv-sample-owner-0x9q/stolen-tool
 
-  HIGH      UNPINNED-PYPI  PyPI package installed without a fixed version
-    Location: scripts/setup.sh:3
-    Evidence: pip install helper-pkg
-    Judge:    Downgraded to LOW. Package is installed in an isolated venv for testing, but unpinned versions remain risky.
+high • EXFILTRATION-IN-PROSE • Natural-language exfiltration instructions • exfiltration
+Description: Plain-language instructions to collect, expose, summarize, transmit, or leak sensitive, private, or
+             user-provided data to a place outside the conversation without explicit technical terms such as exfiltrate
+             or send: posting what the user says to a service, mailing a summary of the session, writing credentials to
+             a file that another agent or session reads.
+Location:    SKILL.md:10
+Analysis:    After deployment, the agent is told to expose the entire `.env` file to an external collection host, while
+             concealing the step from the user.
+Judge:       confirmed • The skill instructs the agent to read the project's .env, post its entire contents to an
+             external collection URL, and conceal the step from the user. This directly matches plain-language
+             exfiltration.
 
-Model usage:
-  Model: gpt-4o (medium)
-  Cost:  $0.0042 (3 requests)
+high • UNPINNED-PYPI • PyPI package installed without a fixed version • supply-chain
+Description: An install or run command, an install entry in the skill's frontmatter metadata, or an MCP server command
+             names a PyPI package without an exact version, so the newest release is installed, including a hijacked
+             one. The rule covers pip, pipx, uv pip, uv tool, uvx and uv run --with. A minimum release age in the
+             package manager holds back a hijacked release of a popular package, so a user who has one can lower this
+             rule or turn it off. PACKAGE-UNPINNED-UNPOPULAR still covers a package that few people use, also when this
+             rule is off.
+Location:    scripts/setup.sh:2 • uv pip install helper-pkg
+
+MODEL USAGE
+Model: gpt-5.6-luna • medium
+Cost: n/a • discovery 3 requests, judge 3 requests
 ```
 
 ### Report breakdown:
 
-1. **Header & Verdict**: Shows the skill name/path and final verdict (`CLEAN`, `REVIEW`, `INCOMPLETE`, or `BLOCK`).
-2. **References**: Real-time status of external domains, GitHub accounts/repos, and npm/PyPI packages mentioned in the skill.
-3. **Findings**: Sorted from most severe to least severe:
-   - **Severity**: `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`.
-   - **Rule ID & Title**: Built-in rule that detected the issue.
-   - **Location**: Exact file and line number (`SKILL.md:14`).
-   - **Evidence**: The raw snippet or value that triggered the alert.
-   - **Judge**: If AI review is enabled, the Judge explains whether the finding is a true risk, harmless documentation context, and why it was confirmed, downgraded, or dismissed.
-4. **Incomplete**: Only shown if a check could not finish (e.g. network timeout or file read failure).
-5. **Model usage**: Token counts, API requests, and estimated monetary cost (if prices are set in config).
+1. **Header**: the skill name and the verdict (`clean`, `review`, `incomplete` or `block`), then the path of the skill. When a rule stops the scan early, a yellow line under the path names the rule.
+2. **References**: every domain, GitHub owner or repository and package that the skill names, with the status of its lookup: `checked`, `not-checked` or `failed`. A problem with a reference shows up as a finding.
+3. **Findings**: the most severe first. Each finding shows:
+   - **First line**: the severity, the rule ID, the rule title and the rule category.
+   - **Description**: what the rule detects.
+   - **Location**: the file and the line, then the text or the value that matched.
+   - **Analysis**: for a finding that a model raised, what the model saw in the skill.
+   - **Judge**: if model review is enabled, the Judge says whether the finding is confirmed, downgraded or dismissed, and why. The Judge checks the flagged text against the rule. What the skill claims about its own good intentions does not count.
+   - A dismissed finding comes last, with `dismissed` in place of the severity.
+4. **Incomplete**: shown only when a check could not finish. The section lists each file, reference and layer that did not finish, with the reason.
+5. **Model usage**: the model and its reasoning effort, the cost and the number of requests per layer. Without prices in the configuration, the cost shows `n/a`. See [Tracking Scan Costs](config.md#tracking-scan-costs).
 
 ### Colors & terminal styling
 
 The terminal output uses colors by default when connected to an interactive TTY:
-- Red for `BLOCK` and `CRITICAL`/`HIGH` findings.
-- Yellow for `REVIEW` and `MEDIUM` findings.
-- Cyan for `INCOMPLETE` scans.
-- Green for `CLEAN` verdicts.
+- Red for `block`, for `critical` and `high` findings, and for references with the `failed` status.
+- Yellow for `review` and `incomplete`, for `medium` findings, and for references with the `not-checked` status.
+- Cyan for dismissed findings.
+- Green for `clean`.
 
 Colors are automatically disabled when output is piped to a file or another command. You can manually disable colors by setting `NO_COLOR=1` or `TERM=dumb`.
 

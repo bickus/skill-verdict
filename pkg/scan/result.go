@@ -20,13 +20,13 @@ type SkillInfo struct {
 }
 
 type Artifact struct {
-	Path        string
-	Kind        string
-	Origin      string
-	ContentType string
-	ReadStatus  string
-	Size        int64
-	Notes       []string
+	Path        string   `json:"path"`
+	Kind        string   `json:"kind"`
+	Origin      string   `json:"origin"`
+	ContentType string   `json:"contentType"`
+	ReadStatus  string   `json:"readStatus"`
+	Size        int64    `json:"size"`
+	Notes       []string `json:"notes,omitempty"`
 }
 
 type ArtifactError struct {
@@ -64,7 +64,7 @@ type Result struct {
 	Findings   []finding.Finding `json:"findings"`
 	Dismissed  []finding.Finding `json:"dismissed"`
 	References []refs.Report     `json:"references"`
-	Artifacts  []Artifact        `json:"-"`
+	Artifacts  []Artifact        `json:"artifacts"`
 	Layers     []LayerStatus     `json:"layers"`
 	Model      *Model            `json:"model,omitempty"`
 	Cost       float64           `json:"cost,omitempty"`

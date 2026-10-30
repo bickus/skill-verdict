@@ -4,6 +4,7 @@
 package report_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -83,6 +84,36 @@ func render(t *testing.T, color bool, r scan.Result) string {
 		t.Fatal(err)
 	}
 	return b.String()
+}
+
+func TestVerboseJSONKeepsTheArtifactBehindAnIncompleteVerdict(t *testing.T) {
+	r := sample()
+	r.Artifacts = append(r.Artifacts, scan.Artifact{
+		Path: "blob.bin", Kind: "content", Origin: "original", ContentType: "unknown", ReadStatus: "ok", Size: 5,
+		Notes: []string{"no reader for this content"},
+	})
+	var b strings.Builder
+	if err := report.VerboseJSON(&b, []scan.Result{r}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Artifacts []struct {
+			Path        string   `json:"path"`
+			ContentType string   `json:"contentType"`
+			ReadStatus  string   `json:"readStatus"`
+			Notes       []string `json:"notes"`
+		} `json:"artifacts"`
+	}
+	if err := json.Unmarshal([]byte(b.String()), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Artifacts) != 2 {
+		t.Fatalf("verbose JSON has %d artifacts, want 2:\n%s", len(got.Artifacts), b.String())
+	}
+	last := got.Artifacts[1]
+	if last.Path != "blob.bin" || last.ContentType != "unknown" || last.ReadStatus != "ok" || len(last.Notes) != 1 || last.Notes[0] != "no reader for this content" {
+		t.Errorf("the uninspected artifact lost its fields: %+v", last)
+	}
 }
 
 func TestTextReplacesControlCharactersFromTheSkill(t *testing.T) {
